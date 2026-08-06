@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
   xp INTEGER NOT NULL DEFAULT 0,
   level INTEGER NOT NULL DEFAULT 1,
   afk_since INTEGER,
-  afk_reason TEXT
+  afk_reason TEXT,
+  job TEXT
 );
 CREATE TABLE IF NOT EXISTS groups (
   jid TEXT PRIMARY KEY,
@@ -65,6 +66,11 @@ CREATE TABLE IF NOT EXISTS rp_family (
 );
 `);
 
+// Migração para instalações que já possuem o banco antigo sem a coluna de profissão.
+try { db.exec('ALTER TABLE users ADD COLUMN job TEXT'); } catch (error) {
+  if (!String(error?.message || '').includes('duplicate column name')) throw error;
+}
+
 export function ensureUser(jid, name = 'Usuário') {
   db.prepare(`INSERT INTO users (jid, name) VALUES (?, ?) ON CONFLICT(jid) DO UPDATE SET name=excluded.name`).run(jid, name);
   return getUser(jid);
@@ -73,7 +79,7 @@ export function getUser(jid) { return db.prepare('SELECT * FROM users WHERE jid 
 export function getTopUsers(limit = 10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY tokens DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function getTopXP(limit = 10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY xp DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function updateUser(jid, patch) {
-  const allowed = new Set(['name','tokens','last_daily','last_weekly','last_steal','xp','level','afk_since','afk_reason']);
+  const allowed = new Set(['name','tokens','last_daily','last_weekly','last_steal','xp','level','afk_since','afk_reason','job']);
   const keys = Object.keys(patch).filter(key => allowed.has(key));
   if (!keys.length) return getUser(jid);
   const set = keys.map(key => `${key} = @${key}`).join(', ');
