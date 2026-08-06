@@ -2,29 +2,37 @@ import config from '../../config.js';
 
 export default {
   name: 'menurpg',
-  aliases: ['rpgmenu'],
+  aliases: ['rpgmenu', 'menurp', 'menurelacionamentos'],
   category: 'geral',
-  description: 'Menu completo de RPG',
+  description: 'Menu de Roleplay e relações sociais',
   async execute({ reply }) {
     const p = config.bot.prefix;
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
-┃  🎮 𝚁𝙿𝙶 • 𝚃𝙾𝙶𝙸
-╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
 
-🗺️ *AVENTURA*
-├ ${p}rpg
-├ ${p}explore
-└ ${p}quest
+    return reply(`╭━━━〔 💞 𝐑𝐏 • 𝐓𝐎𝐆𝐈 〕━━━╮
+┃ ✨ *ROLEPLAY & RELAÇÕES*
+┃ Sistema social do Togi Bot
+╰━━━━━━━━━━━━━━━━━━━━━━━━╯
 
-⚔️ *COMBATE FICTÍCIO*
-├ ${p}battle
-├ ${p}boss
-└ ${p}arena
+💘 *RELACIONAMENTOS*
+• ${p}casal  • Sorteia um casal
+• ${p}ship @pessoa  • Compatibilidade
+• ${p}namorar @pessoa  • Enviar pedido
+• ${p}aceitar @pessoa  • Aceitar pedido
+• ${p}terminar  • Encerrar relacionamento
 
-🏆 *RANKING*
-└ ${p}rpgrank
+👨‍👩‍👧 *FAMÍLIA RP*
+• ${p}familia  • Ver sua família
+• ${p}pai @pessoa  • Definir pai
+• ${p}mae @pessoa  • Definir mãe
+• ${p}filho @pessoa  • Definir filho
+• ${p}irmao @pessoa  • Definir irmão
+• ${p}adotar @pessoa  • Adotar no RP
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⭐ Evolua seu personagem e divirta-se no RPG!`);
+🤝 *SOCIAL*
+• ${p}amizade @pessoa  • Registrar amizade
+• ${p}perfil  • Ver perfil social
+
+${'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'}
+💞 *Tudo aqui é um sistema social fictício para diversão.*`);
   }
 };
