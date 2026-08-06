@@ -254,7 +254,7 @@ async function startBot() {
           sender: effectiveSender,
           chat,
           args,
-          text: args.length ? args.join(' ') : text,
+          text: args.join(' '),
           rawText: text,
           commandName: name.toLowerCase(),
           isGroup,
