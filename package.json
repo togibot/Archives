@@ -15,6 +15,7 @@
     "@whiskeysockets/baileys": "latest",
     "better-sqlite3": "latest",
     "dotenv": "latest",
-    "pino": "latest"
+    "pino": "latest",
+    "sharp": "latest"
   }
 }
