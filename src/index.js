@@ -255,6 +255,7 @@ async function startBot() {
           chat,
           args,
           text,
+          commandName: name.toLowerCase(),
           isGroup,
           reply: commandReply
         });
