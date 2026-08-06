@@ -2,8 +2,8 @@ import { getPets } from '../../database/index.js';
 import { pets } from '../../data/catalog.js';
 
 export default {
-  name: 'meuspets',
-  aliases: ['mypets'],
+  name: 'pets',
+  aliases: ['meuspets', 'mypets'],
   async execute({ sender, reply }) {
     const list = getPets(sender);
     if (!list.length) return reply('🐾 Você ainda não tem pets. Use .petshop para escolher um.');
