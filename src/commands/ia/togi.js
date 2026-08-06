@@ -1,10 +1,10 @@
-import { activateTogi, deactivateTogi } from '../../services/togi-ai.js';
+import { activateTogi, deactivateTogi, askTogi } from '../../services/togi-ai.js';
 
 export default {
   name: 'togi',
-  aliases: ['togia'],
+  aliases: ['togia', 'togioff'],
   async execute({ sender, args, reply }) {
-    if (args[0]?.toLowerCase() === 'off' || args[0]?.toLowerCase() === 'desligar') {
+    if (args[0]?.toLowerCase() === 'off' || args[0]?.toLowerCase() === 'desligar' || args[0]?.toLowerCase() === 'stop') {
       deactivateTogi(sender);
       return reply('╭━━━━━━━━━━━━━━━━━━━━╮\n┃ 🤖 𝙏𝙊𝙂𝙄 𝘼𝙄 𝙊𝙁𝙁 ┃\n╰━━━━━━━━━━━━━━━━━━━━╯\n\nAté depois! Quando quiser conversar comigo novamente, use *.Togi* 😎');
     }
@@ -12,7 +12,11 @@ export default {
     activateTogi(sender);
 
     if (args.length) {
-      return reply('🤖 Só um segundo...');
+      try {
+        return reply(`🤖 ${await askTogi(sender, args.join(' '))}`);
+      } catch (error) {
+        return reply('❌ Não consegui acessar a IA agora. Verifique se GEMINI_API_KEY está configurada no .env.');
+      }
     }
 
     return reply(
