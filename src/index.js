@@ -11,6 +11,7 @@ import config from './config.js';
 import { loadCommands } from './core/command-loader.js';
 import { ensureUser, ensureGroup } from './database/index.js';
 import { getText, getSender, getName } from './utils/message.js';
+import { askTogi, isTogiActive } from './services/togi-ai.js';
 
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
@@ -100,20 +101,10 @@ async function startBot() {
       }
 
       const text = getText(message).trim();
-      if (!text.startsWith(config.bot.prefix)) continue;
-
-      const body = text.slice(config.bot.prefix.length).trim();
-      if (!body) continue;
-
-      const [name, ...args] = body.split(/\s+/);
-      const command = commands.get(name.toLowerCase());
-      if (!command) continue;
-
       const sender = getSender(message);
       const chat = message.key.remoteJid;
       const isGroup = chat?.endsWith('@g.us');
       const userName = getName(message);
-
       const effectiveSender = message.key.fromMe
         ? `${pairingPhone}@s.whatsapp.net`
         : sender;
@@ -126,6 +117,26 @@ async function startBot() {
         if (message.key.fromMe) return sock.sendMessage(chat, payload);
         return sock.sendMessage(chat, payload, { quoted: message });
       };
+
+      // Quando o Togi está ativo para este usuário, mensagens normais entram na conversa com a IA.
+      if (!text.startsWith(config.bot.prefix) && isTogiActive(effectiveSender)) {
+        try {
+          await reply(`🤖 ${await askTogi(effectiveSender, text)}`);
+        } catch (error) {
+          logger.error({ err: error }, 'Erro na Togi AI');
+          await reply('❌ A Togi AI está indisponível no momento. Verifique a configuração da GEMINI_API_KEY.');
+        }
+        continue;
+      }
+
+      if (!text.startsWith(config.bot.prefix)) continue;
+
+      const body = text.slice(config.bot.prefix.length).trim();
+      if (!body) continue;
+
+      const [name, ...args] = body.split(/\s+/);
+      const command = commands.get(name.toLowerCase());
+      if (!command) continue;
 
       try {
         await command.execute({
