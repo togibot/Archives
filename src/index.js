@@ -12,7 +12,7 @@ import { loadCommands } from './core/command-loader.js';
 import { ensureUser, ensureGroup } from './database/index.js';
 import { getText, getSender, getName } from './utils/message.js';
 import { askTogi, isTogiActive } from './services/togi-ai.js';
-import { getAfk, clearAfk } from './commands/economia/afk.js';
+import { getAfk, clearAfk } from './services/afk-store.js';
 import { getCommandReaction } from './config/reactions.js';
 import { getMenuImageUrl } from './config/menu-images.js';
 
@@ -254,7 +254,8 @@ async function startBot() {
           sender: effectiveSender,
           chat,
           args,
-          text,
+          text: args.length ? args.join(' ') : text,
+          rawText: text,
           commandName: name.toLowerCase(),
           isGroup,
           reply: commandReply
