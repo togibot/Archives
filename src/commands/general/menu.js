@@ -1,7 +1,6 @@
 import config from '../../config.js';
 
-const line = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
-const box = (title, body) => `╭${line}╮\n┃  ${title}\n╰${line}╯\n${body}`;
+const line = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
 
 export default {
   name: 'menu',
@@ -9,6 +8,45 @@ export default {
   category: 'geral',
   description: 'Exibe o menu principal do Togi Bot',
   async execute({ reply }) {
-    return reply(box(`🤖 •𝚃𝚘𝚐𝚒 𝚋𝚘𝚝•`, `\n╭─ ✨ *MENU PRINCIPAL*\n│\n├ 🪙 ${config.bot.prefix}menueconomia\n├ 🐾 ${config.bot.prefix}menupets\n├ 🧠 ${config.bot.prefix}menuquiz\n├ 🎮 ${config.bot.prefix}menurpg\n├ 💞 ${config.bot.prefix}menusocial\n├ 👥 ${config.bot.prefix}menugrupo\n├ 🛡️ ${config.bot.prefix}menumoderacao\n├ 🎨 ${config.bot.prefix}menufig\n├ 🎲 ${config.bot.prefix}menudiversao\n├ 🏆 ${config.bot.prefix}menuranking\n├ 🎁 ${config.bot.prefix}menueventos\n├ 🎵 ${config.bot.prefix}menumusica\n├ 🤖 ${config.bot.prefix}menuia\n└ 👑 ${config.bot.prefix}menuvip\n\n╭─ 💜 *DESTAQUES*\n├ 💘 ${config.bot.prefix}casal\n├ ❤️ ${config.bot.prefix}ship @pessoa\n├ 🎲 ${config.bot.prefix}dado\n├ 🪙 ${config.bot.prefix}coin\n└ 🔮 ${config.bot.prefix}8ball pergunta\n\n${line}\n🪙 Moeda oficial: *Token*\n🔥 Togi Bot v${config.bot.version}\n✨ Divirta-se!`));
+    const p = config.bot.prefix;
+    return reply(`╭${line}╮
+┃                                                                              ┃
+┃           ✨  𝐁𝐄𝐌-𝐕𝐈𝐍𝐃𝐎 𝐀𝐎  𝐌𝐄𝐍𝐔 𝐏𝐑𝐈𝐍𝐂𝐈𝐏𝐀𝐋  ✨           ┃
+┃                                                                              ┃
+┃                 🤖 • 𝚃 𝙾 𝙶 𝙸   𝙱 𝙾 𝚃 • 🤖                 ┃
+┃                                                                              ┃
+╰${line}╯
+
+┏${line}┓
+┃                      📂 𝐓𝐎𝐃𝐎𝐒 𝐎𝐒 𝐌𝐄𝐍𝐔𝐒 𝐃𝐈𝐒𝐏𝐎𝐍𝐈́𝐕𝐄𝐈𝐒                      ┃
+┣${line}┫
+┃                                                                              ┃
+┃   🪙  ${p}menueconomia   ║  Riquezas, Moedas e Comércio 💸💰               ┃
+┃   🐾  ${p}menupets       ║  Seus Bichinhos e Companheiros 🐕🐈✨           ┃
+┃   🧠  ${p}menuquiz       ║  Desafios, Perguntas e Conhecimento 📚🧩        ┃
+┃   🎮  ${p}menurpg        ║  Aventuras, Batalhas e Magia ⚔️🛡️🗡️             ┃
+┃   💞  ${p}menusocial     ║  Amizades, Carinho e Relacionamentos ❤️🤝        ┃
+┃   👥  ${p}menugrupo      ║  Comandos Gerais para o Grupo 🏠📢               ┃
+┃   🛡️  ${p}menumoderacao  ║  Segurança, Regras e Controle 🔒⚖️🚫             ┃
+┃   🎨  ${p}menufig        ║  Figurinhas, Artes e Edições 🖼️🎨✏️             ┃
+┃   🎲  ${p}menudiversao   ║  Jogos, Piadas e Muita Zueira 🎉🎊🎮             ┃
+┃   🏆  ${p}menuranking    ║  Os Mais Fortes e Melhores 📈🥇📊                ┃
+┃   🎁  ${p}menueventos    ║  Novidades, Prêmios e Datas Especiais 🎀🎊      ┃
+┃   🎵  ${p}menumusica     ║  Música e Recursos de Áudio 🎶🎧🎤              ┃
+┃   🤖  ${p}menuia         ║  Inteligência, Dúvidas e Respostas 🧠💡📜        ┃
+┃   👑  ${p}menuvip        ║  Vantagens e Benefícios Exclusivos ✨💎👑         ┃
+┃                                                                              ┃
+┃         ⚙️  ${p}menubot      ║  Dados, Versão e Configurações ℹ️📋              ┃
+┃                                                                              ┃
+┗${line}┛
+
+╭${line}╮
+┃                                                                              ┃
+┃      🪙  𝐌𝐨𝐞𝐝𝐚 𝐎𝐟𝐢𝐜𝐢𝐚𝐥:  𝐓𝐨𝐤𝐞𝐧  💎                                      ┃
+┃      🔥  𝐕𝐞𝐫𝐬𝐚̃𝐨:  𝐓𝐨𝐠𝐢  𝐁𝐨𝐭  ─  𝐯${config.bot.version}                             ┃
+┃      👑  𝐂𝐫𝐢𝐚𝐝𝐨𝐫:  𝐋𝐙                                                      ┃
+┃      ⭐  𝐒𝐮𝐛𝐃𝐨𝐧𝐨𝐬:  𝐋𝐤𝐳  •  𝐔𝐧𝐜. (nome a confirmar)                      ┃
+┃                                                                              ┃
+╰${line}╯`);
   }
 };
