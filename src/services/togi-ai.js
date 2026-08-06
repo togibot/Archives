@@ -63,10 +63,10 @@ export async function askTogi(sender, text) {
         'x-goog-api-key': apiKey
       },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents,
         generationConfig: {
-          temperature: 0.9,
+          temperature: 1.0,
           maxOutputTokens: 800
         }
       })
