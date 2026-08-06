@@ -1,9 +1,2 @@
-export default {
-  name: 'menueconomia',
-  aliases: ['economia'],
-  category: 'geral',
-  description: 'Menu de economia',
-  async execute({ reply }) {
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🪙 𝙴𝙲𝙾𝙽𝙾𝙼𝙸𝙰 • 𝚃𝙾𝙺𝙴𝙽\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n💰 *CARTEIRA*\n• .saldo\n• .daily\n• .pay\n\n🏪 *LOJA*\n• .loja\n• .comprar\n• .inventario\n\n🥷 *RISCO*\n• .roubar\n• .escudo 🔜\n\n✨ Mais sistemas de economia em breve!`);
-  }
-};
+import config from '../../config.js';
+export default { name:'menueconomia', aliases:['economia'], category:'geral', description:'Menu de economia', async execute({reply}) { const p=config.bot.prefix; return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🪙 𝙴𝙲𝙾𝙽𝙾𝙼𝙸𝙰 • 𝚃𝙾𝙺𝙴𝙽\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n💰 *CARTEIRA*\n• ${p}saldo\n• ${p}daily\n• ${p}weekly\n• ${p}pay\n\n🏪 *LOJA*\n• ${p}loja\n• ${p}comprar\n• ${p}inventario\n\n🥷 *RISCO*\n• ${p}roubar\n• ${p}escudo\n\n🏆 *RANKING*\n• ${p}rich`); } };
