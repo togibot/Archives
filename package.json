@@ -12,7 +12,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "latest",
+    "@whiskeysockets/baileys": "6.7.23",
     "better-sqlite3": "latest",
     "dotenv": "latest",
     "pino": "latest",
