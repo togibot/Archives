@@ -1,0 +1,2 @@
+import { getTopPets } from '../../database/index.js';
+export default { name:'petstats', aliases:['toppets'], category:'pets', description:'Ranking de pets', async execute({reply}) { const rows=getTopPets(10); const body=rows.map((p,i)=>`${i+1}. 🐾 ${p.name} (${p.species}) — 😊 ${p.happiness}`).join('\n') || 'Ainda não há pets.'; return reply(`╭━━━━━━━━━━━━━━━━━━━━╮\n┃ 🏆 𝚃𝙾𝙿 𝙿𝙴𝚃𝚂\n╰━━━━━━━━━━━━━━━━━━━━╯\n\n${body}`); } };
