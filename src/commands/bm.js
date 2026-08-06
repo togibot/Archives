@@ -17,31 +17,32 @@ const actions = {
   }
 };
 
-function getTarget(m) {
-  return m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0]
-    || m.message?.extendedTextMessage?.contextInfo?.participant;
+function getTarget(message) {
+  const context = message?.message?.extendedTextMessage?.contextInfo;
+  return context?.mentionedJid?.[0] || context?.participant;
 }
 
 export default {
-  command: 'tapa',
+  name: 'tapa',
   aliases: ['chute', 'soco', 'empurrar'],
   category: 'fun',
-  async run(m, { sock, command }) {
-    const jid = m.key.remoteJid;
-    const target = getTarget(m);
-    const action = actions[command];
+  description: 'Ações fictícias de Battle Mode',
+  async execute({ message, sock, commandName, reply }) {
+    const jid = message.key.remoteJid;
+    const target = getTarget(message);
+    const action = actions[String(commandName || 'tapa').toLowerCase()];
 
     if (!target || !action) {
-      await sock.sendMessage(jid, {
-        text: `⚔️ Use *.${command} @pessoa* para fazer uma ação de Battle Mode!`
-      }, { quoted: m });
-      return;
+      return reply(`⚔️ Use *.${commandName || 'tapa'} @pessoa* para fazer uma ação de Battle Mode!`);
     }
 
-    const actor = m.key.participant || m.key.remoteJid;
+    const actor = message.key.participant || message.key.remoteJid;
+    const actorNumber = String(actor).split('@')[0];
+    const targetNumber = String(target).split('@')[0];
+
     await sock.sendMessage(jid, {
-      text: `${action.emoji} @${actor.split('@')[0]} ${action.verb} @${target.split('@')[0]}!\n\n🎮 *Battle Mode* • RP fictício`,
+      text: `${action.emoji} @${actorNumber} ${action.verb} @${targetNumber}!\n\n⚔️ *BATTLE MODE*\n🎮 RP fictício • sem dano real`,
       mentions: [actor, target]
-    }, { quoted: m });
+    }, { quoted: message });
   }
 };
