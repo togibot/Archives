@@ -1,0 +1,20 @@
+{
+  "name": "togi-bot",
+  "version": "1.0.0",
+  "description": "Togi Bot - bot modular para WhatsApp",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "latest",
+    "better-sqlite3": "latest",
+    "pino": "latest",
+    "qrcode-terminal": "latest"
+  }
+}
