@@ -1,0 +1,2 @@
+const settings = new Map();
+export default { name:'antipalavras', aliases:['antipalavra'], category:'admin', description:'Configura palavras bloqueadas', async execute({text,reply}) { const value=text.trim(); if(!value) return reply('🛡️ Use *.antipalavras palavra1, palavra2* para definir a lista.'); const words=value.split(',').map(x=>x.trim().toLowerCase()).filter(Boolean); settings.set('global',words); return reply(`🛡️ Lista anti-palavras atualizada!\n🚫 ${words.length} palavra(s) configurada(s).`); }};
