@@ -1,15 +1,20 @@
+import { getAfk, setAfk, clearAfk } from '../services/afk-store.js';
+
 export default {
-  command: 'afk',
+  name: 'afk',
+  aliases: [],
   category: 'social',
-  async run(m, { sock, text, prefix, afkStore }) {
+  async execute({ sender, reply, text }) {
+    const current = getAfk(sender);
+
+    // .afk é um toggle: usar novamente desativa manualmente.
+    if (current) {
+      clearAfk(sender);
+      return reply('👋 Você saiu do AFK!');
+    }
+
     const reason = text?.trim() || 'não informou o motivo';
-    const sender = m.key.participant || m.key.remoteJid;
-    const now = Date.now();
-    afkStore.set(sender, { reason, since: now });
-    const elapsed = new Date(now).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    await sock.sendMessage(m.key.remoteJid, {
-      text: `╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n┃ 😴 @${sender.split('@')[0]} entrou em AFK.\n┃ 📝 Motivo: ${reason}\n┃ 🕐 Desde: ${elapsed}\n╰━━━━━━━━━━━━━━━━━━╯`,
-      mentions: [sender]
-    }, { quoted: m });
+    setAfk(sender, { reason, since: Date.now() });
+    return reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n┃ 😴 Você entrou em AFK.\n┃ 📝 Motivo: ${reason}\n╰━━━━━━━━━━━━━━━━━━╯`);
   }
 };
