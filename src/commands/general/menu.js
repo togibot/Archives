@@ -1,11 +1,14 @@
 import config from '../../config.js';
 
+const line = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+const box = (title, body) => `╭${line}╮\n┃  ${title}\n╰${line}╯\n${body}`;
+
 export default {
   name: 'menu',
   aliases: ['help', 'ajuda', 'm'],
   category: 'geral',
-  description: 'Exibe o menu principal',
+  description: 'Exibe o menu principal do Togi Bot',
   async execute({ reply }) {
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━╮\n┃      🤖 *${config.bot.name}*      ┃\n╰━━━━━━━━━━━━━━━━━━━━╯\n\n💠 *ECONOMIA — TOKEN*\n• ${config.bot.prefix}saldo\n• ${config.bot.prefix}daily\n• ${config.bot.prefix}pay\n• ${config.bot.prefix}loja\n• ${config.bot.prefix}comprar\n• ${config.bot.prefix}inventario\n• ${config.bot.prefix}roubar\n\n🐾 *PETS*\n• ${config.bot.prefix}petshop\n• ${config.bot.prefix}comprarpet\n• ${config.bot.prefix}pets\n• ${config.bot.prefix}alimentar\n• ${config.bot.prefix}doarpet\n• ${config.bot.prefix}doarcomida\n\n🧠 *QUIZ*\n• ${config.bot.prefix}quiz\n\n🎮 *RPG*\n• ${config.bot.prefix}rpg\n\n❤️ *SOCIAL*\n• ${config.bot.prefix}ship\n\n👥 *GRUPO*\n• ${config.bot.prefix}groupinfo\n• ${config.bot.prefix}kick\n• ${config.bot.prefix}antilink\n\n🎨 *FIGURINHAS*\n• ${config.bot.prefix}sticker\n• ${config.bot.prefix}brat\n\n⚙️ *SISTEMA*\n• ${config.bot.prefix}ping\n• ${config.bot.prefix}perfil\n\n🪙 Moeda oficial: *Token*\n🔥 Togi Bot v${config.bot.version}`);
+    return reply(box(`🤖 •𝚃𝚘𝚐𝚒 𝚋𝚘𝚝•`, `\n✨ *MENU PRINCIPAL*\n\n🪙 ${config.bot.prefix}menueconomia\n🐾 ${config.bot.prefix}menupets\n🧠 ${config.bot.prefix}menuquiz\n🎮 ${config.bot.prefix}menurpg\n💞 ${config.bot.prefix}menusocial\n👥 ${config.bot.prefix}menugrupo\n🛡️ ${config.bot.prefix}menumoderacao\n🎨 ${config.bot.prefix}menufig\n🎲 ${config.bot.prefix}menudiversao\n🏆 ${config.bot.prefix}menuranking\n🎁 ${config.bot.prefix}menueventos\n🎵 ${config.bot.prefix}menumusica\n🤖 ${config.bot.prefix}menuia\n👑 ${config.bot.prefix}menuvip\n\n⚙️ ${config.bot.prefix}menubot\n\n${line}\n🪙 Moeda oficial: *Token*\n🔥 Togi Bot v${config.bot.version}`));
   }
 };
