@@ -49,6 +49,14 @@ export function ensureGroup(jid, subject = '') {
   return getGroup(jid);
 }
 
+export function updateGroup(jid, patch) {
+  const keys = Object.keys(patch);
+  if (!keys.length) return getGroup(jid);
+  const set = keys.map(key => `${key} = @${key}`).join(', ');
+  db.prepare(`UPDATE groups SET ${set} WHERE jid = @jid`).run({ ...patch, jid });
+  return getGroup(jid);
+}
+
 export function closeDatabase() {
   db.close();
 }
