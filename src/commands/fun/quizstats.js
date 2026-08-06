@@ -1,0 +1,2 @@
+import { getQuizStats } from '../../database/index.js';
+export default { name:'quizstats', aliases:['qstats'], category:'quiz', description:'Suas estatísticas de quiz', async execute({sender,reply}) { const s=getQuizStats(sender); const total=s.correct+s.wrong; const rate=total?Math.round(s.correct/total*100):0; return reply(`╭━━━━━━━━━━━━━━━━━━━━╮\n┃ 🧠 𝚀𝚄𝙸𝚉 𝚂𝚃𝙰𝚃𝚂\n╰━━━━━━━━━━━━━━━━━━━━╯\n\n✅ Acertos: ${s.correct}\n❌ Erros: ${s.wrong}\n📈 Aproveitamento: ${rate}%\n🔥 Sequência: ${s.streak}\n🏆 Melhor sequência: ${s.best_streak}`); } };
