@@ -21,6 +21,54 @@ function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
+function getMenuReaction(command) {
+  const category = String(command?.category || '').toLowerCase();
+  const name = String(command?.name || '').toLowerCase();
+
+  if (!name.includes('menu')) return null;
+
+  const reactions = {
+    geral: '📋',
+    economia: '🪙',
+    pets: '🐾',
+    quiz: '🧠',
+    rpg: '🎮',
+    social: '💞',
+    grupo: '👥',
+    group: '👥',
+    moderacao: '🛡️',
+    admin: '🛡️',
+    sticker: '🎨',
+    fig: '🎨',
+    diversao: '🎲',
+    fun: '🎲',
+    ranking: '🏆',
+    eventos: '🎁',
+    musica: '🎵',
+    music: '🎵',
+    ia: '🤖',
+    vip: '👑'
+  };
+
+  return reactions[category] || '📋';
+}
+
+async function reactToMenu(sock, message, command) {
+  const emoji = getMenuReaction(command);
+  if (!emoji) return;
+
+  try {
+    await sock.sendMessage(message.key.remoteJid, {
+      react: {
+        text: emoji,
+        key: message.key
+      }
+    });
+  } catch (error) {
+    logger.debug({ err: error }, 'Não foi possível reagir ao menu.');
+  }
+}
+
 async function startBot() {
   restarting = false;
 
@@ -137,6 +185,8 @@ async function startBot() {
       const [name, ...args] = body.split(/\s+/);
       const command = commands.get(name.toLowerCase());
       if (!command) continue;
+
+      await reactToMenu(sock, message, command);
 
       try {
         await command.execute({
