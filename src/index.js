@@ -12,7 +12,6 @@ import { loadCommands } from './core/command-loader.js';
 import { ensureUser, ensureGroup } from './database/index.js';
 import { getText, getSender, getName } from './utils/message.js';
 import { askTogi, isTogiActive } from './services/togi-ai.js';
-import { grantFirstDailyMessageReward } from './services/daily-message-reward.js';
 import { getAfk, clearAfk } from './services/afk-store.js';
 import { getCommandReaction } from './config/reactions.js';
 import { getMenuImageUrl } from './config/menu-images.js';
@@ -220,27 +219,8 @@ async function startBot() {
         return sock.sendMessage(chat, payload, { quoted: message });
       };
 
-      // A primeira mensagem real de cada usuário no dia rende Tokens automaticamente.
-      // Mensagens enviadas pelo próprio bot não contam para evitar recompensas artificiais.
-      if (!message.key.fromMe && effectiveSender) {
-        try {
-          const reward = grantFirstDailyMessageReward(effectiveSender);
-          if (reward) {
-            const bonusLine = reward.bonus > 0
-              ? `\n🎁 BÔNUS DO DIA: +${reward.bonus} Tokens!`
-              : '';
-            await reply(
-              `🌅 *PRIMEIRA MENSAGEM DO DIA!*\n\n` +
-              `🪙 Recompensa garantida: +${reward.base} Tokens` +
-              `${bonusLine}\n` +
-              `💰 Total recebido: *+${reward.total} Tokens*\n` +
-              `💳 Saldo: ${reward.balance} Tokens`
-            );
-          }
-        } catch (error) {
-          logger.debug({ err: error }, 'Falha ao processar recompensa da primeira mensagem do dia.');
-        }
-      }
+      // O saque diário agora é manual pelo comando .saque.
+      // Mensagens comuns não geram Tokens automaticamente.
 
       // Descobre o comando antes do AFK para que .afk possa desligar o toggle
       // sem ser automaticamente desligado pelo próprio middleware.
