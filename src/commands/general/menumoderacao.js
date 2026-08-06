@@ -4,6 +4,15 @@ export default {
   category: 'geral',
   description: 'Menu de moderação',
   async execute({ reply }) {
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🛡️ 𝙼𝙾𝙳𝙴𝚁𝙰ÇÃ𝙾\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n👮 *GRUPOS*\n• .kick\n• .antilink\n\n🔜 *EM BREVE*\n• .warn\n• .warnings\n• .mute\n• .ban\n• .antispam\n• .antiflood`);
+    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
+┃  🛡️ 𝙼𝙾𝙳𝙴𝚁𝙰ÇÃ𝙾 • 𝚃𝙾𝙶𝙸
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+
+👮 *CONTROLE DO GRUPO*
+├ .kick
+└ .antilink
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛡️ Estes são os comandos de moderação atualmente ativos.`);
   }
 };
