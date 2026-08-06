@@ -1,0 +1,2 @@
+import { getTopXP, getUser } from '../../database/index.js';
+export default { name:'rank', aliases:['levelrank'], category:'geral', description:'Ranking de XP', async execute({sender,reply}) { const rows=getTopXP(10); const me=getUser(sender); const pos=rows.findIndex(u=>u.jid===sender); const body=rows.map((u,i)=>`${i+1}. ${u.name||u.jid.split('@')[0]} — ⭐ ${u.xp} XP`).join('\n')||'Sem jogadores.'; return reply(`╭━━━━━━━━━━━━━━━━━━━━╮\n┃ 🏆 𝙻𝙴𝚅𝙴𝙻 𝚁𝙰𝙽𝙺\n╰━━━━━━━━━━━━━━━━━━━━╯\n\n${body}\n\n📌 Seu nível: ${me.level}${pos>=0?`\n📍 Posição: #${pos+1}`:''}`); } };
