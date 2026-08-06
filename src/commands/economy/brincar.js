@@ -1,0 +1,2 @@
+import { getPet, updatePet } from '../../database/index.js';
+export default { name:'brincar', category:'pets', description:'Brinca com seu pet', async execute({sender,args,reply}) { const p=getPet(sender,args[0]||'1'); if(!p) return reply('❌ Escolha um pet válido.'); const n=Math.min(100,p.happiness+20); const h=Math.min(100,p.hunger-5); updatePet(p.id,{happiness:n,hunger:h}); return reply(`🎾 ${p.name} brincou com você!\n😊 Felicidade: ${n}/100`); } };
