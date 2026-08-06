@@ -12,6 +12,6 @@ export default {
 Nenhum comando de reprodução está ativo nesta versão.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎵 O menu permanece disponível para futuras integrações, sem anunciar comandos que ainda não existem.`);
+🎵 Togi Bot • Menu de música`);
   }
 };
