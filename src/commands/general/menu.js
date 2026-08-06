@@ -21,6 +21,7 @@ export default {
 🐾 ${p}menupets      • Pets
 🧠 ${p}menuquiz      • Quiz
 💞 ${p}menurpg       • RP & Relações
+⚔️ ${p}menubm        • Battle Mode
 👥 ${p}menugrupo     • Grupos
 🛡️ ${p}menuadm       • Administração
 🎨 ${p}menufig       • Figurinhas
