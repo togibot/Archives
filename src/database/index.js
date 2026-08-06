@@ -43,7 +43,12 @@ CREATE TABLE IF NOT EXISTS pets (
   species TEXT NOT NULL,
   health INTEGER NOT NULL DEFAULT 100,
   hunger INTEGER NOT NULL DEFAULT 100,
+  thirst INTEGER NOT NULL DEFAULT 100,
   happiness INTEGER NOT NULL DEFAULT 100,
+  last_needs_update INTEGER NOT NULL DEFAULT 0,
+  walk_count INTEGER NOT NULL DEFAULT 0,
+  walk_date TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'vivo',
   created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS quiz_stats (
@@ -71,6 +76,21 @@ try { db.exec('ALTER TABLE users ADD COLUMN job TEXT'); } catch (error) {
   if (!String(error?.message || '').includes('duplicate column name')) throw error;
 }
 try { db.exec('ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1'); } catch (error) {
+  if (!String(error?.message || '').includes('duplicate column name')) throw error;
+}
+try { db.exec("ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100"); } catch (error) {
+  if (!String(error?.message || '').includes('duplicate column name')) throw error;
+}
+try { db.exec("ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0"); } catch (error) {
+  if (!String(error?.message || '').includes('duplicate column name')) throw error;
+}
+try { db.exec("ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0"); } catch (error) {
+  if (!String(error?.message || '').includes('duplicate column name')) throw error;
+}
+try { db.exec("ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''"); } catch (error) {
+  if (!String(error?.message || '').includes('duplicate column name')) throw error;
+}
+try { db.exec("ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'"); } catch (error) {
   if (!String(error?.message || '').includes('duplicate column name')) throw error;
 }
 
@@ -117,7 +137,8 @@ export function addItem(jid, itemId, quantity) {
 }
 
 export function createPet(ownerJid, name, species) {
-  const result = db.prepare('INSERT INTO pets (owner_jid, name, species, created_at) VALUES (?, ?, ?, ?)').run(ownerJid, name, species, Date.now());
+  const now = Date.now();
+  const result = db.prepare('INSERT INTO pets (owner_jid, name, species, health, hunger, thirst, happiness, last_needs_update, walk_count, walk_date, status, created_at) VALUES (?, ?, ?, 100, 100, 100, 100, ?, 0, ?, \'vivo\', ?)').run(ownerJid, name, species, now, '', now);
   return db.prepare('SELECT * FROM pets WHERE id = ?').get(result.lastInsertRowid);
 }
 export function getPets(ownerJid) { return db.prepare('SELECT * FROM pets WHERE owner_jid = ? ORDER BY id').all(ownerJid); }
@@ -125,9 +146,10 @@ export function getPet(ownerJid, petIdOrName) {
   const numeric = /^\\d+$/.test(String(petIdOrName));
   return numeric ? db.prepare('SELECT * FROM pets WHERE owner_jid = ? AND id = ?').get(ownerJid, Number(petIdOrName)) : db.prepare('SELECT * FROM pets WHERE owner_jid = ? AND lower(name) = lower(?)').get(ownerJid, petIdOrName);
 }
-export function getTopPets(limit = 10) { return db.prepare('SELECT owner_jid,name,species,health,hunger,happiness FROM pets ORDER BY happiness DESC, health DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
+export function getAllLivingPets() { return db.prepare("SELECT * FROM pets WHERE status = 'vivo'").all(); }
+export function getTopPets(limit = 10) { return db.prepare("SELECT owner_jid,name,species,health,hunger,thirst,happiness FROM pets WHERE status = 'vivo' ORDER BY happiness DESC, health DESC LIMIT ?").all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function updatePet(id, patch) {
-  const allowed = ['name','health','hunger','happiness','owner_jid'];
+  const allowed = ['name','health','hunger','thirst','happiness','owner_jid','last_needs_update','walk_count','walk_date','status'];
   const keys = Object.keys(patch).filter(key => allowed.includes(key));
   if (!keys.length) return db.prepare('SELECT * FROM pets WHERE id = ?').get(id);
   const set = keys.map(key => `${key} = @${key}`).join(', ');
@@ -135,7 +157,7 @@ export function updatePet(id, patch) {
   return db.prepare('SELECT * FROM pets WHERE id = ?').get(id);
 }
 export function transferPet(id, fromJid, toJid) {
-  const pet = db.prepare('SELECT * FROM pets WHERE id = ? AND owner_jid = ?').get(id, fromJid);
+  const pet = db.prepare("SELECT * FROM pets WHERE id = ? AND owner_jid = ? AND status = 'vivo'").get(id, fromJid);
   if (!pet) return null;
   db.prepare('UPDATE pets SET owner_jid = ? WHERE id = ?').run(toJid, id);
   return db.prepare('SELECT * FROM pets WHERE id = ?').get(id);
