@@ -118,13 +118,13 @@ export function addTokens(jid, amount) {
   return getUser(jid);
 }
 
-export function claimFirstMessageReward(jid, date) {
+export function claimDailyReward(jid, timestamp) {
   const result = db.prepare(`
     UPDATE users
-    SET last_message_reward_date = ?
+    SET last_daily = ?
     WHERE jid = ?
-      AND (last_message_reward_date IS NULL OR last_message_reward_date != ?)
-  `).run(date, jid, date);
+      AND (last_daily IS NULL OR last_daily = 0 OR last_daily <= ?)
+  `).run(timestamp, jid, timestamp - (24 * 60 * 60 * 1000));
   return result.changes === 1;
 }
 
@@ -152,7 +152,7 @@ export function addItem(jid, itemId, quantity) {
 
 export function createPet(ownerJid, name, species) {
   const now = Date.now();
-  const result = db.prepare('INSERT INTO pets (owner_jid, name, species, health, hunger, thirst, happiness, last_needs_update, walk_count, walk_date, status, created_at) VALUES (?, ?, ?, 100, 100, 100, 100, ?, 0, ?, \'vivo\', ?)').run(ownerJid, name, species, now, '', now);
+  const result = db.prepare('INSERT INTO pets (owner_jid, name, species, health, hunger, thirst, happiness, last_needs_update, walk_count, walk_date, status, created_at) VALUES (?, ?, ?, 100, 100, 100, 100, ?, 0, \'vivo\', ?, ?)').run(ownerJid, name, species, now, '', now);
   return db.prepare('SELECT * FROM pets WHERE id = ?').get(result.lastInsertRowid);
 }
 export function getPets(ownerJid) { return db.prepare('SELECT * FROM pets WHERE owner_jid = ? ORDER BY id').all(ownerJid); }
