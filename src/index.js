@@ -34,8 +34,6 @@ async function startBot() {
     auth: state,
     logger,
     printQRInTerminal: false,
-    // WEB_BROWSER-compatible identity avoids recent WhatsApp Web/Desktop
-    // fingerprint rejections during fresh pairing sessions.
     browser: Browsers.ubuntu('Chrome'),
     markOnlineOnConnect: false
   });
@@ -46,10 +44,6 @@ async function startBot() {
   let pairingRequested = false;
 
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
-    // requestPairingCode must not be called immediately on the initial
-    // "connecting" event: the socket may not have completed its WebSocket
-    // handshake yet, which causes 428 "Connection Closed".
-    // Baileys exposes a QR/ref update once the socket is ready for pairing.
     if (!state.creds.registered && pairingPhone && !pairingRequested && qr) {
       pairingRequested = true;
       try {
@@ -73,19 +67,13 @@ async function startBot() {
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-
-      logger.warn(
-        `🔌 Conexão encerrada (${statusCode ?? 'desconhecido'}). Reconectar: ${shouldReconnect}`
-      );
-
+      logger.warn(`🔌 Conexão encerrada (${statusCode ?? 'desconhecido'}). Reconectar: ${shouldReconnect}`);
       if (shouldReconnect && !restarting) {
         restarting = true;
-        setTimeout(() => {
-          startBot().catch(error => {
-            restarting = false;
-            logger.error({ err: error }, '❌ Falha ao reiniciar o Togi Bot');
-          });
-        }, 3000);
+        setTimeout(() => startBot().catch(error => {
+          restarting = false;
+          logger.error({ err: error }, '❌ Falha ao reiniciar o Togi Bot');
+        }), 3000);
       }
     }
   });
@@ -98,8 +86,11 @@ async function startBot() {
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const message of messages || []) {
-      if (!message?.message || message.key.fromMe) continue;
+      if (!message?.message) continue;
 
+      // Permite testar o bot pela própria conta. Mensagens enviadas pelo
+      // próprio número usam o mesmo caminho de comandos, mas não são
+      // respondidas recursivamente: comandos só são executados uma vez.
       const text = getText(message).trim();
       if (!text.startsWith(config.bot.prefix)) continue;
 
@@ -115,21 +106,29 @@ async function startBot() {
       const isGroup = chat?.endsWith('@g.us');
       const userName = getName(message);
 
-      ensureUser(sender, userName);
+      // Para mensagens fromMe, o remetente real é o próprio número do bot.
+      // Isso permite testar .ping, .menu etc. em uma conversa pessoal sem
+      // depender de outra conta.
+      const effectiveSender = message.key.fromMe
+        ? `${pairingPhone}@s.whatsapp.net`
+        : sender;
+
+      ensureUser(effectiveSender, userName);
       if (isGroup) ensureGroup(chat);
 
-      const reply = (content, options = {}) =>
-        sock.sendMessage(
-          chat,
-          { text: String(content), ...options },
-          { quoted: message }
-        );
+      const reply = async (content, options = {}) => {
+        const payload = { text: String(content), ...options };
+        // Não use quoted em mensagens enviadas pelo próprio bot para evitar
+        // encadeamento/eco desnecessário durante o teste self-chat.
+        if (message.key.fromMe) return sock.sendMessage(chat, payload);
+        return sock.sendMessage(chat, payload, { quoted: message });
+      };
 
       try {
         await command.execute({
           sock,
           message,
-          sender,
+          sender: effectiveSender,
           chat,
           args,
           text,
