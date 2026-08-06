@@ -1,9 +1,2 @@
-export default {
-  name: 'menuquiz',
-  aliases: ['quizmenu'],
-  category: 'geral',
-  description: 'Menu de quiz',
-  async execute({ reply }) {
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🧠 𝚀𝚄𝙸𝚉 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n🎯 *JOGAR*\n• .quiz\n\n🏆 *EM BREVE*\n• .quizrank\n• .quizstats\n• .quizstreak\n\n🔥 Prepare-se para competir por Tokens!`);
-  }
-};
+import config from '../../config.js';
+export default { name:'menuquiz', aliases:['quizmenu'], category:'geral', description:'Menu de quiz', async execute({reply}) { const p=config.bot.prefix; return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🧠 𝚀𝚄𝙸𝚉 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n🎯 *JOGAR*\n• ${p}quiz\n\n📊 *ESTATÍSTICAS*\n• ${p}quizstats\n• ${p}quizstreak\n• ${p}quizrank\n\n🪙 Acertos rendem Tokens e XP!`); } };
