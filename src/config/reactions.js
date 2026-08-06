@@ -1,0 +1,91 @@
+const reactions = {
+  menu: '📋',
+  menueconomia: '🪙',
+  menupets: '🐾',
+  menuquiz: '🧠',
+  menurpg: '🎮',
+  menusocial: '💞',
+  menugrupo: '👥',
+  menumoderacao: '🛡️',
+  menuadm: '🛡️',
+  menufig: '🎨',
+  menudiversao: '🎲',
+  menuranking: '🏆',
+  menueventos: '🎁',
+  menumusica: '🎵',
+  menuia: '🤖',
+  menuvip: '👑',
+  menubot: '⚙️',
+
+  afk: '💤',
+  ausente: '💤',
+  casal: '💞',
+  ship: '❤️',
+  trabalhar: '💰',
+  vagas: '💼',
+  pet: '🐾',
+  petshop: '🐾',
+  petinfo: '🐶',
+  petstats: '📊',
+  meuspets: '🐾',
+  comprarpet: '🛒',
+  loja: '🛍️',
+  comprar: '🛒',
+  daily: '🎁',
+  saldo: '💰',
+  perfil: '👤',
+  inventario: '🎒',
+  pay: '💸',
+  pagar: '💸',
+  rich: '💎',
+  rank: '🏆',
+  ranking: '🏆',
+  dado: '🎲',
+  coin: '🪙',
+  '8ball': '🔮',
+  quiz: '🧠',
+  brath: '🎨',
+  brats: '🎨',
+  fig: '🎨',
+  sticker: '🎨',
+  musica: '🎵',
+  play: '🎵',
+  download: '⬇️',
+  antilink: '🔗',
+  antipalavrao: '🚫',
+  antipalavras: '🚫',
+  kick: '👢'
+};
+
+const categoryReactions = {
+  economia: '🪙',
+  economy: '🪙',
+  pets: '🐾',
+  quiz: '🧠',
+  rpg: '🎮',
+  social: '💞',
+  grupo: '👥',
+  group: '👥',
+  moderacao: '🛡️',
+  admin: '🛡️',
+  adm: '🛡️',
+  sticker: '🎨',
+  fig: '🎨',
+  diversao: '🎲',
+  fun: '🎲',
+  ranking: '🏆',
+  eventos: '🎁',
+  musica: '🎵',
+  music: '🎵',
+  ia: '🤖',
+  vip: '👑'
+};
+
+export function getCommandReaction(command) {
+  if (!command) return null;
+  const name = String(command.name || command.command || '').toLowerCase();
+  if (reactions[name]) return reactions[name];
+  return categoryReactions[String(command.category || '').toLowerCase()] || null;
+}
+
+export default reactions;
