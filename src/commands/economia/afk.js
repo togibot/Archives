@@ -1,8 +1,4 @@
-const afkUsers = new Map();
-
-export const getAfk = user => afkUsers.get(user);
-export const clearAfk = user => afkUsers.delete(user);
-export const hasAfk = user => afkUsers.has(user);
+import { setAfk, getAfk, clearAfk } from '../../services/afk-store.js';
 
 function formatDuration(since) {
   const elapsed = Math.max(0, Date.now() - since);
@@ -23,13 +19,11 @@ export default {
   category: 'social',
   description: 'Ativa ou desativa o modo AFK',
   async execute({ sender, text, reply }) {
-    const value = text.trim();
+    const value = String(text || '').trim();
 
     if (/^(off|sair|voltar|desativar)$/i.test(value)) {
       const entry = getAfk(sender);
-      if (!entry) {
-        return reply('🟢 Você não está em AFK.');
-      }
+      if (!entry) return reply('🟢 Você não está em AFK.');
 
       clearAfk(sender);
       return reply(
@@ -41,19 +35,13 @@ export default {
     }
 
     const reason = value || 'sem motivo informado';
-    const now = Date.now();
-
-    afkUsers.set(sender, {
-      reason,
-      since: now
-    });
+    setAfk(sender, { reason, since: Date.now() });
 
     return reply(
       `╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n` +
       `┃ 😴 AFK ativado!\n` +
       `┃ 📝 Motivo: ${reason}\n` +
-      `┃ 💡 Você sairá do AFK automaticamente\n` +
-      `┃ assim que enviar qualquer mensagem.\n` +
+      `┃ 💬 Envie qualquer mensagem para sair automaticamente.\n` +
       `╰━━━━━━━━━━━━━━━━━━╯`
     );
   }
