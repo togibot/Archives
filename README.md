@@ -1,190 +1,135 @@
-# 🤖 Togi Bot
+# 🤖 • 𝚃𝙾𝙶𝙸 𝙱𝙾𝚃 •
 
-«O bot completo para deixar seu WhatsApp muito mais divertido.»
+> Um bot modular para WhatsApp focado em diversão, grupos, economia, RPG, social, figurinhas e IA.
 
-O Togi Bot é um bot modular para WhatsApp desenvolvido com Node.js + Baileys, criado para oferecer diversão, ferramentas para grupos, economia, RPG, sistema social, figurinhas, música e recursos de IA em uma única plataforma.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
----
+## 👑 CRÉDITOS
 
-# 💠 Economia — Token
+- 👑 **Criador:** LZ
+- ⭐ **SubDonos:** Lkz • Unc. (nome a confirmar)
 
-A moeda oficial do Togi Bot é:
+## 🪙 ECONOMIA — TOKEN
 
-🪙 Token
+A moeda oficial do Togi Bot é **Token**.
 
-O Token será utilizado em diversos sistemas do bot, incluindo:
+### Comandos ativos
 
-- 💰 Economia
-- 🛒 Loja
-- 🎁 Recompensas
-- 🎮 RPG
-- ❤️ Sistemas sociais
-- 🏆 Eventos
-- 🎲 Minijogos
+`saldo` • `daily` • `weekly` • `pay` • `rich`
 
----
+`loja` • `comprar` • `inventario`
 
-🚀 Recursos planejados
+`roubar` • `escudo`
 
-⚙️ Sistema principal
+### 🐾 Pets
 
-- 🔗 Conexão por Pairing Code
-- 📡 Baileys
-- 🔄 Reconexão automática
-- 📦 Sistema modular
-- ⚡ Carregamento automático de comandos
-- ⚙️ Configuração centralizada
-- 🔐 Sistema de permissões
+`meuspets` • `petinfo` • `petshop` • `comprarpet`
 
-💰 Economia
+`alimentar` • `brincar` • `dormir` • `curar`
 
-- 🪙 Token
-- 💳 Saldo
-- 🎁 Recompensas diárias
-- 💸 Transferências
-- 🛒 Loja
-- 📊 Ranking econômico
+`doarpet` • `doarcomida` • `petstats`
 
-🎮 RPG
+## 🎮 RPG
 
-- 👤 Perfil
-- ⭐ XP e níveis
-- ⚔️ Sistema de batalha
-- 🎒 Inventário
-- 🗺️ Aventuras
-- 💰 Recompensas
+`rpg` • `explore` • `quest`
 
-❤️ Social
+`battle` • `boss` • `arena`
 
-- 💕 Casais
-- 💍 Casamento
-- 💔 Divórcio
-- 👨‍👩‍👧 Família
-- 💞 Ship
-- 👤 Perfil social
+`rpgrank`
 
-👥 Grupos
+## 💞 SOCIAL
 
-- 🛡️ Moderação
-- 👢 Banimento
-- 🚪 Remoção de membros
-- ⬆️ Promoção
-- ⬇️ Rebaixamento
-- ⚠️ Avisos
-- 🔗 Anti-link
-- 🚫 Anti-spam
-- ⚙️ Configurações individuais por grupo
+`ship` • `casal`
 
-🎨 Figurinhas
+`.casal` sorteia duas pessoas do grupo e calcula uma porcentagem de compatibilidade de forma aleatória, apenas para diversão.
 
-- 🖼️ Imagem → figurinha
-- 🎞️ Vídeo → figurinha
-- ✨ Figurinhas personalizadas
-- 📝 Brat
-- 🖼️ Comandos de edição
+## 🎲 DIVERSÃO
 
-🎵 Música
+`8ball` • `dado` • `coin`
 
-- 🎵 Sistema de músicas
-- 📋 Fila por grupo
-- ⏯️ Controle de reprodução
-- 🔊 Sistema preparado para diferentes provedores
+`quiz` • `quizrank` • `quizstats` • `quizstreak`
 
-🤖 IA
+## 👥 GRUPOS / MODERAÇÃO
 
-- 💬 Conversação com IA
-- 🧠 Recursos inteligentes
-- 👑 Sistema especial para usuários VIP
-- ⚙️ Integração configurável
+`groupinfo` • `kick` • `antilink`
 
-😴 AFK
+## 🎨 FIGURINHAS
 
-- 💤 Sistema AFK
-- ⏱️ Registro de tempo
-- 💬 Resposta automática
-- 🔔 Notificação ao retornar
+`sticker` • `brat`
 
----
+## 🤖 IA
 
-🗂️ Estrutura
+`Togi` / `.Togi`
 
-Togi-Bot/
-│
-├── src/
-│   ├── index.js
-│   ├── config.js
-│   │
-│   ├── core/
-│   │   ├── connection/
-│   │   ├── commands/
-│   │   ├── permissions/
-│   │   └── events/
-│   │
-│   ├── database/
-│   │
-│   ├── commands/
-│   │   ├── admin/
-│   │   ├── economy/
-│   │   ├── rpg/
-│   │   ├── social/
-│   │   ├── family/
-│   │   ├── group/
-│   │   ├── sticker/
-│   │   ├── music/
-│   │   └── ai/
-│   │
-│   ├── events/
-│   │
-│   └── utils/
-│
-├── data/
-├── package.json
-├── README.md
-└── LICENSE
+A integração de IA utiliza uma chave configurada por variável de ambiente. Nenhuma chave ou sessão deve ser publicada no repositório.
 
----
+## 😴 GERAL
 
-🛠️ Tecnologias
+`menu` • `menubot` • `ping` • `perfil` • `rank` • `afk`
+
+### Menus
+
+`menueconomia` • `menupets` • `menuquiz` • `menurpg` • `menusocial`
+
+`menugrupo` • `menumoderacao` • `menufig` • `menudiversao`
+
+`menuranking` • `menueventos` • `menumusica` • `menuia` • `menuvip`
+
+## ⚙️ ARQUITETURA
 
 - Node.js
+- JavaScript / ES Modules
 - Baileys
 - SQLite
-- JavaScript
 - Pino
-- Outras bibliotecas conforme cada módulo
+- Carregador automático de comandos
+- Pairing Code
+- Reconexão automática
+- Sistema de aliases
+- Sistema modular por categorias
 
----
+## 🔐 SEGURANÇA
 
-🔐 Segurança
+Nunca publique:
 
-O Togi Bot deve manter informações sensíveis fora do código público.
-
-Nunca coloque no repositório:
-
-- 🔑 Tokens de APIs
+- 🔑 Chaves de API
 - 📱 Sessões do WhatsApp
 - 🔐 Senhas
-- 🗝️ Chaves privadas
+- 🗝️ Tokens privados
 - 📄 Dados pessoais
 
-Utilize variáveis de ambiente e arquivos locais apropriados.
+Use `.env` e mantenha arquivos de sessão fora do repositório.
 
----
+## 📜 LICENÇA
 
-📌 Status
+**Togi Bot é um projeto proprietário.**
 
-🚧 Em desenvolvimento
+Não é concedida permissão para:
 
-O projeto está sendo construído de forma modular para facilitar futuras atualizações, novos comandos e novos sistemas.
+- ❌ Fork
+- ❌ Clone para redistribuição ou reutilização
+- ❌ Cópia substancial do código
+- ❌ Rebranding
+- ❌ Redistribuição
+- ❌ Venda ou sublicenciamento do código
+- ❌ Publicação do código em outro repositório
 
----
+Consulte o arquivo [`LICENSE`](LICENSE) para os termos completos.
 
-📜 Licença
+> A visibilidade pública do GitHub não significa que o código seja Open Source nem concede direitos de reutilização.
 
-A licença do projeto será definida conforme a versão final e os componentes utilizados.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
----
+## 📌 STATUS
 
-🤖 Togi Bot
+**Togi Bot v1.0.0**
 
-Diversão. Sistemas. Comunidade. Tudo em um só bot.
+O repositório contém os comandos atualmente implementados. Menus não anunciam comandos fictícios como se já existissem.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### 🤖 • 𝚃𝙾𝙶𝙸 𝙱𝙾𝚃 •
+
+**Diversão. Sistemas. Comunidade. Tudo em um só bot.**
+
+© 2026 LZ / Togi Bot
