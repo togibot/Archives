@@ -24,6 +24,6 @@ export default {
     updateUser(sender, { tokens: user.tokens - pet.price });
     const created = createPet(sender, name, id);
 
-    await reply(`🎉 PET ADQUIRIDO!\n\n${pet.emoji} ${created.name}\n🏷️ ${pet.tier}\n❤️ Saúde: 100\n🍖 Fome: 100\n😊 Felicidade: 100\n\n🪙 -${pet.price} Tokens`);
+    await reply(`🎉 PET ADQUIRIDO!\n\n${pet.emoji} ${created.name}\n🏷️ ${pet.tier}\n❤️ Saúde: 100\n🍖 Fome: 100\n💧 Sede: 100\n😊 Felicidade: 100\n\n🪙 -${pet.price} Tokens`);
   }
 };
