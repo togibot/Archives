@@ -51,6 +51,18 @@ CREATE TABLE IF NOT EXISTS quiz_stats (
   streak INTEGER NOT NULL DEFAULT 0,
   best_streak INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS rp_relationships (
+  user_a TEXT PRIMARY KEY,
+  user_b TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS rp_family (
+  user_jid TEXT NOT NULL,
+  relation TEXT NOT NULL,
+  target_jid TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_jid, relation, target_jid)
+);
 `);
 
 export function ensureUser(jid, name = 'Usuário') {
@@ -118,6 +130,30 @@ export function transferPet(id, fromJid, toJid) {
   if (!pet) return null;
   db.prepare('UPDATE pets SET owner_jid = ? WHERE id = ?').run(toJid, id);
   return db.prepare('SELECT * FROM pets WHERE id = ?').get(id);
+}
+
+function relationshipKey(a, b) {
+  return [String(a), String(b)].sort();
+}
+export function getRelationship(jid) {
+  return db.prepare('SELECT * FROM rp_relationships WHERE user_a = ? OR user_b = ?').get(jid, jid) || null;
+}
+export function setRelationship(a, b) {
+  const [userA, userB] = relationshipKey(a, b);
+  db.prepare('INSERT OR REPLACE INTO rp_relationships (user_a,user_b,created_at) VALUES (?,?,?)').run(userA, userB, Date.now());
+  return getRelationship(a);
+}
+export function removeRelationship(jid) {
+  db.prepare('DELETE FROM rp_relationships WHERE user_a = ? OR user_b = ?').run(jid, jid);
+}
+export function setFamilyRelation(userJid, relation, targetJid) {
+  const singleRelations = new Set(['pai', 'mae']);
+  if (singleRelations.has(relation)) db.prepare('DELETE FROM rp_family WHERE user_jid = ? AND relation = ?').run(userJid, relation);
+  db.prepare('INSERT OR IGNORE INTO rp_family (user_jid, relation, target_jid, created_at) VALUES (?,?,?,?)').run(userJid, relation, targetJid, Date.now());
+  return getFamily(userJid);
+}
+export function getFamily(jid) {
+  return db.prepare('SELECT * FROM rp_family WHERE user_jid = ? ORDER BY relation, created_at').all(jid);
 }
 
 export function getQuizStats(jid) {
