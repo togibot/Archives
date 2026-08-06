@@ -1,0 +1,2 @@
+import { addTokens, getUser, updateUser } from '../../database/index.js';
+export default { name:'quest', aliases:['missao'], category:'rpg', description:'Completa uma missão', async execute({sender,reply}) { const quests=[['🧹 Limpar a vila',180,35],['🐉 Investigar uma caverna',260,55],['📦 Entregar um artefato',220,45]]; const q=quests[Math.floor(Math.random()*quests.length)]; addTokens(sender,q[1]); const u=getUser(sender), xp=u.xp+q[2]; updateUser(sender,{xp,level:Math.floor(xp/500)+1}); return reply(`📜 *MISSÃO CONCLUÍDA*\n\n${q[0]}\n🪙 +${q[1]} Tokens\n⭐ +${q[2]} XP`); } };
