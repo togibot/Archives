@@ -76,7 +76,7 @@ async function startBot() {
     ensureUser(sender, userName);
     if (isGroup) ensureGroup(chat);
 
-    const reply = content => sock.sendMessage(chat, { text: String(content) }, { quoted: message });
+    const reply = (content, options = {}) => sock.sendMessage(chat, { text: String(content), ...options }, { quoted: message });
 
     try {
       await command.execute({ sock, message, sender, chat, args, text, isGroup, reply });
