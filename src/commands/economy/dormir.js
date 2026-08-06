@@ -1,0 +1,2 @@
+import { getPet, updatePet } from '../../database/index.js';
+export default { name:'dormir', category:'pets', description:'Deixa o pet descansar', async execute({sender,args,reply}) { const p=getPet(sender,args[0]||'1'); if(!p) return reply('❌ Escolha um pet válido.'); const h=Math.min(100,p.health+10), e=Math.min(100,p.happiness+5); updatePet(p.id,{health:h,happiness:e}); return reply(`😴 ${p.name} descansou!\n❤️ Saúde: ${h}/100`); } };
