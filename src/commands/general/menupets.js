@@ -1,9 +1,2 @@
-export default {
-  name: 'menupets',
-  aliases: ['petsmenu'],
-  category: 'geral',
-  description: 'Menu de pets',
-  async execute({ reply }) {
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🐾 𝙿𝙴𝚃𝚂 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n🐶 *MEUS PETS*\n• .pets\n• .petshop\n• .comprarpet\n\n❤️ *CUIDADOS*\n• .alimentar\n\n🎁 *SOCIAL*\n• .doarpet\n• .doarcomida\n\n⭐ Novos cuidados, raridades e níveis de pet em breve!`);
-  }
-};
+import config from '../../config.js';
+export default { name:'menupets', aliases:['petsmenu'], category:'geral', description:'Menu de pets', async execute({reply}) { const p=config.bot.prefix; return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🐾 𝙿𝙴𝚃𝚂 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n🐶 *MEUS PETS*\n• ${p}meuspets\n• ${p}petinfo\n• ${p}petshop\n• ${p}comprarpet\n\n❤️ *CUIDADOS*\n• ${p}alimentar\n• ${p}brincar\n• ${p}dormir\n• ${p}curar\n\n🎁 *SOCIAL*\n• ${p}doarpet\n• ${p}doarcomida\n\n🏆 *RANKING*\n• ${p}petstats`); } };
