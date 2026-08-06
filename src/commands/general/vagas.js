@@ -75,6 +75,6 @@ export default {
   description: 'Mostra empregos disponíveis e seus pagamentos',
   async execute({ reply }) {
     const lines = jobs.map((job, i) => `${i + 1}. ${job.emoji} *${job.name}*\n   💰 ${job.pay[0]}–${job.pay[1]} Tokens por trabalho\n   └ ${job.description}`);
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  💼 𝚅𝙰𝙶𝙰𝚂 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\nEscolha seu emprego pelo nome ou número:\n\n${lines.join('\n\n')}\n\n💡 Use *.trabalhar <emprego>*\n📌 Limite: *3 trabalhos por dia*`);
+    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  💼 𝚅𝙰𝙶𝙰𝚂 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\nEscolha sua profissão usando o número:\n\n${lines.join('\n\n')}\n\n💡 Use *.escolher <número>* para entrar em uma profissão.\n💼 Depois use *.trabalhar* para trabalhar.\n📤 Para sair: *.demissao*\n📌 Limite: *3 trabalhos por dia*`);
   }
 };
