@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import makeWASocket, { DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import P from 'pino';
-import qrcode from 'qrcode-terminal';
 import fs from 'node:fs/promises';
 import config from './config.js';
 import { loadCommands } from './core/command-loader.js';
@@ -30,22 +29,20 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
-    if (qr) qrcode.generate(qr, { small: true });
+  if (!state.creds.registered && config.connection.pairingPhone) {
+    try {
+      const phone = config.connection.pairingPhone.replace(/[^0-9]/g, '');
+      const code = await sock.requestPairingCode(phone);
+      logger.info(`🔐 Pairing Code: ${code}`);
+    } catch (error) {
+      logger.error(error, 'Falha ao gerar Pairing Code');
+    }
+  }
 
+  sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'open') {
       reconnecting = false;
       logger.info(`🤖 ${config.bot.name} conectado com ${commands.size} comandos.`);
-
-      if (config.connection.pairingPhone && !sock.authState?.creds?.registered) {
-        try {
-          const phone = config.connection.pairingPhone.replace(/[^0-9]/g, '');
-          const code = await sock.requestPairingCode(phone);
-          logger.info(`🔐 Pairing Code: ${code}`);
-        } catch (error) {
-          logger.error(error, 'Falha ao gerar Pairing Code');
-        }
-      }
     }
 
     if (connection === 'close') {
