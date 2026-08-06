@@ -5,6 +5,10 @@ export const config = {
     prefix: '.',
     version: '1.0.0'
   },
+  credits: {
+    owner: 'LZ',
+    subOwners: ['Lkz', 'Unc. (nome a confirmar)']
+  },
   owner: {
     numbers: (process.env.OWNER_NUMBERS || '').split(',').map(v => v.trim()).filter(Boolean)
   },
