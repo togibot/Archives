@@ -71,17 +71,19 @@ function findAfkEntry(keys) {
   return null;
 }
 
-async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply) {
-  const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock }));
-
-  if (ownAfk) {
-    clearAfk(ownAfk.key);
-    await reply(
-      `👋 @${effectiveSender.split('@')[0]} saiu do AFK!\n` +
-      `⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.entry.since)}\n` +
-      `📝 Motivo: ${ownAfk.entry.reason}`,
-      { mentions: [effectiveSender] }
-    );
+async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, autoDisable = true) {
+  // O comando .afk é tratado pelo próprio comando para funcionar como toggle.
+  if (autoDisable) {
+    const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock }));
+    if (ownAfk) {
+      clearAfk(ownAfk.key);
+      await reply(
+        `👋 @${effectiveSender.split('@')[0]} saiu do AFK!\n` +
+        `⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.entry.since)}\n` +
+        `📝 Motivo: ${ownAfk.entry.reason}`,
+        { mentions: [effectiveSender] }
+      );
+    }
   }
 
   if (!isGroup) return;
@@ -216,8 +218,25 @@ async function startBot() {
         return sock.sendMessage(chat, payload, { quoted: message });
       };
 
+      // Descobre o comando antes do AFK para que .afk possa desligar o toggle
+      // sem ser automaticamente desligado pelo próprio middleware.
+      let parsedCommandName = '';
+      if (text.startsWith(config.bot.prefix)) {
+        const body = text.slice(config.bot.prefix.length).trim();
+        parsedCommandName = body.split(/\s+/)[0]?.toLowerCase() || '';
+      }
+
       try {
-        await handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply);
+        await handleAfk(
+          sock,
+          message,
+          effectiveSender,
+          sender,
+          pairingPhone,
+          isGroup,
+          reply,
+          parsedCommandName !== 'afk'
+        );
       } catch (error) {
         logger.debug({ err: error }, 'Falha ao processar AFK.');
       }
@@ -258,17 +277,17 @@ async function startBot() {
           rawText: text,
           commandName: name.toLowerCase(),
           isGroup,
-          reply: commandReply
+          reply: commandReply,
+          react: async (emoji) => {
+            try { await sock.sendMessage(chat, { react: { text: emoji, key: message.key } }); } catch {}
+          }
         });
       } catch (error) {
-        logger.error({ err: error }, `Erro no comando ${name}`);
-        await reply('❌ Ocorreu um erro ao executar esse comando.');
+        logger.error({ err: error, command: name }, `Erro no comando ${name}`);
+        await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`);
       }
     }
   });
 }
 
-startBot().catch(error => {
-  logger.error({ err: error }, '❌ Falha fatal ao iniciar o Togi Bot');
-  process.exitCode = 1;
-});
+startBot().catch(error => logger.error({ err: error }, '❌ Falha fatal ao iniciar o Togi Bot'));
