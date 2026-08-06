@@ -4,6 +4,14 @@ export default {
   category: 'geral',
   description: 'Menu de música',
   async execute({ reply }) {
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🎵 𝙼Ú𝚂𝙸𝙲𝙰 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n🎧 *MÚSICA*\n• .play 🔜\n• .pause 🔜\n• .resume 🔜\n• .skip 🔜\n• .stop 🔜\n\n📋 *FILA*\n• .queue 🔜\n• .nowplaying 🔜\n\n🎵 Sistema de música em expansão!`);
+    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
+┃  🎵 𝙼Ú𝚂𝙸𝙲𝙰 • 𝚃𝙾𝙶𝙸
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+
+🎧 *SISTEMA DE MÚSICA*
+Nenhum comando de reprodução está ativo nesta versão.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎵 O menu permanece disponível para futuras integrações, sem anunciar comandos que ainda não existem.`);
   }
 };
