@@ -1,9 +1,2 @@
-export default {
-  name: 'menuranking',
-  aliases: ['rankingmenu'],
-  category: 'geral',
-  description: 'Menu de rankings',
-  async execute({ reply }) {
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🏆 𝚁𝙰𝙽𝙺𝙸𝙽𝙶𝚂 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n🪙 *ECONOMIA*\n• .rich 🔜\n\n⭐ *PROGRESSO*\n• .rank 🔜\n• .quizrank 🔜\n• .rpgrank 🔜\n• .toppets 🔜\n\n🏆 Compete e suba no ranking!`);
-  }
-};
+import config from '../../config.js';
+export default { name:'menuranking', aliases:['rankingmenu'], category:'geral', description:'Menu de rankings', async execute({reply}) { const p=config.bot.prefix; return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🏆 𝚁𝙰𝙽𝙺𝙸𝙽𝙶𝚂 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n🪙 *ECONOMIA*\n• ${p}rich\n\n⭐ *PROGRESSO*\n• ${p}rank\n• ${p}quizrank\n• ${p}rpgrank\n• ${p}petstats\n\n🏆 Compita e suba no ranking!`); } };
