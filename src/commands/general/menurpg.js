@@ -1,9 +1,2 @@
-export default {
-  name: 'menurpg',
-  aliases: ['rpgmenu'],
-  category: 'geral',
-  description: 'Menu de RPG',
-  async execute({ reply }) {
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🎮 𝚁𝙿𝙶 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n⚔️ *AVENTURA*\n• .rpg\n\n🗺️ *EM BREVE*\n• .explore\n• .quest\n• .battle\n• .boss\n• .arena\n\n🏆 O RPG completo será expandido em breve!`);
-  }
-};
+import config from '../../config.js';
+export default { name:'menurpg', aliases:['rpgmenu'], category:'geral', description:'Menu de RPG', async execute({reply}) { const p=config.bot.prefix; return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🎮 𝚁𝙿𝙶 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n⚔️ *AVENTURA*\n• ${p}rpg\n• ${p}explore\n• ${p}quest\n\n⚔️ *COMBATE FICTÍCIO*\n• ${p}battle\n• ${p}boss\n• ${p}arena\n\n⭐ Ganhe XP e Tokens enquanto evolui!`); } };
