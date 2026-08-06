@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS users (
   afk_since INTEGER,
   afk_reason TEXT,
   job TEXT,
-  pet_shop_level INTEGER NOT NULL DEFAULT 1
+  pet_shop_level INTEGER NOT NULL DEFAULT 1,
+  last_message_reward_date TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS groups (
   jid TEXT PRIMARY KEY,
@@ -78,6 +79,9 @@ try { db.exec('ALTER TABLE users ADD COLUMN job TEXT'); } catch (error) {
 try { db.exec('ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1'); } catch (error) {
   if (!String(error?.message || '').includes('duplicate column name')) throw error;
 }
+try { db.exec("ALTER TABLE users ADD COLUMN last_message_reward_date TEXT NOT NULL DEFAULT ''"); } catch (error) {
+  if (!String(error?.message || '').includes('duplicate column name')) throw error;
+}
 try { db.exec("ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100"); } catch (error) {
   if (!String(error?.message || '').includes('duplicate column name')) throw error;
 }
@@ -102,7 +106,7 @@ export function getUser(jid) { return db.prepare('SELECT * FROM users WHERE jid 
 export function getTopUsers(limit = 10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY tokens DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function getTopXP(limit = 10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY xp DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function updateUser(jid, patch) {
-  const allowed = new Set(['name','tokens','last_daily','last_weekly','last_steal','xp','level','afk_since','afk_reason','job','pet_shop_level']);
+  const allowed = new Set(['name','tokens','last_daily','last_weekly','last_steal','xp','level','afk_since','afk_reason','job','pet_shop_level','last_message_reward_date']);
   const keys = Object.keys(patch).filter(key => allowed.has(key));
   if (!keys.length) return getUser(jid);
   const set = keys.map(key => `${key} = @${key}`).join(', ');
@@ -112,6 +116,16 @@ export function updateUser(jid, patch) {
 export function addTokens(jid, amount) {
   db.prepare('UPDATE users SET tokens = MAX(0, tokens + ?) WHERE jid = ?').run(Math.trunc(amount), jid);
   return getUser(jid);
+}
+
+export function claimDailyReward(jid, timestamp) {
+  const result = db.prepare(`
+    UPDATE users
+    SET last_daily = ?
+    WHERE jid = ?
+      AND (last_daily IS NULL OR last_daily = 0 OR last_daily <= ?)
+  `).run(timestamp, jid, timestamp - (24 * 60 * 60 * 1000));
+  return result.changes === 1;
 }
 
 export function getGroup(jid) { return db.prepare('SELECT * FROM groups WHERE jid = ?').get(jid); }
@@ -138,7 +152,7 @@ export function addItem(jid, itemId, quantity) {
 
 export function createPet(ownerJid, name, species) {
   const now = Date.now();
-  const result = db.prepare('INSERT INTO pets (owner_jid, name, species, health, hunger, thirst, happiness, last_needs_update, walk_count, walk_date, status, created_at) VALUES (?, ?, ?, 100, 100, 100, 100, ?, 0, ?, \'vivo\', ?)').run(ownerJid, name, species, now, '', now);
+  const result = db.prepare('INSERT INTO pets (owner_jid, name, species, health, hunger, thirst, happiness, last_needs_update, walk_count, walk_date, status, created_at) VALUES (?, ?, ?, 100, 100, 100, 100, ?, 0, \'vivo\', ?, ?)').run(ownerJid, name, species, now, '', now);
   return db.prepare('SELECT * FROM pets WHERE id = ?').get(result.lastInsertRowid);
 }
 export function getPets(ownerJid) { return db.prepare('SELECT * FROM pets WHERE owner_jid = ? ORDER BY id').all(ownerJid); }
