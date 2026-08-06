@@ -1,0 +1,2 @@
+import { getTopXP } from '../../database/index.js';
+export default { name:'rpgrank', aliases:['rpg-ranking'], category:'rpg', description:'Ranking de aventureiros', async execute({reply}) { const rows=getTopXP(10); const body=rows.map((u,i)=>`${i+1}. ⚔️ ${u.name||u.jid.split('@')[0]} — Lv.${u.level} | ${u.xp} XP`).join('\n')||'Sem aventureiros.'; return reply(`╭━━━━━━━━━━━━━━━━━━━━╮\n┃ ⚔️ 𝚁𝙿𝙶 𝚁𝙰𝙽𝙺\n╰━━━━━━━━━━━━━━━━━━━━╯\n\n${body}`); } };
