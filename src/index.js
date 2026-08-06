@@ -28,6 +28,7 @@ async function startBot() {
 
   const { state, saveCreds } = await useMultiFileAuthState(config.connection.authDir);
   const { version } = await fetchLatestBaileysVersion();
+  const messageCache = new Map();
 
   const sock = makeWASocket({
     version,
@@ -35,7 +36,11 @@ async function startBot() {
     logger,
     printQRInTerminal: false,
     browser: Browsers.ubuntu('Chrome'),
-    markOnlineOnConnect: false
+    markOnlineOnConnect: false,
+    emitOwnEvents: true,
+    syncFullHistory: false,
+    shouldSyncHistoryMessage: () => false,
+    getMessage: async (key) => messageCache.get(key.id)?.message || undefined
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -88,9 +93,12 @@ async function startBot() {
     for (const message of messages || []) {
       if (!message?.message) continue;
 
-      // Permite testar o bot pela própria conta. Mensagens enviadas pelo
-      // próprio número usam o mesmo caminho de comandos, mas não são
-      // respondidas recursivamente: comandos só são executados uma vez.
+      messageCache.set(message.key.id, message);
+      if (messageCache.size > 200) {
+        const firstKey = messageCache.keys().next().value;
+        messageCache.delete(firstKey);
+      }
+
       const text = getText(message).trim();
       if (!text.startsWith(config.bot.prefix)) continue;
 
@@ -106,9 +114,6 @@ async function startBot() {
       const isGroup = chat?.endsWith('@g.us');
       const userName = getName(message);
 
-      // Para mensagens fromMe, o remetente real é o próprio número do bot.
-      // Isso permite testar .ping, .menu etc. em uma conversa pessoal sem
-      // depender de outra conta.
       const effectiveSender = message.key.fromMe
         ? `${pairingPhone}@s.whatsapp.net`
         : sender;
@@ -118,8 +123,6 @@ async function startBot() {
 
       const reply = async (content, options = {}) => {
         const payload = { text: String(content), ...options };
-        // Não use quoted em mensagens enviadas pelo próprio bot para evitar
-        // encadeamento/eco desnecessário durante o teste self-chat.
         if (message.key.fromMe) return sock.sendMessage(chat, payload);
         return sock.sendMessage(chat, payload, { quoted: message });
       };
