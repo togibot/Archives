@@ -1,0 +1,2 @@
+import { getQuizRank } from '../../database/index.js';
+export default { name:'quizrank', aliases:['quizranking'], category:'quiz', description:'Ranking do quiz', async execute({reply}) { const rows=getQuizRank(10); const body=rows.map((u,i)=>`${i+1}. ${u.name || u.jid.split('@')[0]} — ${u.score} pts`).join('\n') || 'Ainda não há jogadores.'; return reply(`╭━━━━━━━━━━━━━━━━━━━━╮\n┃ 🏆 𝚀𝚄𝙸𝚉 𝚁𝙰𝙽𝙺\n╰━━━━━━━━━━━━━━━━━━━━╯\n\n${body}`); } };
