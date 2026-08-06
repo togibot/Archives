@@ -1,5 +1,5 @@
 import { getPermissionLevel } from '../../core/permissions.js';
-import { ensureGroup } from '../../database/index.js';
+import { ensureGroup, updateGroup } from '../../database/index.js';
 
 export default {
   name: 'antilink',
@@ -13,8 +13,7 @@ export default {
     if (!['on', 'off'].includes(mode)) return reply('⚙️ Use *.antilink on* ou *.antilink off*.');
     const group = ensureGroup(chat);
     const value = mode === 'on' ? 1 : 0;
-    const { default: dbModule } = await import('../../database/index.js');
-    void dbModule;
-    return reply(`🔗 Anti-link ${group.antilink === value ? 'já estava' : 'foi'} definido como *${mode.toUpperCase()}*.`);
+    updateGroup(chat, { antilink: value });
+    return reply(`🔗 Anti-link ${group.antilink === value ? 'já estava' : 'foi definido'} como *${mode.toUpperCase()}*.`);
   }
 };
