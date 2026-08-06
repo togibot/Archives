@@ -2,7 +2,8 @@ import 'dotenv/config';
 import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
-  fetchLatestBaileysVersion
+  fetchLatestBaileysVersion,
+  Browsers
 } from '@whiskeysockets/baileys';
 import P from 'pino';
 import fs from 'node:fs/promises';
@@ -33,17 +34,23 @@ async function startBot() {
     auth: state,
     logger,
     printQRInTerminal: false,
-    browser: ['Togi Bot', 'Chrome', '1.0.0'],
+    // Use a logical browser identity during pairing. WhatsApp can reject
+    // arbitrary browser tuples during the pairing/registration handshake.
+    browser: Browsers.macOS('Chrome'),
     markOnlineOnConnect: false
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  // Pairing Code: só é solicitado quando ainda não existe uma sessão autenticada.
-  // Um pequeno atraso evita pedir o código antes do socket estar pronto.
   const pairingPhone = normalizePhone(config.connection.pairingPhone);
-  if (!state.creds.registered && pairingPhone) {
-    setTimeout(async () => {
+  let pairingRequested = false;
+
+  sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+    // Pairing codes should be requested once the socket reports that it is
+    // connecting (or emits a QR reference), rather than from an unrelated
+    // timer. This avoids requesting a code after the socket has already died.
+    if (!state.creds.registered && pairingPhone && !pairingRequested && (connection === 'connecting' || qr)) {
+      pairingRequested = true;
       try {
         const code = await sock.requestPairingCode(pairingPhone);
         logger.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
@@ -52,16 +59,11 @@ async function startBot() {
         logger.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
         logger.info(`No WhatsApp, abra Dispositivos conectados e use a opção de conectar por código.`);
       } catch (error) {
-        logger.error({ err: error }, '❌ Falha ao gerar o Pairing Code. Verifique o número e tente novamente.');
+        pairingRequested = false;
+        logger.error({ err: error }, '❌ Falha ao gerar o Pairing Code.');
       }
-    }, 3000);
-  } else if (!state.creds.registered) {
-    logger.warn('⚠️ PAIRING_PHONE não configurado. Defina PAIRING_PHONE no arquivo .env para gerar o código.');
-  } else {
-    logger.info('🔑 Sessão existente encontrada. Pairing Code não será solicitado.');
-  }
+    }
 
-  sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'open') {
       restarting = false;
       logger.info(`🤖 ${config.bot.name} conectado com ${commands.size} comandos.`);
@@ -86,6 +88,12 @@ async function startBot() {
       }
     }
   });
+
+  if (!state.creds.registered && !pairingPhone) {
+    logger.warn('⚠️ PAIRING_PHONE não configurado. Defina PAIRING_PHONE no arquivo .env para gerar o código.');
+  } else if (state.creds.registered) {
+    logger.info('🔑 Sessão existente encontrada. Pairing Code não será solicitado.');
+  }
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const message of messages || []) {
