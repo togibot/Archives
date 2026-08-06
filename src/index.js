@@ -34,9 +34,9 @@ async function startBot() {
     auth: state,
     logger,
     printQRInTerminal: false,
-    // Use a logical browser identity during pairing. WhatsApp can reject
-    // arbitrary browser tuples during the pairing/registration handshake.
-    browser: Browsers.macOS('Chrome'),
+    // WEB_BROWSER-compatible identity avoids recent WhatsApp Web/Desktop
+    // fingerprint rejections during fresh pairing sessions.
+    browser: Browsers.ubuntu('Chrome'),
     markOnlineOnConnect: false
   });
 
@@ -46,10 +46,11 @@ async function startBot() {
   let pairingRequested = false;
 
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
-    // Pairing codes should be requested once the socket reports that it is
-    // connecting (or emits a QR reference), rather than from an unrelated
-    // timer. This avoids requesting a code after the socket has already died.
-    if (!state.creds.registered && pairingPhone && !pairingRequested && (connection === 'connecting' || qr)) {
+    // requestPairingCode must not be called immediately on the initial
+    // "connecting" event: the socket may not have completed its WebSocket
+    // handshake yet, which causes 428 "Connection Closed".
+    // Baileys exposes a QR/ref update once the socket is ready for pairing.
+    if (!state.creds.registered && pairingPhone && !pairingRequested && qr) {
       pairingRequested = true;
       try {
         const code = await sock.requestPairingCode(pairingPhone);
