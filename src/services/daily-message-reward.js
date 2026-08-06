@@ -1,7 +1,8 @@
-import { addTokens, claimFirstMessageReward } from '../database/index.js';
+import { addTokens, claimDailyReward } from '../database/index.js';
 
 const BASE_REWARD = 100;
 const BONUS_CHANCE = 0.30;
+const DAY = 24 * 60 * 60 * 1000;
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -18,18 +19,9 @@ function rollBonus() {
   return randomInt(800, 1000);
 }
 
-function getBrazilDate() {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).format(new Date());
-}
-
-export function grantFirstDailyMessageReward(jid) {
-  const date = getBrazilDate();
-  if (!claimFirstMessageReward(jid, date)) return null;
+export function grantDailyReward(jid) {
+  const now = Date.now();
+  if (!claimDailyReward(jid, now)) return null;
 
   const bonus = rollBonus();
   const total = BASE_REWARD + bonus;
@@ -39,6 +31,7 @@ export function grantFirstDailyMessageReward(jid) {
     base: BASE_REWARD,
     bonus,
     total,
-    balance: user.tokens
+    balance: user.tokens,
+    nextClaimAt: now + DAY
   };
 }
