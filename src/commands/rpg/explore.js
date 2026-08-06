@@ -1,0 +1,3 @@
+import { addTokens, getUser, updateUser } from '../../database/index.js';
+const places=['🌲 Floresta Nebulosa','🏜️ Deserto Rubro','🏰 Ruínas Antigas','🌋 Vale Vulcânico'];
+export default { name:'explore', aliases:['explorar'], category:'rpg', description:'Explora o mundo do RPG', async execute({sender,reply}) { const place=places[Math.floor(Math.random()*places.length)]; const reward=100+Math.floor(Math.random()*201); const u=getUser(sender); const xp=u.xp+25; addTokens(sender,reward); updateUser(sender,{xp,level:Math.floor(xp/500)+1}); return reply(`🗺️ *EXPEDIÇÃO CONCLUÍDA*\n\nVocê explorou ${place}.\n🪙 +${reward} Tokens\n⭐ +25 XP`); } };
