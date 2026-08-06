@@ -2,6 +2,7 @@ export const shopItems = {
   shield: { name: '🛡️ Escudo', price: 1200, description: 'Bloqueia uma tentativa de roubo.' },
   lucky: { name: '🍀 Amuleto da Sorte', price: 900, description: 'Item de sorte para sistemas futuros.' },
   food: { name: '🍖 Comida', price: 150, description: 'Alimenta um pet.' },
+  water: { name: '💧 Água', price: 100, description: 'Mata a sede de um pet.' },
   ticket: { name: '🎟️ Ticket', price: 500, description: 'Ticket para eventos futuros.' }
 };
 
