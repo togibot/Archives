@@ -44,6 +44,13 @@ CREATE TABLE IF NOT EXISTS pets (
   happiness INTEGER NOT NULL DEFAULT 100,
   created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS quiz_stats (
+  jid TEXT PRIMARY KEY,
+  correct INTEGER NOT NULL DEFAULT 0,
+  wrong INTEGER NOT NULL DEFAULT 0,
+  streak INTEGER NOT NULL DEFAULT 0,
+  best_streak INTEGER NOT NULL DEFAULT 0
+);
 `);
 
 export function ensureUser(jid, name = 'Usuário') {
@@ -51,6 +58,8 @@ export function ensureUser(jid, name = 'Usuário') {
   return getUser(jid);
 }
 export function getUser(jid) { return db.prepare('SELECT * FROM users WHERE jid = ?').get(jid); }
+export function getTopUsers(limit = 10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY tokens DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
+export function getTopXP(limit = 10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY xp DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function updateUser(jid, patch) {
   const allowed = new Set(['name','tokens','last_daily','last_weekly','last_steal','xp','level','afk_since','afk_reason']);
   const keys = Object.keys(patch).filter(key => allowed.has(key));
@@ -92,9 +101,10 @@ export function createPet(ownerJid, name, species) {
 }
 export function getPets(ownerJid) { return db.prepare('SELECT * FROM pets WHERE owner_jid = ? ORDER BY id').all(ownerJid); }
 export function getPet(ownerJid, petIdOrName) {
-  const numeric = /^\d+$/.test(String(petIdOrName));
+  const numeric = /^\\d+$/.test(String(petIdOrName));
   return numeric ? db.prepare('SELECT * FROM pets WHERE owner_jid = ? AND id = ?').get(ownerJid, Number(petIdOrName)) : db.prepare('SELECT * FROM pets WHERE owner_jid = ? AND lower(name) = lower(?)').get(ownerJid, petIdOrName);
 }
+export function getTopPets(limit = 10) { return db.prepare('SELECT owner_jid,name,species,health,hunger,happiness FROM pets ORDER BY happiness DESC, health DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function updatePet(id, patch) {
   const allowed = ['name','health','hunger','happiness','owner_jid'];
   const keys = Object.keys(patch).filter(key => allowed.includes(key));
@@ -109,4 +119,17 @@ export function transferPet(id, fromJid, toJid) {
   db.prepare('UPDATE pets SET owner_jid = ? WHERE id = ?').run(toJid, id);
   return db.prepare('SELECT * FROM pets WHERE id = ?').get(id);
 }
+
+export function getQuizStats(jid) {
+  db.prepare('INSERT INTO quiz_stats (jid) VALUES (?) ON CONFLICT(jid) DO NOTHING').run(jid);
+  return db.prepare('SELECT * FROM quiz_stats WHERE jid = ?').get(jid);
+}
+export function recordQuiz(jid, correct) {
+  const current = getQuizStats(jid);
+  const streak = correct ? current.streak + 1 : 0;
+  const best = Math.max(current.best_streak, streak);
+  db.prepare('UPDATE quiz_stats SET correct=correct+?, wrong=wrong+?, streak=?, best_streak=? WHERE jid=?').run(correct ? 1 : 0, correct ? 0 : 1, streak, best, jid);
+  return getQuizStats(jid);
+}
+export function getQuizRank(limit = 10) { return db.prepare(`SELECT u.jid,u.name,q.correct,q.wrong,q.best_streak,(q.correct*10-q.wrong) AS score FROM quiz_stats q JOIN users u ON u.jid=q.jid ORDER BY score DESC, q.correct DESC LIMIT ?`).all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function closeDatabase() { db.close(); }
