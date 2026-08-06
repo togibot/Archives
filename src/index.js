@@ -14,6 +14,7 @@ import { getText, getSender, getName } from './utils/message.js';
 import { askTogi, isTogiActive } from './services/togi-ai.js';
 import { getAfk, clearAfk } from './commands/economia/afk.js';
 import { getCommandReaction } from './config/reactions.js';
+import { getMenuImageUrl } from './config/menu-images.js';
 
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
@@ -26,13 +27,9 @@ function normalizePhone(value) {
 async function reactToCommand(sock, message, command) {
   const emoji = getCommandReaction(command);
   if (!emoji) return;
-
   try {
     await sock.sendMessage(message.key.remoteJid, {
-      react: {
-        text: emoji,
-        key: message.key
-      }
+      react: { text: emoji, key: message.key }
     });
   } catch (error) {
     logger.debug({ err: error }, 'Não foi possível reagir ao comando.');
@@ -63,7 +60,6 @@ function getAfkKeys({ effectiveSender, sender, pairingPhone, sock }) {
     sock?.user?.id,
     pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''
   ].filter(Boolean);
-
   return [...new Set(keys)];
 }
 
@@ -76,9 +72,6 @@ function findAfkEntry(keys) {
 }
 
 async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply) {
-  // AFK é encerrado pela primeira mensagem enviada pelo próprio usuário.
-  // Verificamos mais de um identificador porque o WhatsApp pode entregar
-  // mensagens usando JID normal, JID de dispositivo ou LID.
   const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock }));
 
   if (ownAfk) {
@@ -92,13 +85,11 @@ async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, i
   }
 
   if (!isGroup) return;
-
   const mentioned = [...new Set(getMentionedJids(message))];
   if (!mentioned.length) return;
 
   const notices = [];
   const mentions = [];
-
   for (const jid of mentioned) {
     const entry = getAfk(jid);
     if (!entry) continue;
@@ -111,15 +102,27 @@ async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, i
   }
 
   if (notices.length) {
-    await reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n${notices.join('\n\n')}\n╰━━━━━━━━━━━━━━━━━━╯`, {
-      mentions
-    });
+    await reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n${notices.join('\n\n')}\n╰━━━━━━━━━━━━━━━━━━╯`, { mentions });
   }
+}
+
+function isMenuCommand(name) {
+  const normalized = String(name || '').toLowerCase();
+  return normalized === 'menu' || normalized === 'help' || normalized === 'ajuda' || normalized === 'm' || normalized.startsWith('menu');
+}
+
+async function sendMenuReply(sock, chat, message, imageUrl, content, options = {}) {
+  const payload = {
+    image: { url: imageUrl },
+    caption: String(content),
+    ...options
+  };
+  if (message.key.fromMe) return sock.sendMessage(chat, payload);
+  return sock.sendMessage(chat, payload, { quoted: message });
 }
 
 async function startBot() {
   restarting = false;
-
   await fs.mkdir(config.connection.authDir, { recursive: true });
   commands = await loadCommands();
 
@@ -141,7 +144,6 @@ async function startBot() {
   });
 
   sock.ev.on('creds.update', saveCreds);
-
   const pairingPhone = normalizePhone(config.connection.pairingPhone);
   let pairingRequested = false;
 
@@ -214,15 +216,12 @@ async function startBot() {
         return sock.sendMessage(chat, payload, { quoted: message });
       };
 
-      // AFK é automático: qualquer mensagem do usuário encerra seu próprio AFK.
-      // Menções em grupos avisam quando o usuário mencionado está ausente.
       try {
         await handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply);
       } catch (error) {
         logger.debug({ err: error }, 'Falha ao processar AFK.');
       }
 
-      // Quando o Togi está ativo para este usuário, mensagens normais entram na conversa com a IA.
       if (!text.startsWith(config.bot.prefix) && isTogiActive(effectiveSender)) {
         try {
           await reply(`🤖 ${await askTogi(effectiveSender, text)}`);
@@ -234,7 +233,6 @@ async function startBot() {
       }
 
       if (!text.startsWith(config.bot.prefix)) continue;
-
       const body = text.slice(config.bot.prefix.length).trim();
       if (!body) continue;
 
@@ -242,10 +240,14 @@ async function startBot() {
       const command = commands.get(name.toLowerCase());
       if (!command) continue;
 
-      // Reação centralizada: menus e comandos importantes podem ter emojis próprios.
       await reactToCommand(sock, message, command);
 
       try {
+        const menuImageUrl = isMenuCommand(name) ? await getMenuImageUrl(name) : null;
+        const commandReply = menuImageUrl
+          ? (content, options = {}) => sendMenuReply(sock, chat, message, menuImageUrl, content, options)
+          : reply;
+
         await command.execute({
           sock,
           message,
@@ -254,7 +256,7 @@ async function startBot() {
           args,
           text,
           isGroup,
-          reply
+          reply: commandReply
         });
       } catch (error) {
         logger.error({ err: error }, `Erro no comando ${name}`);
