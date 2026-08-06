@@ -56,14 +56,37 @@ function formatAfkDuration(since) {
   return `${hours}h ${remaining}min`;
 }
 
-async function handleAfk(sock, message, effectiveSender, isGroup, reply) {
-  const ownAfk = getAfk(effectiveSender);
+function getAfkKeys({ effectiveSender, sender, pairingPhone, sock }) {
+  const keys = [
+    effectiveSender,
+    sender,
+    sock?.user?.id,
+    pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''
+  ].filter(Boolean);
+
+  return [...new Set(keys)];
+}
+
+function findAfkEntry(keys) {
+  for (const key of keys) {
+    const entry = getAfk(key);
+    if (entry) return { key, entry };
+  }
+  return null;
+}
+
+async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply) {
+  // AFK é encerrado pela primeira mensagem enviada pelo próprio usuário.
+  // Verificamos mais de um identificador porque o WhatsApp pode entregar
+  // mensagens usando JID normal, JID de dispositivo ou LID.
+  const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock }));
+
   if (ownAfk) {
-    clearAfk(effectiveSender);
+    clearAfk(ownAfk.key);
     await reply(
       `👋 @${effectiveSender.split('@')[0]} saiu do AFK!\n` +
-      `⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.since)}\n` +
-      `📝 Motivo: ${ownAfk.reason}`,
+      `⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.entry.since)}\n` +
+      `📝 Motivo: ${ownAfk.entry.reason}`,
       { mentions: [effectiveSender] }
     );
   }
@@ -194,7 +217,7 @@ async function startBot() {
       // AFK é automático: qualquer mensagem do usuário encerra seu próprio AFK.
       // Menções em grupos avisam quando o usuário mencionado está ausente.
       try {
-        await handleAfk(sock, message, effectiveSender, isGroup, reply);
+        await handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply);
       } catch (error) {
         logger.debug({ err: error }, 'Falha ao processar AFK.');
       }
