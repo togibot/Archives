@@ -8,7 +8,7 @@ export default {
   description: 'Doa uma carta repetida para outro membro.',
   async execute({ sender, args, message, reply }) {
     const target = message?.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
-    const card = findCard(args.join(' '));
+    const card = findCard(args.filter(arg => !arg.startsWith('@')).join(' '));
     if (!card || !target) return reply('🎴 Use *.doarcarta <nome-da-carta> @pessoa*.');
     if (target === sender) return reply('❌ Você não pode doar uma carta para si mesmo.');
     if (card.status === 'OG') return reply('👑 Cartas OG são exclusivas e não podem ser doadas.');
