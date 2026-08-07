@@ -43,6 +43,12 @@ export function getCard(id) {
   return CARDS.find(card => card.id === id) || null;
 }
 
+export function findCard(input) {
+  const value = String(input || '').trim().toLowerCase();
+  if (!value) return null;
+  return CARDS.find(card => card.id.toLowerCase() === value || card.name.toLowerCase() === value) || null;
+}
+
 export function getCardsByRarity(rarity) {
   return CARDS.filter(card => card.rarity === rarity && card.status !== 'OG');
 }
