@@ -143,7 +143,8 @@ export function createPet(ownerJid, name, species) {
 }
 export function getPets(ownerJid) { return db.prepare('SELECT * FROM pets WHERE owner_jid = ? ORDER BY id').all(ownerJid); }
 export function getPet(ownerJid, petIdOrName) {
-  const numeric = /^\\d+$/.test(String(petIdOrName));
+  // IDs numéricos precisam ser reconhecidos corretamente para .meupet/.petinfo.
+  const numeric = /^\d+$/.test(String(petIdOrName));
   return numeric ? db.prepare('SELECT * FROM pets WHERE owner_jid = ? AND id = ?').get(ownerJid, Number(petIdOrName)) : db.prepare('SELECT * FROM pets WHERE owner_jid = ? AND lower(name) = lower(?)').get(ownerJid, petIdOrName);
 }
 export function getAllLivingPets() { return db.prepare("SELECT * FROM pets WHERE status = 'vivo'").all(); }
