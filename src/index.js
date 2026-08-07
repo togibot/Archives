@@ -1,10 +1,5 @@
 import 'dotenv/config';
-import makeWASocket, {
-  DisconnectReason,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  Browsers
-} from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion, Browsers } from '@whiskeysockets/baileys';
 import P from 'pino';
 import fs from 'node:fs/promises';
 import config from './config.js';
@@ -20,20 +15,13 @@ const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
 let restarting = false;
 
-function normalizePhone(value) {
-  return String(value || '').replace(/\D/g, '');
-}
+function normalizePhone(value) { return String(value || '').replace(/\D/g, ''); }
 
 async function reactToCommand(sock, message, command) {
   const emoji = getCommandReaction(command);
   if (!emoji) return;
-  try {
-    await sock.sendMessage(message.key.remoteJid, {
-      react: { text: emoji, key: message.key }
-    });
-  } catch (error) {
-    logger.debug({ err: error }, 'Não foi possível reagir ao comando.');
-  }
+  try { await sock.sendMessage(message.key.remoteJid, { react: { text: emoji, key: message.key } }); }
+  catch (error) { logger.debug({ err: error }, 'Não foi possível reagir ao comando.'); }
 }
 
 function getMentionedJids(message) {
@@ -54,12 +42,7 @@ function formatAfkDuration(since) {
 }
 
 function getAfkKeys({ effectiveSender, sender, pairingPhone, sock }) {
-  const keys = [
-    effectiveSender,
-    sender,
-    sock?.user?.id,
-    pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''
-  ].filter(Boolean);
+  const keys = [effectiveSender, sender, sock?.user?.id, pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''].filter(Boolean);
   return [...new Set(keys)];
 }
 
@@ -72,40 +55,26 @@ function findAfkEntry(keys) {
 }
 
 async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, autoDisable = true) {
-  // O comando .afk é tratado pelo próprio comando para funcionar como toggle.
   if (autoDisable) {
     const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock }));
     if (ownAfk) {
       clearAfk(ownAfk.key);
-      await reply(
-        `👋 @${effectiveSender.split('@')[0]} saiu do AFK!\n` +
-        `⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.entry.since)}\n` +
-        `📝 Motivo: ${ownAfk.entry.reason}`,
-        { mentions: [effectiveSender] }
-      );
+      await reply(`👋 @${effectiveSender.split('@')[0]} saiu do AFK!\n⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.entry.since)}\n📝 Motivo: ${ownAfk.entry.reason}`, { mentions: [effectiveSender] });
     }
   }
 
   if (!isGroup) return;
   const mentioned = [...new Set(getMentionedJids(message))];
   if (!mentioned.length) return;
-
   const notices = [];
   const mentions = [];
   for (const jid of mentioned) {
     const entry = getAfk(jid);
     if (!entry) continue;
-    notices.push(
-      `💤 @${jid.split('@')[0]} está AFK.\n` +
-      `📝 Motivo: ${entry.reason}\n` +
-      `⏱️ Ausente há ${formatAfkDuration(entry.since)}`
-    );
+    notices.push(`💤 @${jid.split('@')[0]} está AFK.\n📝 Motivo: ${entry.reason}\n⏱️ Ausente há ${formatAfkDuration(entry.since)}`);
     mentions.push(jid);
   }
-
-  if (notices.length) {
-    await reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n${notices.join('\n\n')}\n╰━━━━━━━━━━━━━━━━━━╯`, { mentions });
-  }
+  if (notices.length) await reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n${notices.join('\n\n')}\n╰━━━━━━━━━━━━━━━━━━╯`, { mentions });
 }
 
 function isMenuCommand(name) {
@@ -114,11 +83,7 @@ function isMenuCommand(name) {
 }
 
 async function sendMenuReply(sock, chat, message, imageUrl, content, options = {}) {
-  const payload = {
-    image: { url: imageUrl },
-    caption: String(content),
-    ...options
-  };
+  const payload = { image: { url: imageUrl }, caption: String(content), ...options };
   if (message.key.fromMe) return sock.sendMessage(chat, payload);
   return sock.sendMessage(chat, payload, { quoted: message });
 }
@@ -127,24 +92,10 @@ async function startBot() {
   restarting = false;
   await fs.mkdir(config.connection.authDir, { recursive: true });
   commands = await loadCommands();
-
   const { state, saveCreds } = await useMultiFileAuthState(config.connection.authDir);
   const { version } = await fetchLatestBaileysVersion();
   const messageCache = new Map();
-
-  const sock = makeWASocket({
-    version,
-    auth: state,
-    logger,
-    printQRInTerminal: false,
-    browser: Browsers.ubuntu('Chrome'),
-    markOnlineOnConnect: false,
-    emitOwnEvents: true,
-    syncFullHistory: false,
-    shouldSyncHistoryMessage: () => false,
-    getMessage: async (key) => messageCache.get(key.id)?.message || undefined
-  });
-
+  const sock = makeWASocket({ version, auth: state, logger, printQRInTerminal: false, browser: Browsers.ubuntu('Chrome'), markOnlineOnConnect: false, emitOwnEvents: true, syncFullHistory: false, shouldSyncHistoryMessage: () => false, getMessage: async (key) => messageCache.get(key.id)?.message || undefined });
   sock.ev.on('creds.update', saveCreds);
   const pairingPhone = normalizePhone(config.connection.pairingPhone);
   let pairingRequested = false;
@@ -159,133 +110,69 @@ async function startBot() {
         logger.info(`📱 Número: +${pairingPhone}`);
         logger.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
         logger.info(`No WhatsApp, abra Dispositivos conectados e use a opção de conectar por código.`);
-      } catch (error) {
-        pairingRequested = false;
-        logger.error({ err: error }, '❌ Falha ao gerar o Pairing Code.');
-      }
+      } catch (error) { pairingRequested = false; logger.error({ err: error }, '❌ Falha ao gerar o Pairing Code.'); }
     }
-
-    if (connection === 'open') {
-      restarting = false;
-      logger.info(`🤖 ${config.bot.name} conectado com ${commands.size} comandos.`);
-    }
-
+    if (connection === 'open') { restarting = false; logger.info(`🤖 ${config.bot.name} conectado com ${commands.size} comandos.`); }
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       logger.warn(`🔌 Conexão encerrada (${statusCode ?? 'desconhecido'}). Reconectar: ${shouldReconnect}`);
       if (shouldReconnect && !restarting) {
         restarting = true;
-        setTimeout(() => startBot().catch(error => {
-          restarting = false;
-          logger.error({ err: error }, '❌ Falha ao reiniciar o Togi Bot');
-        }), 3000);
+        setTimeout(() => startBot().catch(error => { restarting = false; logger.error({ err: error }, '❌ Falha ao reiniciar o Togi Bot'); }), 3000);
       }
     }
   });
 
-  if (!state.creds.registered && !pairingPhone) {
-    logger.warn('⚠️ PAIRING_PHONE não configurado. Defina PAIRING_PHONE no arquivo .env para gerar o código.');
-  } else if (state.creds.registered) {
-    logger.info('🔑 Sessão existente encontrada. Pairing Code não será solicitado.');
-  }
+  if (!state.creds.registered && !pairingPhone) logger.warn('⚠️ PAIRING_PHONE não configurado. Defina PAIRING_PHONE no arquivo .env para gerar o código.');
+  else if (state.creds.registered) logger.info('🔑 Sessão existente encontrada. Pairing Code não será solicitado.');
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const message of messages || []) {
       if (!message?.message) continue;
-
       messageCache.set(message.key.id, message);
-      if (messageCache.size > 200) {
-        const firstKey = messageCache.keys().next().value;
-        messageCache.delete(firstKey);
-      }
-
+      if (messageCache.size > 200) { const firstKey = messageCache.keys().next().value; messageCache.delete(firstKey); }
       const text = getText(message).trim();
       const sender = getSender(message);
       const chat = message.key.remoteJid;
       const isGroup = chat?.endsWith('@g.us');
       const userName = getName(message);
-      const effectiveSender = message.key.fromMe
-        ? `${pairingPhone}@s.whatsapp.net`
-        : sender;
-
+      const effectiveSender = message.key.fromMe ? `${pairingPhone}@s.whatsapp.net` : sender;
       ensureUser(effectiveSender, userName);
       if (isGroup) ensureGroup(chat);
-
       const reply = async (content, options = {}) => {
         const payload = { text: String(content), ...options };
         if (message.key.fromMe) return sock.sendMessage(chat, payload);
         return sock.sendMessage(chat, payload, { quoted: message });
       };
 
-      // Descobre o comando antes do AFK para que .afk possa desligar o toggle
-      // sem ser automaticamente desligado pelo próprio middleware.
       let parsedCommandName = '';
       if (text.startsWith(config.bot.prefix)) {
         const body = text.slice(config.bot.prefix.length).trim();
         parsedCommandName = body.split(/\s+/)[0]?.toLowerCase() || '';
       }
-
+      const isAfkToggle = parsedCommandName === 'afk' || parsedCommandName === 'ausente';
       try {
-        await handleAfk(
-          sock,
-          message,
-          effectiveSender,
-          sender,
-          pairingPhone,
-          isGroup,
-          reply,
-          parsedCommandName !== 'afk'
-        );
-      } catch (error) {
-        logger.debug({ err: error }, 'Falha ao processar AFK.');
-      }
+        await handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, !isAfkToggle);
+      } catch (error) { logger.debug({ err: error }, 'Falha ao processar AFK.'); }
 
       if (!text.startsWith(config.bot.prefix) && isTogiActive(effectiveSender)) {
-        try {
-          await reply(`🤖 ${await askTogi(effectiveSender, text)}`);
-        } catch (error) {
-          logger.error({ err: error }, 'Erro na Togi AI');
-          await reply('❌ A Togi AI está indisponível no momento. Verifique a configuração da GEMINI_API_KEY.');
-        }
+        try { await reply(`🤖 ${await askTogi(effectiveSender, text)}`); }
+        catch (error) { logger.error({ err: error }, 'Erro na Togi AI'); await reply('❌ A Togi AI está indisponível no momento. Verifique a configuração da GEMINI_API_KEY.'); }
         continue;
       }
-
       if (!text.startsWith(config.bot.prefix)) continue;
       const body = text.slice(config.bot.prefix.length).trim();
       if (!body) continue;
-
       const [name, ...args] = body.split(/\s+/);
       const command = commands.get(name.toLowerCase());
       if (!command) continue;
-
       await reactToCommand(sock, message, command);
-
       try {
         const menuImageUrl = isMenuCommand(name) ? await getMenuImageUrl(name) : null;
-        const commandReply = menuImageUrl
-          ? (content, options = {}) => sendMenuReply(sock, chat, message, menuImageUrl, content, options)
-          : reply;
-
-        await command.execute({
-          sock,
-          message,
-          sender: effectiveSender,
-          chat,
-          args,
-          text: args.join(' '),
-          rawText: text,
-          commandName: name.toLowerCase(),
-          isGroup,
-          reply: commandReply,
-          react: async (emoji) => {
-            try { await sock.sendMessage(chat, { react: { text: emoji, key: message.key } }); } catch {}
-          }
-        });
-      } catch (error) {
-        logger.error({ err: error, command: name }, `Erro no comando ${name}`);
-        await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`);
-      }
+        const commandReply = menuImageUrl ? (content, options = {}) => sendMenuReply(sock, chat, message, menuImageUrl, content, options) : reply;
+        await command.execute({ sock, message, sender: effectiveSender, chat, args, text: args.join(' '), rawText: text, commandName: name.toLowerCase(), isGroup, reply: commandReply, react: async (emoji) => { try { await sock.sendMessage(chat, { react: { text: emoji, key: message.key } }); } catch {} } });
+      } catch (error) { logger.error({ err: error, command: name }, `Erro no comando ${name}`); await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`); }
     }
   });
 }
