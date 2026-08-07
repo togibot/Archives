@@ -5,12 +5,15 @@ const pendingRequests = new Set();
 const lastResponseAt = new Map();
 const RESPONSE_COOLDOWN_MS = Number(process.env.TOGI_AI_COOLDOWN_MS || 3000);
 const MAX_HISTORY_MESSAGES = Number(process.env.TOGI_AI_HISTORY_MESSAGES || 10);
-const LOCAL_URL = (process.env.TOGI_LOCAL_AI_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
-const LOCAL_MODEL = process.env.TOGI_LOCAL_AI_MODEL || 'qwen2.5-1.5b-instruct-q4_k_m.gguf';
+const RAW_LOCAL_URL = (process.env.TOGI_LOCAL_AI_URL || 'http://127.0.0.1:8080').replace(/\/+$/, '');
+const LOCAL_URL = RAW_LOCAL_URL.replace(/\/v1$/i, '');
+const LOCAL_MODEL = (process.env.TOGI_LOCAL_AI_MODEL || '').trim();
+const LOCAL_API_KEY = (process.env.TOGI_LOCAL_AI_API_KEY || '').trim();
 const LOCAL_TIMEOUT_MS = Number(process.env.TOGI_LOCAL_AI_TIMEOUT_MS || 120000);
 
 let localProcess = null;
 let localStartPromise = null;
+let detectedLocalModel = null;
 
 const SYSTEM_PROMPT = `Você é Togi, a IA oficial do Togi Bot.
 
@@ -68,14 +71,48 @@ export function canAskTogi(sender) {
   return Date.now() - last >= RESPONSE_COOLDOWN_MS;
 }
 
+function localHeaders(extra = {}) {
+  return {
+    'Content-Type': 'application/json',
+    ...(LOCAL_API_KEY ? { Authorization: `Bearer ${LOCAL_API_KEY}` } : {}),
+    ...extra
+  };
+}
+
 async function waitForLocalAI() {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 1500);
   try {
-    const response = await fetch(`${LOCAL_URL}/health`, { signal: controller.signal });
+    const response = await fetch(`${LOCAL_URL}/health`, {
+      signal: controller.signal,
+      headers: LOCAL_API_KEY ? { Authorization: `Bearer ${LOCAL_API_KEY}` } : {}
+    });
     return response.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function detectLocalModel() {
+  if (LOCAL_MODEL) return LOCAL_MODEL;
+  if (detectedLocalModel) return detectedLocalModel;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    const response = await fetch(`${LOCAL_URL}/v1/models`, {
+      signal: controller.signal,
+      headers: LOCAL_API_KEY ? { Authorization: `Bearer ${LOCAL_API_KEY}` } : {}
+    });
+    if (!response.ok) return 'local-model';
+    const data = await response.json().catch(() => ({}));
+    const model = data?.data?.[0]?.id || data?.models?.[0]?.name || 'local-model';
+    detectedLocalModel = model;
+    return model;
+  } catch {
+    return 'local-model';
   } finally {
     clearTimeout(timer);
   }
@@ -87,7 +124,7 @@ async function startLocalAI() {
 
   const command = process.env.TOGI_LOCAL_AI_COMMAND || '';
   if (!command) {
-    throw new Error('Servidor local da IA não está ativo. Configure TOGI_LOCAL_AI_COMMAND ou inicie o llama-server manualmente.');
+    throw new Error('Servidor local da IA não está acessível. Inicie a IA no Android e confira TOGI_LOCAL_AI_URL.');
   }
 
   localStartPromise = new Promise((resolve, reject) => {
@@ -124,6 +161,7 @@ async function startLocalAI() {
 
 async function askLocalTogi(history, text) {
   await startLocalAI();
+  const model = await detectLocalModel();
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LOCAL_TIMEOUT_MS);
@@ -131,9 +169,9 @@ async function askLocalTogi(history, text) {
     const response = await fetch(`${LOCAL_URL}/v1/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json' },
+      headers: localHeaders(),
       body: JSON.stringify({
-        model: LOCAL_MODEL,
+        model,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           ...history.map(item => ({ role: item.role, content: item.text })),
