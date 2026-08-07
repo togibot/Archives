@@ -32,6 +32,14 @@ export default {
 👑 ${p}menuvip       • VIP
 ⚙️ ${p}menubot       • Informações
 
+🆕 *NOVOS SISTEMAS*
+🎮 ${p}jogos          • Jogos e desafios
+🏠 ${p}casa           • Casa coletiva do grupo
+🎴 ${p}album          • Seu álbum de cartas
+📦 ${p}pack           • Pack com 4 cartas
+💰 ${p}vendercarta    • Vender carta repetida
+🎁 ${p}doarcarta      • Doar carta repetida
+
 💼 *ECONOMIA EXTRA*
 ${p}vagas          • Ver empregos
 ${p}trabalhar      • Trabalhar
