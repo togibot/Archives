@@ -28,8 +28,11 @@ const reactions = {
   comprarpet: '🛒', loja: '🛍️', comprar: '🛒', daily: '🎁', saldo: '💰', perfil: '👤', inventario: '🎒',
   pay: '💸', pagar: '💸', rich: '💎', rank: '🏆', ranking: '🏆',
 
-  // Jogos
-  jogos: '🎮', forca: '🔤', anagrama: '🧩', adivinhe: '❓', gamestats: '📊', dado: '🎲', coin: '🪙', '8ball': '🔮', quiz: '🧠',
+  // Jogos / Arcade
+  jogos: '🎮', arcade: '🎮', forca: '🔤', anagrama: '🧩', adivinhe: '❓', gamestats: '📊', dado: '🎲', coin: '🪙', moeda: '🪙',
+  alvo: '🎯', reflexo: '⚡', intruso: '🔎', sequencia: '🧠', memoria: '🧠', quiz: '🧠', digite: '⌨️', spam: '💥',
+  corrida: '🏁', detetive: '🕵️', codigo: '🔐', senha: '🔑', impostor: '🕵️', quizgrupo: '👥', escape: '🚪',
+  batalhacartas: '⚔️', cartasempare: '🎴', cartadodia: '🌟',
 
   // Casa coletiva
   casa: '🏠',
@@ -50,7 +53,7 @@ const reactions = {
 const categoryReactions = {
   economia: '🪙', economy: '🪙', pets: '🐾', quiz: '🧠', rpg: '🎮', social: '💞', grupo: '👥', group: '👥',
   moderacao: '🛡️', admin: '🛡️', adm: '🛡️', sticker: '🎨', fig: '🎨', diversao: '🎲', fun: '🎲', ranking: '🏆',
-  eventos: '🎁', musica: '🎵', music: '🎵', ia: '🤖', vip: '👑', jogos: '🎮', cards: '🎴', cartas: '🎴', casa: '🏠'
+  eventos: '🎁', musica: '🎵', music: '🎵', ia: '🤖', vip: '👑', jogos: '🎮', cards: '🎴', cartas: '🎴', casa: '🏠', menu: '📋'
 };
 
 export function getCommandReaction(command) {
