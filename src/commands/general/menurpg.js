@@ -19,6 +19,11 @@ export default {
 • ${p}namorar @pessoa  • Enviar pedido
 • ${p}aceitar @pessoa  • Aceitar pedido
 • ${p}terminar  • Encerrar relacionamento
+• ${p}beijar @pessoa  • Interação virtual
+• ${p}abracar @pessoa  • Abraço virtual
+• ${p}carinho @pessoa  • Demonstrar carinho
+• ${p}segurarmao @pessoa  • Interação virtual
+• ${p}encontro @pessoa  • Encontro virtual
 
 👨‍👩‍👧 *FAMÍLIA RP*
 • ${p}familia  • Ver sua família
