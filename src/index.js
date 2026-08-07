@@ -55,8 +55,6 @@ function findAfkEntry(keys) {
 }
 
 async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, autoDisable = true) {
-  // Mensagens enviadas pelo próprio bot não contam como atividade do usuário.
-  // Isso evita que a própria resposta de .afk desligue o AFK imediatamente.
   if (autoDisable && !message.key.fromMe) {
     const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock }));
     if (ownAfk) {
@@ -159,7 +157,10 @@ async function startBot() {
       } catch (error) { logger.debug({ err: error }, 'Falha ao processar AFK.'); }
 
       if (!text.startsWith(config.bot.prefix) && isTogiActive(effectiveSender)) {
-        try { await reply(`🤖 ${await askTogi(effectiveSender, text)}`); }
+        try {
+          const answer = await askTogi(effectiveSender, text);
+          if (answer) await reply(`🤖 ${answer}`);
+        }
         catch (error) { logger.error({ err: error }, 'Erro na Togi AI'); await reply('❌ A Togi AI está indisponível no momento. Verifique a configuração da GEMINI_API_KEY.'); }
         continue;
       }
