@@ -1,22 +1,46 @@
 const MENU_CATEGORIES = {
+  // Menu principal e aliases
   menu: 'waifu',
   help: 'waifu',
   ajuda: 'waifu',
   m: 'waifu',
-  menueconomia: 'waifu',
-  menupets: 'neko',
+
+  // Economia / vida / pets
+  menueconomia: 'money',
+  menuvida: 'work',
+  menupets: 'animal',
   menuquiz: 'megumin',
-  menurpg: 'waifu',
-  menusocial: 'hug',
-  menugrupo: 'smile',
-  menuadm: 'smug',
-  menufig: 'happy',
+
+  // Social / diversão / Battle Mode
+  menusocial: 'smile',
+  menubm: 'kick',
   menudiversao: 'dance',
   menuranking: 'happy',
   menueventos: 'smile',
+
+  // Relacionamentos / RP
+  menurelacionamento: 'hug',
+  menurpg: 'waifu',
+
+  // Criativo / mídia
+  menucriativo: 'happy',
+  menufig: 'happy',
+  menuimagem: 'happy',
+  menuvideo: 'dance',
+  menuaudio: 'dance',
   menumusica: 'dance',
+  menudown: 'wave',
+
+  // IA / ferramentas
   menuia: 'shinobu',
+  menutools: 'nerd',
+  menuferramentas: 'nerd',
+
+  // VIP / administração
   menuvip: 'waifu',
+  menugrupo: 'smile',
+  menuadm: 'smug',
+  menudono: 'smug',
   menubot: 'wave'
 };
 
