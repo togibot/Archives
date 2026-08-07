@@ -17,7 +17,12 @@ export default {
         if (!answer) return;
         return reply(`🤖 ${answer}`);
       } catch (error) {
-        return reply('❌ Não consegui acessar a IA agora. Verifique se GEMINI_API_KEY está configurada no .env.');
+        console.error('[TOGI AI]', error);
+        return reply(
+          '❌ Não consegui iniciar a IA Togi agora.\n\n' +
+          '🧠 A versão atual usa IA local, sem limite de API.\n' +
+          '⚙️ Verifique se o servidor local da IA está instalado/iniciado no Alpine.'
+        );
       }
     }
 
@@ -26,9 +31,10 @@ export default {
       '┃ 🤖  𝙏𝙊𝙂𝙄 𝘼𝙄 𝙊𝙉  ┃\n' +
       '╰━━━━━━━━━━━━━━━━━━━━╯\n\n' +
       '👋 E AÍ! Eu sou o Togi.\n\n' +
-      '🧠 Sou a IA do Togi Bot, criado por LZ.\n' +
-      '💬 Pode conversar comigo normalmente agora.\n' +
-      '✨ Vou lembrar o contexto recente da nossa conversa.\n\n' +
+      '🧠 Estou usando o modo de IA local.\n' +
+      '📱 A IA roda no próprio aparelho, sem depender de cota de API.\n' +
+      '💬 Pode conversar comigo normalmente.\n' +
+      '✨ Vou manter um contexto curto da conversa.\n\n' +
       '🔴 Para desligar: *.Togioff*'
     );
   }
