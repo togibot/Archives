@@ -55,7 +55,9 @@ function findAfkEntry(keys) {
 }
 
 async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, autoDisable = true) {
-  if (autoDisable) {
+  // Mensagens enviadas pelo próprio bot não contam como atividade do usuário.
+  // Isso evita que a própria resposta de .afk desligue o AFK imediatamente.
+  if (autoDisable && !message.key.fromMe) {
     const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock }));
     if (ownAfk) {
       clearAfk(ownAfk.key);
