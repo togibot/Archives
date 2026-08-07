@@ -13,12 +13,7 @@ export default {
     activateTogi(chat, sender);
 
     if (!args.length) {
-      return reply('🤖 *Togi AI ativada!*
-
-Pode conversar normalmente comigo. 💬
-Vou responder uma vez por mensagem, sem floodar o grupo.
-
-🔴 Para desligar: *.Togioff*');
+      return reply('🤖 *Togi AI ativada!*\n\nPode conversar normalmente comigo. 💬\nVou responder uma vez por mensagem, sem floodar o grupo.\n\n🔴 Para desligar: *.Togioff*');
     }
 
     try {
