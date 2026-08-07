@@ -28,7 +28,6 @@ export default {
 🎲 ${p}menudiversao  • Diversão
 🏆 ${p}menuranking   • Rankings
 🎁 ${p}menueventos   • Eventos
-🎵 ${p}menumusica   • Música
 🤖 ${p}menuia        • Inteligência
 👑 ${p}menuvip       • VIP
 ⚙️ ${p}menubot       • Informações
