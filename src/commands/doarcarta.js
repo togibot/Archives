@@ -1,18 +1,17 @@
 import { ensureUser, getCardQuantity, removeCard, addCard } from '../database/index.js';
-import { getCard, CARD_RARITIES } from '../data/cards.js';
+import { findCard, CARD_RARITIES } from '../data/cards.js';
 
 export default {
   name: 'doarcarta',
-  aliases: ['doarcarta', 'darcard'],
+  aliases: ['darcard'],
   category: 'cards',
   description: 'Doa uma carta repetida para outro membro.',
-  async execute({ sender, args, reply }) {
-    const cardId = args[0]?.toLowerCase();
-    const target = (args[1] || '').includes('@') ? args[1].replace(/\D/g, '') + '@s.whatsapp.net' : null;
-    if (!cardId || !target) return reply('🎴 Use *.doarcarta <id-da-carta> @pessoa*.');
-    const card = getCard(cardId);
-    if (!card) return reply('❌ Carta não encontrada.');
+  async execute({ sender, args, message, reply }) {
+    const target = message?.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
+    const card = findCard(args.join(' '));
+    if (!card || !target) return reply('🎴 Use *.doarcarta <nome-da-carta> @pessoa*.');
     if (target === sender) return reply('❌ Você não pode doar uma carta para si mesmo.');
+    if (card.status === 'OG') return reply('👑 Cartas OG são exclusivas e não podem ser doadas.');
     ensureUser(sender);
     ensureUser(target);
     const quantity = getCardQuantity(sender, card.id);
