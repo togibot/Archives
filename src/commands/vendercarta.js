@@ -5,7 +5,7 @@ const VALUES = { comum: 50, incomum: 80, rara: 125, epica: 200, lendaria: 350, m
 
 export default {
   name: 'vendercarta',
-  aliases: ['vendecarta', 'vender'],
+  aliases: ['vendecarta'],
   category: 'cards',
   description: 'Vende uma carta repetida por Tokens.',
   async execute({ sender, args, reply }) {
