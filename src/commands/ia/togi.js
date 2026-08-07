@@ -13,7 +13,9 @@ export default {
 
     if (args.length) {
       try {
-        return reply(`🤖 ${await askTogi(sender, args.join(' '))}`);
+        const answer = await askTogi(sender, args.join(' '));
+        if (!answer) return;
+        return reply(`🤖 ${answer}`);
       } catch (error) {
         return reply('❌ Não consegui acessar a IA agora. Verifique se GEMINI_API_KEY está configurada no .env.');
       }
