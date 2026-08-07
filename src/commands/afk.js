@@ -7,14 +7,14 @@ export default {
   async execute({ sender, reply, text }) {
     const current = getAfk(sender);
 
-    // .afk é um toggle: usar novamente desativa manualmente.
+    // AFK 1.0: .afk é um toggle. Uma nova mensagem comum também encerra o AFK.
     if (current) {
       clearAfk(sender);
-      return reply('👋 Você saiu do AFK!');
+      return reply('👋 Você saiu do AFK!\n\n💡 O comando .afk funciona como toggle: use novamente para desativar.');
     }
 
     const reason = text?.trim() || 'não informou o motivo';
     setAfk(sender, { reason, since: Date.now() });
-    return reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n┃ 😴 Você entrou em AFK.\n┃ 📝 Motivo: ${reason}\n╰━━━━━━━━━━━━━━━━━━╯`);
+    return reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n┃ 😴 AFK ativado!\n┃ 📝 Motivo: ${reason}\n┃ 💬 Para desativar: envie .afk\n╰━━━━━━━━━━━━━━━━━━╯`);
   }
 };
