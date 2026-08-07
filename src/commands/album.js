@@ -3,7 +3,7 @@ import { CARDS, CARD_RARITIES } from '../data/cards.js';
 
 export default {
   name: 'album',
-  aliases: ['cartas', 'colecao', 'colecao'],
+  aliases: ['cartas', 'colecao'],
   category: 'cards',
   description: 'Mostra as cartas que você possui organizadas por raridade.',
   async execute({ sender, reply }) {
