@@ -3,39 +3,30 @@ import { activateTogi, deactivateTogi, askTogi } from '../../services/togi-ai.js
 export default {
   name: 'togi',
   aliases: ['togia', 'togioff'],
-  async execute({ sender, args, reply }) {
-    if (args[0]?.toLowerCase() === 'off' || args[0]?.toLowerCase() === 'desligar' || args[0]?.toLowerCase() === 'stop') {
-      deactivateTogi(sender);
-      return reply('╭━━━━━━━━━━━━━━━━━━━━╮\n┃ 🤖 𝙏𝙊𝙂𝙄 𝘼𝙄 𝙊𝙁𝙁 ┃\n╰━━━━━━━━━━━━━━━━━━━━╯\n\nAté depois! Quando quiser conversar comigo novamente, use *.Togi* 😎');
+  async execute({ sender, chat, args, commandName, reply }) {
+    const off = commandName === 'togioff' || ['off', 'desligar', 'stop'].includes(args[0]?.toLowerCase());
+    if (off) {
+      deactivateTogi(chat, sender);
+      return reply('🤖 Togi AI desligada. Use *.Togi* quando quiser conversar novamente.');
     }
 
-    activateTogi(sender);
+    activateTogi(chat, sender);
 
-    if (args.length) {
-      try {
-        const answer = await askTogi(sender, args.join(' '));
-        if (!answer) return;
-        return reply(`🤖 ${answer}`);
-      } catch (error) {
-        console.error('[TOGI AI]', error);
-        return reply(
-          '❌ Não consegui iniciar a IA Togi agora.\n\n' +
-          '🧠 A versão atual usa IA local, sem limite de API.\n' +
-          '⚙️ Verifique se o servidor local da IA está instalado/iniciado no Alpine.'
-        );
-      }
+    if (!args.length) {
+      return reply('🤖 *Togi AI ativada!*
+
+Pode conversar normalmente comigo. 💬
+Vou responder uma vez por mensagem, sem floodar o grupo.
+
+🔴 Para desligar: *.Togioff*');
     }
 
-    return reply(
-      '╭━━━━━━━━━━━━━━━━━━━━╮\n' +
-      '┃ 🤖  𝙏𝙊𝙂𝙄 𝘼𝙄 𝙊𝙉  ┃\n' +
-      '╰━━━━━━━━━━━━━━━━━━━━╯\n\n' +
-      '👋 E AÍ! Eu sou o Togi.\n\n' +
-      '🧠 Estou usando o modo de IA local.\n' +
-      '📱 A IA roda no próprio aparelho, sem depender de cota de API.\n' +
-      '💬 Pode conversar comigo normalmente.\n' +
-      '✨ Vou manter um contexto curto da conversa.\n\n' +
-      '🔴 Para desligar: *.Togioff*'
-    );
+    try {
+      const answer = await askTogi(chat, sender, args.join(' '));
+      if (answer) return reply(`🤖 ${answer}`);
+    } catch (error) {
+      console.error('[TOGI AI]', error);
+      return reply('❌ A Togi AI está indisponível no momento. Tente novamente em instantes.');
+    }
   }
 };
