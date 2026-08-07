@@ -135,6 +135,11 @@ export function addTokens(jid, amount) {
   db.prepare('UPDATE users SET tokens = MAX(0, tokens + ?) WHERE jid = ?').run(Math.trunc(amount), jid);
   return getUser(jid);
 }
+export function spendTokens(jid, amount) {
+  const cost = Math.max(0, Math.trunc(amount));
+  const result = db.prepare('UPDATE users SET tokens = tokens - ? WHERE jid = ? AND tokens >= ?').run(cost, jid, cost);
+  return result.changes > 0;
+}
 
 export function getGroup(jid) { return db.prepare('SELECT * FROM groups WHERE jid = ?').get(jid); }
 export function ensureGroup(jid, subject = '') {
@@ -234,7 +239,7 @@ export function renameHouse(groupJid, name) {
 export function contributeHouse(groupJid, userJid, points) {
   const amount = Math.max(1, Math.trunc(points));
   db.prepare('INSERT INTO house_contributions (group_jid,user_jid,points) VALUES (?,?,?) ON CONFLICT(group_jid,user_jid) DO UPDATE SET points=points+excluded.points').run(groupJid, userJid, amount);
-  db.prepare('UPDATE group_houses SET points=points+?, level=1+(points+?)/1000 WHERE group_jid=?').run(amount, amount, groupJid);
+  db.prepare('UPDATE group_houses SET points=points+?, level=1+CAST((points+?)/1000 AS INTEGER) WHERE group_jid=?').run(amount, amount, groupJid);
   return getHouse(groupJid);
 }
 export function getHouseContributions(groupJid, limit = 10) { return db.prepare('SELECT user_jid,points FROM house_contributions WHERE group_jid=? ORDER BY points DESC LIMIT ?').all(groupJid, Math.max(1, Math.min(20, Number(limit) || 10))); }
@@ -248,7 +253,13 @@ export function addCard(jid, cardId, quantity = 1) {
 }
 export function removeCard(jid, cardId, quantity = 1) { return addCard(jid, cardId, -Math.abs(quantity)); }
 export function recordGame(jid, won, score = 0) {
-  db.prepare('INSERT INTO game_stats (jid,played,wins,best_score) VALUES (?,1,?,?,)');
+  const current = getGameStats(jid);
+  if (!current) {
+    db.prepare('INSERT INTO game_stats (jid,played,wins,best_score) VALUES (?,?,?,?)').run(jid, 1, won ? 1 : 0, Math.max(0, Math.trunc(score)));
+  } else {
+    db.prepare('UPDATE game_stats SET played=played+1,wins=wins+?,best_score=MAX(best_score,?) WHERE jid=?').run(won ? 1 : 0, Math.max(0, Math.trunc(score)), jid);
+  }
+  return getGameStats(jid);
 }
 export function getGameStats(jid) { return db.prepare('SELECT * FROM game_stats WHERE jid=?').get(jid); }
 export function closeDatabase() { db.close(); }
