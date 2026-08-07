@@ -4,6 +4,51 @@ export default {
   category: 'geral',
   description: 'Menu de diversão',
   async execute({ reply }) {
-    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃  🎲 𝙳𝙸𝚅𝙴𝚁𝚂Ã𝙾 • 𝚃𝙾𝙶𝙸\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n🧠 *QUIZ*\n├ .quiz\n├ .quizrank\n├ .quizstats\n└ .quizstreak\n\n🎯 *JOGOS RÁPIDOS*\n├ .8ball pergunta\n├ .dado\n└ .coin\n\n💞 *SOCIAL*\n├ .ship @pessoa\n└ .casal\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎉 Escolha um comando e bora brincar!`);
+    return reply(`╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
+┃  🎲 𝙳𝙸𝚅𝙴𝚁𝚂Ã𝙾 • 𝚃𝙾𝙶𝙸
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+
+🧠 *QUIZ*
+├ .quiz
+├ .quizrank
+├ .quizstats
+└ .quizstreak
+
+🎮 *TOGI GAMES*
+├ .jogos
+├ .forca
+├ .anagrama
+├ .adivinhe
+└ .gamestats
+
+🎯 *JOGOS RÁPIDOS*
+├ .8ball pergunta
+├ .dado
+└ .coin
+
+🎴 *TOGI CARDS*
+├ .album
+├ .carta <nome>
+├ .pack
+├ .vendercarta <nome>
+└ .doarcarta <nome> @pessoa
+
+🏠 *TOGI HOUSE*
+├ .casa
+├ .casa criar <nome>
+├ .casa doar <tokens>
+└ .casa top
+
+💞 *SOCIAL*
+├ .ship @pessoa
+├ .casal
+├ .beijar @pessoa
+├ .abracar @pessoa
+├ .carinho @pessoa
+├ .segurarmao @pessoa
+└ .encontro @pessoa
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎉 Escolha um comando e bora brincar!`);
   }
 };
