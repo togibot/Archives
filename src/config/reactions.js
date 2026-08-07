@@ -35,7 +35,7 @@ const reactions = {
   casa: '🏠',
 
   // Cards / Packs
-  album: '🎴', cartas: '🎴', carta: '🃏', pack: '📦', abrirpack: '📦', vendercarta: '💰', doar: '🎁', doarcarta: '🎁',
+  album: '🎴', cards: '🎴', carta: '🃏', pack: '📦', abrirpack: '📦', vendercarta: '💰', doar: '🎁', doarcarta: '🎁',
 
   // Battle / Diversão
   tapa: '🫳', chute: '🦵', soco: '👊', empurrar: '💨', defender: '🛡️', esquivar: '💨', duelo: '⚔️',
