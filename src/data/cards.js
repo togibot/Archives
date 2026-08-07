@@ -8,10 +8,10 @@ export const CARD_RARITIES = {
   secreta: { label: 'SECRETA', emoji: '🌈', weight: 0.2 }
 };
 
-// OG é um status especial, não uma raridade.
+// OG é um status especial, não uma raridade e não sai em Packs normais.
 export const CARDS = [
-  { id: 'lz-og', name: 'LZ', rarity: 'secreta', status: 'OG', description: 'Criador e dono do Togi Bot.' },
-  { id: 'lkz-og', name: 'Lkz', rarity: 'secreta', status: 'OG', description: 'Um dos OGs do universo Togi.' },
+  { id: 'lz-og', name: 'LZ', rarity: null, status: 'OG', description: 'Criador e dono do Togi Bot.' },
+  { id: 'lkz-og', name: 'Lkz', rarity: null, status: 'OG', description: 'Um dos OGs do universo Togi.' },
   { id: 'togi-01', name: 'Togi', rarity: 'mitica', description: 'A IA oficial do Togi Bot.' },
   { id: 'meguka-01', name: 'Meguka', rarity: 'mitica', description: 'Uma personagem misteriosa do universo Togi. :3' },
   { id: 'void-01', name: 'Void', rarity: 'mitica', description: 'Uma presença silenciosa cercada de mistérios.' },
@@ -34,7 +34,9 @@ export const CARDS = [
   { id: 'botinho-01', name: 'Botinho', rarity: 'comum', description: 'O menor ajudante do Togi.' },
   { id: 'cubo-01', name: 'Cubo', rarity: 'comum', description: 'Quadrado, simples e clássico.' },
   { id: 'rookie-01', name: 'Rookie', rarity: 'comum', description: 'Ainda está começando sua jornada.' },
-  { id: 'mini-togi-01', name: 'Mini Togi', rarity: 'comum', description: 'Uma versão pequenininha do Togi.' }
+  { id: 'mini-togi-01', name: 'Mini Togi', rarity: 'comum', description: 'Uma versão pequenininha do Togi.' },
+  { id: 'aether-01', name: 'Aether', rarity: 'secreta', description: 'Uma figura rara que quase ninguém viu.' },
+  { id: 'glitch-01', name: 'Glitch', rarity: 'secreta', description: 'Uma falha que ganhou forma dentro do universo.' }
 ];
 
 export function getCard(id) {
@@ -42,7 +44,7 @@ export function getCard(id) {
 }
 
 export function getCardsByRarity(rarity) {
-  return CARDS.filter(card => card.rarity === rarity);
+  return CARDS.filter(card => card.rarity === rarity && card.status !== 'OG');
 }
 
 export function drawCard(random = Math.random) {
