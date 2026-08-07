@@ -131,7 +131,7 @@ async function askLocalTogi(history, text) {
 async function askGeminiTogi(history, text) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY não configurada');
-  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
   const contents = [...history.map(item => ({ role: item.role === 'assistant' ? 'model' : 'user', parts: [{ text: item.text }] })), { role: 'user', parts: [{ text }] }];
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify({ system_instruction: { parts: [{ text: SYSTEM_PROMPT }] }, contents, generationConfig: { temperature: 0.9, maxOutputTokens: 500 } }) });
   const data = await response.json();
@@ -146,7 +146,7 @@ export async function askTogi(chat, sender, text) {
   const history = getHistory(chat, sender);
   pendingRequests.add(key);
   try {
-    const provider = (process.env.TOGI_AI_PROVIDER || 'local').toLowerCase();
+    const provider = (process.env.TOGI_AI_PROVIDER || 'gemini').toLowerCase();
     let answer;
     if (provider === 'gemini') answer = await askGeminiTogi(history, text);
     else if (provider === 'local') answer = await askLocalTogi(history, text);
