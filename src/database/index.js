@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS groups (
   jid TEXT PRIMARY KEY,
   subject TEXT,
   antilink INTEGER NOT NULL DEFAULT 0,
-  antiflood INTEGER NOT NULL DEFAULT 0
+  antiflood INTEGER NOT NULL DEFAULT 0,
+  anti_profanity INTEGER NOT NULL DEFAULT 0,
+  profanity_words TEXT NOT NULL DEFAULT '[]'
 );
 CREATE TABLE IF NOT EXISTS inventory (
   jid TEXT NOT NULL,
@@ -72,26 +74,20 @@ CREATE TABLE IF NOT EXISTS rp_family (
 );
 `);
 
-try { db.exec('ALTER TABLE users ADD COLUMN job TEXT'); } catch (error) {
-  if (!String(error?.message || '').includes('duplicate column name')) throw error;
-}
-try { db.exec('ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1'); } catch (error) {
-  if (!String(error?.message || '').includes('duplicate column name')) throw error;
-}
-try { db.exec("ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100"); } catch (error) {
-  if (!String(error?.message || '').includes('duplicate column name')) throw error;
-}
-try { db.exec("ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0"); } catch (error) {
-  if (!String(error?.message || '').includes('duplicate column name')) throw error;
-}
-try { db.exec("ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0"); } catch (error) {
-  if (!String(error?.message || '').includes('duplicate column name')) throw error;
-}
-try { db.exec("ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''"); } catch (error) {
-  if (!String(error?.message || '').includes('duplicate column name')) throw error;
-}
-try { db.exec("ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'"); } catch (error) {
-  if (!String(error?.message || '').includes('duplicate column name')) throw error;
+for (const sql of [
+  'ALTER TABLE users ADD COLUMN job TEXT',
+  'ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1',
+  'ALTER TABLE groups ADD COLUMN anti_profanity INTEGER NOT NULL DEFAULT 0',
+  "ALTER TABLE groups ADD COLUMN profanity_words TEXT NOT NULL DEFAULT '[]'",
+  'ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100',
+  'ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0',
+  "ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'"
+]) {
+  try { db.exec(sql); } catch (error) {
+    if (!String(error?.message || '').includes('duplicate column name')) throw error;
+  }
 }
 
 export function ensureUser(jid, name = 'Usuário') {
@@ -120,7 +116,7 @@ export function ensureGroup(jid, subject = '') {
   return getGroup(jid);
 }
 export function updateGroup(jid, patch) {
-  const allowed = new Set(['subject','antilink','antiflood']);
+  const allowed = new Set(['subject','antilink','antiflood','anti_profanity','profanity_words']);
   const keys = Object.keys(patch).filter(key => allowed.has(key));
   if (!keys.length) return getGroup(jid);
   const set = keys.map(key => `${key} = @${key}`).join(', ');
@@ -138,12 +134,11 @@ export function addItem(jid, itemId, quantity) {
 
 export function createPet(ownerJid, name, species) {
   const now = Date.now();
-  const result = db.prepare('INSERT INTO pets (owner_jid, name, species, health, hunger, thirst, happiness, last_needs_update, walk_count, walk_date, status, created_at) VALUES (?, ?, ?, 100, 100, 100, 100, ?, 0, ?, \'vivo\', ?)').run(ownerJid, name, species, now, '', now);
+  const result = db.prepare("INSERT INTO pets (owner_jid, name, species, health, hunger, thirst, happiness, last_needs_update, walk_count, walk_date, status, created_at) VALUES (?, ?, ?, 100, 100, 100, 100, ?, 0, ?, 'vivo', ?)").run(ownerJid, name, species, now, '', now);
   return db.prepare('SELECT * FROM pets WHERE id = ?').get(result.lastInsertRowid);
 }
 export function getPets(ownerJid) { return db.prepare('SELECT * FROM pets WHERE owner_jid = ? ORDER BY id').all(ownerJid); }
 export function getPet(ownerJid, petIdOrName) {
-  // IDs numéricos precisam ser reconhecidos corretamente para .meupet/.petinfo.
   const numeric = /^\d+$/.test(String(petIdOrName));
   return numeric ? db.prepare('SELECT * FROM pets WHERE owner_jid = ? AND id = ?').get(ownerJid, Number(petIdOrName)) : db.prepare('SELECT * FROM pets WHERE owner_jid = ? AND lower(name) = lower(?)').get(ownerJid, petIdOrName);
 }
