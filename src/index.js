@@ -8,6 +8,7 @@ import { ensureUser, ensureGroup } from './database/index.js';
 import { getText, getSender, getName } from './utils/message.js';
 import { askTogi, isTogiActive } from './services/togi-ai.js';
 import { getAfk, clearAfk } from './services/afk-store.js';
+import { moderateProfanity } from './services/anti-palavrao.js';
 import { getCommandReaction } from './config/reactions.js';
 import { getMenuImageUrl } from './config/menu-images.js';
 
@@ -155,6 +156,15 @@ async function startBot() {
       try {
         await handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, !isAfkToggle);
       } catch (error) { logger.debug({ err: error }, 'Falha ao processar AFK.'); }
+
+      // Anti-palavrão é processado antes dos comandos. Quando ativo, uma
+      // mensagem com palavrão remove o autor automaticamente do grupo.
+      if (isGroup && !message.key.fromMe && !isAfkToggle) {
+        try {
+          const moderated = await moderateProfanity({ sock, chat, message, sender: effectiveSender });
+          if (moderated) continue;
+        } catch (error) { logger.debug({ err: error }, 'Falha na moderação anti-palavrão.'); }
+      }
 
       if (!text.startsWith(config.bot.prefix) && isTogiActive(effectiveSender)) {
         try {
