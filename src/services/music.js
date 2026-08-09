@@ -21,49 +21,61 @@ function normalize(value) {
 }
 
 function tokenize(value) {
-  return new Set(normalize(value).split(/\s+/).filter(Boolean));
+  return normalize(value).split(/\s+/).filter(Boolean);
 }
 
 function relevanceScore(query, track) {
-  const queryText = normalize(query);
-  const queryTokens = tokenize(query);
+  const q = normalize(query);
+  const qTokens = tokenize(query);
   const title = normalize(track?.name);
   const artist = normalize(track?.artist_name);
-  const combined = `${title} ${artist}`;
-  const titleTokens = tokenize(track?.name);
-  const artistTokens = tokenize(track?.artist_name);
+  const titleTokens = new Set(tokenize(track?.name));
+  const artistTokens = new Set(tokenize(track?.artist_name));
+
+  if (!q || !title) return 0;
 
   let score = 0;
 
-  if (title === queryText) score += 1000;
-  if (title.includes(queryText)) score += 450;
-  if (artist === queryText) score += 250;
-  if (combined.includes(queryText)) score += 150;
+  // Exact title is overwhelmingly more important than popularity.
+  if (title === q) score += 100000;
+  else if (title.startsWith(`${q} `)) score += 50000;
+  else if (title.includes(q)) score += 30000;
 
-  for (const token of queryTokens) {
-    if (titleTokens.has(token)) score += 100;
-    else if (artistTokens.has(token)) score += 70;
-    else if (combined.includes(token)) score += 20;
+  // Exact artist/query match is useful for queries containing an artist name.
+  if (artist === q) score += 15000;
+  if (`${title} ${artist}` === q) score += 100000;
+
+  let matched = 0;
+  for (const token of qTokens) {
+    if (titleTokens.has(token)) {
+      score += 5000;
+      matched++;
+    } else if (artistTokens.has(token)) {
+      score += 2500;
+      matched++;
+    }
   }
 
-  // Penaliza resultados que só coincidem fracamente com a pesquisa.
-  if (queryTokens.size > 0) {
-    const matched = [...queryTokens].filter(token => combined.includes(token)).length;
-    score += (matched / queryTokens.size) * 150;
-  }
+  // Penalize results that match only a small part of a multi-word query.
+  if (qTokens.length) score += (matched / qTokens.length) * 10000;
+  if (matched < qTokens.length && qTokens.length >= 2) score *= matched / qTokens.length;
 
   return score;
 }
 
 function popularityScore(track) {
+  // Jamendo exposes popularity/rating signals; use them only as a tie-breaker
+  // so a popular but unrelated track cannot beat a strong title match.
   const popularity = Number(track?.popularity) || 0;
   const rating = Number(track?.rating) || 0;
   const likes = Number(track?.likes) || 0;
   const playcount = Number(track?.playcount) || 0;
   const downloads = Number(track?.downloads) || 0;
 
-  // Popularidade do catálogo tem prioridade, com sinais extras como desempate.
-  return (popularity * 100) + (rating * 10) + Math.log10(1 + likes) * 4 + Math.log10(1 + playcount) * 3 + Math.log10(1 + downloads) * 2;
+  return (popularity * 10) + (rating * 2)
+    + Math.log10(1 + likes)
+    + Math.log10(1 + playcount)
+    + Math.log10(1 + downloads);
 }
 
 export async function searchPlayableTrack(query) {
@@ -76,7 +88,8 @@ export async function searchPlayableTrack(query) {
     audioformat: 'mp32',
     audiodlformat: 'mp32',
     limit: '25',
-    order: 'relevance'
+    order: 'relevance',
+    boost: 'popularity_month'
   });
 
   const response = await fetch(`${JAMENDO_BASE_URL}?${params}`);
@@ -85,7 +98,7 @@ export async function searchPlayableTrack(query) {
     throw new Error(data?.headers?.error_message || `Jamendo HTTP ${response.status}`);
   }
 
-  const tracks = (Array.isArray(data.results) ? data.results : [])
+  const candidates = (Array.isArray(data.results) ? data.results : [])
     .filter(track => track?.audiodownload_allowed && track?.audiodownload)
     .map(track => ({
       track,
@@ -94,14 +107,16 @@ export async function searchPlayableTrack(query) {
     }))
     .filter(item => item.relevance > 0)
     .sort((a, b) => {
-      // Primeiro garantimos que a música realmente corresponde ao pedido;
-      // depois usamos popularidade para escolher a melhor entre as correspondentes.
-      const scoreA = a.relevance * 10 + a.popularity;
-      const scoreB = b.relevance * 10 + b.popularity;
+      const scoreA = a.relevance + a.popularity;
+      const scoreB = b.relevance + b.popularity;
       return scoreB - scoreA;
     });
 
-  return tracks[0]?.track || null;
+  // Never return a merely popular track when the query has no meaningful match.
+  const best = candidates[0];
+  if (!best || best.relevance < 5000) return null;
+
+  return best.track;
 }
 
 export async function downloadTrack(track) {
