@@ -56,11 +56,11 @@ export function canAskTogi(chat, sender) {
   return Date.now() - (lastResponseAt.get(key) || 0) >= RESPONSE_COOLDOWN_MS;
 }
 
-async function askDeepSeekTogi(history, text) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) throw new Error('DEEPSEEK_API_KEY não configurada');
-  const model = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
-  const baseUrl = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, '');
+async function askOpenAICompatibleTogi(history, text, { apiKeyEnv, modelEnv, defaultModel, baseUrlEnv, defaultBaseUrl, providerName }) {
+  const apiKey = process.env[apiKeyEnv];
+  if (!apiKey) throw new Error(`${apiKeyEnv} não configurada`);
+  const model = process.env[modelEnv] || defaultModel;
+  const baseUrl = (process.env[baseUrlEnv] || defaultBaseUrl).replace(/\/+$/, '');
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -77,10 +77,32 @@ async function askDeepSeekTogi(history, text) {
     })
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.error?.message || `DeepSeek HTTP ${response.status}`);
+  if (!response.ok) throw new Error(data?.error?.message || `${providerName} HTTP ${response.status}`);
   const answer = data?.choices?.[0]?.message?.content?.trim();
-  if (!answer) throw new Error('O DeepSeek não retornou texto.');
+  if (!answer) throw new Error(`O ${providerName} não retornou texto.`);
   return answer;
+}
+
+async function askDeepSeekTogi(history, text) {
+  return askOpenAICompatibleTogi(history, text, {
+    apiKeyEnv: 'DEEPSEEK_API_KEY',
+    modelEnv: 'DEEPSEEK_MODEL',
+    defaultModel: 'deepseek-v4-flash',
+    baseUrlEnv: 'DEEPSEEK_BASE_URL',
+    defaultBaseUrl: 'https://api.deepseek.com',
+    providerName: 'DeepSeek'
+  });
+}
+
+async function askMistralTogi(history, text) {
+  return askOpenAICompatibleTogi(history, text, {
+    apiKeyEnv: 'MISTRAL_API_KEY',
+    modelEnv: 'MISTRAL_MODEL',
+    defaultModel: 'mistral-small-latest',
+    baseUrlEnv: 'MISTRAL_BASE_URL',
+    defaultBaseUrl: 'https://api.mistral.ai/v1',
+    providerName: 'Mistral'
+  });
 }
 
 async function askGeminiTogi(history, text) {
@@ -109,6 +131,7 @@ export async function askTogi(chat, sender, text) {
     const provider = (process.env.TOGI_AI_PROVIDER || 'deepseek').toLowerCase();
     let answer;
     if (provider === 'deepseek') answer = await askDeepSeekTogi(history, text);
+    else if (provider === 'mistral') answer = await askMistralTogi(history, text);
     else if (provider === 'gemini') answer = await askGeminiTogi(history, text);
     else throw new Error(`Provedor de IA desconhecido: ${provider}`);
     history.push({ role: 'user', text }, { role: 'assistant', text: answer });
