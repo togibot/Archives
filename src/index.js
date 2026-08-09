@@ -68,8 +68,8 @@ async function startBot() {
 
       if (!text.startsWith(config.bot.prefix) && isTogiActive(chat, effectiveSender)) {
         try {
-          const answer = await askTogi(chat, effectiveSender, text);
-          if (answer) await reply(`🤖 ${answer}`);
+          const answer = await askTogi(chat, effectiveSender, text, userName);
+          if (answer) await reply(answer);
         } catch (error) {
           logger.error({ err: error }, 'Erro na Togi AI');
           // Erros da IA não geram mensagens repetidas no grupo.
