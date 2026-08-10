@@ -1,5 +1,7 @@
 const JAMENDO_BASE_URL = 'https://api.jamendo.com/v3.0/tracks/';
 const YOUTUBE_BASE_URL = 'https://www.googleapis.com/youtube/v3/search';
+const ITUNES_BASE_URL = 'https://itunes.apple.com/search';
+const DEEZER_BASE_URL = 'https://api.deezer.com/search';
 const MAX_AUDIO_BYTES = Number(process.env.MUSIC_MAX_BYTES || 20 * 1024 * 1024);
 
 function getClientId() {
@@ -101,32 +103,138 @@ export async function searchYouTubeTrack(query) {
     throw error;
   }
 
-  if (!response.ok) {
-    // A search failure other than quota exhaustion should not take music offline.
-    return null;
-  }
+  if (!response.ok) return null;
 
   const item = Array.isArray(data.items) ? data.items[0] : null;
   if (!item?.snippet) return null;
 
   return {
     title: clean(item.snippet.title),
-    artist: clean(item.snippet.channelTitle)
+    artist: clean(item.snippet.channelTitle),
+    source: 'YouTube'
+  };
+}
+
+export async function searchITunesTrack(query) {
+  const params = new URLSearchParams({
+    term: query,
+    entity: 'song',
+    country: 'BR',
+    limit: '8'
+  });
+
+  try {
+    const response = await fetch(`${ITUNES_BASE_URL}?${params}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !Array.isArray(data.results)) return [];
+
+    return data.results
+      .filter(item => item?.trackName)
+      .map(item => ({
+        title: clean(item.trackName),
+        artist: clean(item.artistName),
+        album: clean(item.collectionName),
+        popularity: Number(item.trackTimeMillis) > 0 ? 1 : 0,
+        source: 'iTunes'
+      }));
+  } catch {
+    return [];
+  }
+}
+
+export async function searchDeezerTrack(query) {
+  const params = new URLSearchParams({ q: query, limit: '8' });
+
+  try {
+    const response = await fetch(`${DEEZER_BASE_URL}?${params}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !Array.isArray(data.data)) return [];
+
+    return data.data
+      .filter(item => item?.title)
+      .map(item => ({
+        title: clean(item.title),
+        artist: clean(item.artist?.name),
+        album: clean(item.album?.title),
+        popularity: Number(item.rank) || 0,
+        source: 'Deezer'
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function externalMatchScore(query, candidate) {
+  const q = normalize(query);
+  const title = normalize(candidate?.title);
+  const artist = normalize(candidate?.artist);
+  const qTokens = tokenize(query);
+  const titleTokens = new Set(tokenize(candidate?.title));
+  const artistTokens = new Set(tokenize(candidate?.artist));
+
+  if (!q || !title) return 0;
+
+  let score = 0;
+  if (title === q) score += 100000;
+  else if (title.includes(q)) score += 40000;
+
+  if (`${title} ${artist}` === q) score += 50000;
+
+  let matched = 0;
+  for (const token of qTokens) {
+    if (titleTokens.has(token)) {
+      score += 7000;
+      matched++;
+    } else if (artistTokens.has(token)) {
+      score += 4000;
+      matched++;
+    }
+  }
+
+  if (qTokens.length) score += (matched / qTokens.length) * 15000;
+  if (matched < qTokens.length && qTokens.length >= 2) score *= matched / qTokens.length;
+  score += Math.min(10000, Math.log10(1 + Number(candidate?.popularity) || 0) * 1000);
+  return score;
+}
+
+async function identifyTrack(query) {
+  const [youtube, itunes, deezer] = await Promise.all([
+    searchYouTubeTrack(query).catch(error => {
+      if (error?.code === 'YOUTUBE_QUOTA_EXCEEDED') throw error;
+      return null;
+    }),
+    searchITunesTrack(query),
+    searchDeezerTrack(query)
+  ]);
+
+  const candidates = [
+    ...(youtube ? [youtube] : []),
+    ...itunes,
+    ...deezer
+  ]
+    .map(candidate => ({ candidate, score: externalMatchScore(query, candidate) }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  const best = candidates[0]?.candidate;
+  if (!best) return null;
+
+  return {
+    title: best.title,
+    artist: best.artist,
+    source: best.source
   };
 }
 
 export async function searchPlayableTrack(query) {
   const clientId = getClientId();
 
-  // YouTube is used only to improve identification. The actual audio still
-  // comes from Jamendo's permitted-download catalog.
-  let searchQuery = query;
-  const youtubeTrack = await searchYouTubeTrack(query);
-  if (youtubeTrack?.title) {
-    searchQuery = youtubeTrack.artist
-      ? `${youtubeTrack.title} ${youtubeTrack.artist}`
-      : youtubeTrack.title;
-  }
+  // YouTube, iTunes e Deezer são usados apenas para identificar melhor a faixa.
+  // O áudio continua vindo exclusivamente do catálogo Jamendo com download permitido.
+  const identified = await identifyTrack(query);
+  const searchQuery = identified?.artist
+    ? `${identified.title} ${identified.artist}`
+    : (identified?.title || query);
 
   const params = new URLSearchParams({
     client_id: clientId,
