@@ -30,7 +30,16 @@ export default {
 
     await reply(`🎧 Procurando *${query}*...`);
 
-    const track = await searchPlayableTrack(query);
+    let track;
+    try {
+      track = await searchPlayableTrack(query);
+    } catch (error) {
+      if (error?.code === 'YOUTUBE_QUOTA_EXCEEDED') {
+        return reply('🎵 *Músicas encerradas*\n\nMotivo: *Cota encerrou* ⏳\n\nVolte depois!');
+      }
+      throw error;
+    }
+
     if (!track) {
       return reply('❌ Não encontrei uma faixa com download permitido para esse pedido.\n\nTente outro nome, artista ou gênero.');
     }
