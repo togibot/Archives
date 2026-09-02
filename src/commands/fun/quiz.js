@@ -6,6 +6,7 @@ const BASE_REWARD = 25;
 const STREAK_STEP = 3;
 const REWARD_STEP = 5;
 const MAX_REWARD = 75;
+const GENERAL_KNOWLEDGE_CHANCE = 0.85;
 
 function shuffle(items) {
   const copy = [...items];
@@ -30,11 +31,24 @@ function prepareQuestion(question) {
 }
 
 function pickQuestion(difficulty) {
-  const pool = difficulty
+  const difficultyPool = difficulty
     ? quizQuestions.filter(question => question.difficulty === difficulty)
     : quizQuestions;
-  const source = pool.length ? pool : quizQuestions;
-  return prepareQuestion(source[Math.floor(Math.random() * source.length)]);
+  const sourcePool = difficultyPool.length ? difficultyPool : quizQuestions;
+
+  // O Quiz V2 prioriza conhecimentos gerais. Matemática continua disponível,
+  // mas deixa de dominar o banco por causa das muitas questões matemáticas.
+  const generalPool = sourcePool.filter(question => question.category !== 'matemática');
+  const mathPool = sourcePool.filter(question => question.category === 'matemática');
+
+  let pool;
+  if (generalPool.length && mathPool.length) {
+    pool = Math.random() < GENERAL_KNOWLEDGE_CHANCE ? generalPool : mathPool;
+  } else {
+    pool = sourcePool;
+  }
+
+  return prepareQuestion(pool[Math.floor(Math.random() * pool.length)]);
 }
 
 function rewardForStreak(streak) {
@@ -94,7 +108,6 @@ export default {
       const state = activeQuizzes.get(sender);
       if (state?.question === question) {
         activeQuizzes.delete(sender);
-        // Tempo esgotado também quebra a sequência.
         recordQuiz(sender, false);
       }
     }, 30000);
@@ -107,11 +120,11 @@ export default {
     }[question.difficulty] || '🟣 MISTO';
 
     await reply(
-      `╭━━━━━━━━━━━━━━━━━━╮\n` +
-      `┃ 🧠 𝚀𝚄𝙸𝚉 𝙳𝙾 𝚃𝙾𝙶𝙸 ┃\n` +
-      `╰━━━━━━━━━━━━━━━━━━╯\n\n` +
+      `╭━━〔 🧠✨ 𝐓𝐎𝐆𝐈 𝐐𝐔𝐈𝐙 ✨🧠 〕━━╮\n` +
+      `┃ 🌎 CONHECIMENTOS GERAIS\n` +
+      `╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
       `${difficultyLabel}\n` +
-      `📚 ${question.category}\n\n` +
+      `📚 Categoria: ${question.category}\n\n` +
       `${question.q}\n\n` +
       `${options}\n\n` +
       `⏱️ 30 segundos\n` +
