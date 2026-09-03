@@ -1,4 +1,6 @@
 import { downloadContentFromMessage } from '@whiskeysockets/baileys';
+import { ensureUser, updateUser } from '../database/index.js';
+import { getName } from '../utils/message.js';
 import { applyStickerMetadata } from '../services/stickers.js';
 
 async function toBuffer(stream) {
@@ -28,14 +30,14 @@ export default {
   name: 'take',
   aliases: ['roubarfig', 'renamefig'],
   category: 'sticker',
-  description: 'Reenvia uma figurinha usando exatamente o nome informado.',
-  async execute({ sock, chat, message, args, sender, reply }) {
+  description: 'Reenvia uma figurinha usando o Nick cadastrado pelo usuário.',
+  async execute({ sock, chat, message, sender, reply }) {
     const sticker = getQuotedSticker(message);
-    if (!sticker) return reply('🏷️ Responda a uma *figurinha* com *.take <nome>* para renomeá-la.\n\nExemplo: *.take LZ*');
+    if (!sticker) return reply('🏷️ Responda a uma *figurinha* com *.take* para usar seu Nick cadastrado.\n\nExemplo: *.nick 𝙻𝚉* e depois *.take*');
 
-    const name = args.join(' ').trim();
-    if (!name) return reply('🏷️ Informe o nome da figurinha.\n\nExemplo: *.take LZ*\n\nA figurinha ficará com o nome exatamente como você escreveu.');
-    if (name.length > 80) return reply('❌ O nome pode ter no máximo 80 caracteres.');
+    const user = ensureUser(sender, getName(message));
+    const name = String(user?.sticker_nick || '').trim();
+    if (!name) return reply('🏷️ Você ainda não possui um Nick cadastrado.\n\nUse *.nick <seu Nick>* primeiro.\nExemplo: *.nick 𝙻𝚉*');
 
     try {
       const stream = await downloadContentFromMessage(sticker, 'sticker');
@@ -44,6 +46,8 @@ export default {
       const group = chat?.endsWith?.('@g.us') ? 'Grupo' : 'Privado';
       const finalSticker = await applyStickerMetadata(input, name, requester, group);
       await sock.sendMessage(chat, { sticker: finalSticker }, { quoted: message });
+      // Keep the Nick persisted; this also makes the command safe if the user was created just now.
+      updateUser(sender, { sticker_nick: name });
     } catch (error) {
       return reply(`❌ Não consegui renomear a figurinha.\n${error?.message || 'Erro desconhecido'}`);
     }
