@@ -10,7 +10,6 @@ import { askTogi, isTogiActive } from './services/togi-ai.js';
 import { getAfk, clearAfk } from './services/afk-store.js';
 import { moderateProfanity } from './services/anti-palavrao.js';
 import { getCommandReaction } from './config/reactions.js';
-import { getMenuImageUrl } from './config/menu-images.js';
 
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
@@ -23,8 +22,6 @@ function formatAfkDuration(since) { const elapsedMs = Math.max(0, Date.now() - s
 function getAfkKeys({ effectiveSender, sender, pairingPhone, sock }) { const keys = [effectiveSender, sender, sock?.user?.id, pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''].filter(Boolean); return [...new Set(keys)]; }
 function findAfkEntry(keys) { for (const key of keys) { const entry = getAfk(key); if (entry) return { key, entry }; } return null; }
 async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, autoDisable = true) { if (autoDisable && !message.key.fromMe) { const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock })); if (ownAfk) { clearAfk(ownAfk.key); await reply(`👋 @${effectiveSender.split('@')[0]} saiu do AFK!\n⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.entry.since)}\n📝 Motivo: ${ownAfk.entry.reason}`, { mentions: [effectiveSender] }); } } if (!isGroup) return; const mentioned = [...new Set(getMentionedJids(message))]; if (!mentioned.length) return; const notices = []; const mentions = []; for (const jid of mentioned) { const entry = getAfk(jid); if (!entry) continue; notices.push(`💤 @${jid.split('@')[0]} está AFK.\n📝 Motivo: ${entry.reason}\n⏱️ Ausente há ${formatAfkDuration(entry.since)}`); mentions.push(jid); } if (notices.length) await reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n${notices.join('\n\n')}\n╰━━━━━━━━━━━━━━━━━━╯`, { mentions }); }
-function isMenuCommand(name) { const normalized = String(name || '').toLowerCase(); return normalized === 'menu' || normalized === 'help' || normalized === 'ajuda' || normalized === 'm' || normalized.startsWith('menu'); }
-async function sendMenuReply(sock, chat, message, imageUrl, content, options = {}) { const payload = { image: { url: imageUrl }, caption: String(content), ...options }; if (message.key.fromMe) return sock.sendMessage(chat, payload); return sock.sendMessage(chat, payload, { quoted: message }); }
 
 async function startBot() {
   restarting = false;
@@ -72,7 +69,6 @@ async function startBot() {
           if (answer) await reply(answer);
         } catch (error) {
           logger.error({ err: error }, 'Erro na Togi AI');
-          // Erros da IA não geram mensagens repetidas no grupo.
           if (error?.name !== 'AbortError') await reply('❌ A Togi AI está indisponível no momento. Tente novamente em instantes.');
         }
         continue;
@@ -84,7 +80,24 @@ async function startBot() {
       const command = commands.get(name.toLowerCase());
       if (!command) continue;
       await reactToCommand(sock, message, command);
-      try { const menuImageUrl = isMenuCommand(name) ? await getMenuImageUrl(name) : null; const commandReply = menuImageUrl ? (content, options = {}) => sendMenuReply(sock, chat, message, menuImageUrl, content, options) : reply; await command.execute({ sock, message, sender: effectiveSender, chat, args, text: args.join(' '), rawText: text, commandName: name.toLowerCase(), isGroup, reply: commandReply, react: async (emoji) => { try { await sock.sendMessage(chat, { react: { text: emoji, key: message.key } }); } catch {} } }); } catch (error) { logger.error({ err: error, command: name }, `Erro no comando ${name}`); await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`); }
+      try {
+        await command.execute({
+          sock,
+          message,
+          sender: effectiveSender,
+          chat,
+          args,
+          text: args.join(' '),
+          rawText: text,
+          commandName: name.toLowerCase(),
+          isGroup,
+          reply,
+          react: async (emoji) => { try { await sock.sendMessage(chat, { react: { text: emoji, key: message.key } }); } catch {} }
+        });
+      } catch (error) {
+        logger.error({ err: error, command: name }, `Erro no comando ${name}`);
+        await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`);
+      }
     }
   });
 }
