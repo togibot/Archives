@@ -1,6 +1,5 @@
 import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 import { applyStickerMetadata } from '../services/stickers.js';
-import { getUser } from '../database/index.js';
 
 async function toBuffer(stream) {
   const chunks = [];
@@ -29,18 +28,21 @@ export default {
   name: 'take',
   aliases: ['roubarfig', 'renamefig'],
   category: 'sticker',
-  description: 'Reenvia uma figurinha com seu nick personalizado.',
-  async execute({ sock, chat, message, sender, reply }) {
+  description: 'Reenvia uma figurinha usando exatamente o nome informado.',
+  async execute({ sock, chat, message, args, sender, reply }) {
     const sticker = getQuotedSticker(message);
-    if (!sticker) return reply('🏷️ Responda a uma *figurinha* com *.take* para colocar seu nick nela.');
+    if (!sticker) return reply('🏷️ Responda a uma *figurinha* com *.take <nome>* para renomeá-la.\n\nExemplo: *.take LZ*');
 
-    const nick = getUser(sender)?.sticker_nick?.trim();
-    if (!nick) return reply('🏷️ Você ainda não configurou seu nick. Use *.nick <nome>* primeiro.');
+    const name = args.join(' ').trim();
+    if (!name) return reply('🏷️ Informe o nome da figurinha.\n\nExemplo: *.take LZ*\n\nA figurinha ficará com o nome exatamente como você escreveu.');
+    if (name.length > 80) return reply('❌ O nome pode ter no máximo 80 caracteres.');
 
     try {
       const stream = await downloadContentFromMessage(sticker, 'sticker');
       const input = await toBuffer(stream);
-      const finalSticker = await applyStickerMetadata(input, nick, message?.pushName || sender.split('@')[0], chat?.endsWith?.('@g.us') ? 'Grupo' : 'Privado');
+      const requester = message?.pushName || sender?.split('@')[0] || 'Usuário';
+      const group = chat?.endsWith?.('@g.us') ? 'Grupo' : 'Privado';
+      const finalSticker = await applyStickerMetadata(input, name, requester, group);
       await sock.sendMessage(chat, { sticker: finalSticker }, { quoted: message });
     } catch (error) {
       return reply(`❌ Não consegui renomear a figurinha.\n${error?.message || 'Erro desconhecido'}`);
