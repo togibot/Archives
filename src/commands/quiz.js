@@ -19,7 +19,7 @@ function categoryHelp() {
 
 function buildChoices(correct, pool) {
   const choices = [correct];
-  for (const item of pool.sort(() => Math.random() - 0.5)) {
+  for (const item of [...pool].sort(() => Math.random() - 0.5)) {
     if (item !== correct && choices.length < 4) choices.push(item);
   }
   return choices.sort(() => Math.random() - 0.5);
@@ -30,8 +30,8 @@ export default {
   aliases: ['pergunta', 'pergunte'],
   category: 'fun',
   description: 'Quiz V2 por categorias, incluindo bandeiras.',
-  async execute({ sender, message, args, reply }) {
-    const user = ensureUser(sender, message?.pushName || 'Usuário');
+  async execute({ sender, message, args, reply, sock, chat }) {
+    ensureUser(sender, message?.pushName || 'Usuário');
     const active = getArcadeSession(sender);
 
     if (active?.type === 'quiz') {
@@ -57,14 +57,27 @@ export default {
       const keys = Object.keys(QUIZ_CATEGORIES);
       category = keys[Math.floor(Math.random() * keys.length)];
     }
-    if (category === 'bandeiras' || category === 'bandeira') {
+
+    if (category === 'bandeira') category = 'bandeiras';
+    if (category === 'bandeiras') {
       const [country, imageUrl] = randomFlag();
       const allCountries = (await import('../data/quiz.js')).FLAG_COUNTRIES.map(([name]) => name);
       const choices = buildChoices(country, allCountries);
       const correctIndex = choices.indexOf(country);
       setArcadeSession(sender, { type: 'quiz', category: 'bandeiras', correctAnswer: country, correctIndex });
-      const text = `🚩 *QUIZ DE BANDEIRAS*\n\n🌎 De qual país é esta bandeira?\n\n${choices.map((c, i) => `${LETTERS[i]}) ${c}`).join('\n')}\n\nResponda com *.quiz A/B/C/D*\n🏆 Recompensa: *50 🪙*`;
-      return reply({ image: { url: imageUrl }, caption: text });
+      const caption = `🚩 *QUIZ DE BANDEIRAS*\n\n🌎 De qual país é esta bandeira?\n\n${choices.map((c, i) => `${LETTERS[i]}) ${c}`).join('\n')}\n\nResponda com *.quiz A/B/C/D*\n🏆 Recompensa: *50 🪙*`;
+      try {
+        const response = await fetch(imageUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const image = Buffer.from(await response.arrayBuffer());
+        if (sock && chat) {
+          return sock.sendMessage(chat, { image, caption }, { quoted: message });
+        }
+        return reply(caption);
+      } catch {
+        clearArcadeSession(sender);
+        return reply(`🚩 *QUIZ DE BANDEIRAS*\n\nNão consegui carregar a bandeira agora. Tente *.quiz bandeiras* novamente.`);
+      }
     }
 
     if (!QUIZ_CATEGORIES[category]) return reply(`❌ Categoria não encontrada.\n\n${categoryHelp()}`);
