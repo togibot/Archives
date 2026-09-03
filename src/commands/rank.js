@@ -1,4 +1,4 @@
-import { ensureUser, getUser, getGameStats, getQuizStats } from '../database/index.js';
+import { ensureUser, getUser, getGameStats, getQuizStats, getUserRanks } from '../database/index.js';
 
 function mention(jid) {
   return `@${String(jid).split('@')[0]}`;
@@ -31,11 +31,12 @@ export default {
   name: 'rank',
   aliases: ['meurank', 'meuranks'],
   category: 'fun',
-  description: 'Mostra seu Rank V2 e estatísticas.',
+  description: 'Mostra seu Rank V2 e sua posição nos rankings globais.',
   async execute({ sender, message, reply }) {
     const user = ensureUser(sender, message?.pushName || 'Usuário');
     const games = getGameStats(sender);
     const quiz = getQuizStats(sender);
+    const ranks = getUserRanks(sender);
     const [rank, phrase] = rankInfo(user, games, quiz);
     const played = Number(games?.played || 0);
     const wins = Number(games?.wins || 0);
@@ -43,6 +44,6 @@ export default {
     const wrong = Number(quiz?.wrong || 0);
     const bestStreak = Number(quiz?.best_streak || 0);
 
-    return reply(`╭━━━〔 🏅💜 SEU RANK V2 〕━━━╮\n┃\n┃ 👤 ${mention(sender)}\n┃ 🏷️ *${rank}*\n┃ 💬 ${phrase}\n┃\n┃ 🪙 Tokens: *${user.tokens}*\n┃ 🎮 Partidas: *${played}*\n┃ 🏆 Vitórias: *${wins}*\n┃ 🧠 Acertos no Quiz: *${correct}*\n┃ ❌ Erros no Quiz: *${wrong}*\n┃ 🔥 Melhor streak: *${bestStreak}x*\n┃ ⭐ XP: *${user.xp}*\n┃ 📈 Nível: *${user.level}*\n┃\n╰━━━━━━━━━━━━━━━━━━━━╯`);
+    return reply(`╭━━━〔 🏅💜 SEU RANK V2 〕━━━╮\n┃\n┃ 👤 ${mention(sender)}\n┃ 🏷️ *${rank}*\n┃ 💬 ${phrase}\n┃\n┃ 🌎 *RANKING GLOBAL*\n┃ 🪙 Tokens: *#${ranks?.tokenRank || '-'}*\n┃ ⭐ XP: *#${ranks?.xpRank || '-'}*\n┃ 🎮 Atividade: *#${ranks?.activityRank || '-'}*\n┃ 🏆 Vitórias: *#${ranks?.winsRank || '-'}*\n┃ 🔥 Streak: *#${ranks?.streakRank || '-'}*\n┃\n┃ 🪙 Saldo: *${user.tokens}*\n┃ 🎮 Partidas: *${played}*\n┃ 🏆 Vitórias: *${wins}*\n┃ 🧠 Acertos no Quiz: *${correct}*\n┃ ❌ Erros no Quiz: *${wrong}*\n┃ 🔥 Melhor streak: *${bestStreak}x*\n┃ 📈 Nível: *${user.level}*\n┃\n╰━━━━━━━━━━━━━━━━━━━━╯`);
   }
 };
