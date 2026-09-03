@@ -1,4 +1,4 @@
-import { Image } from 'node-webpmux';
+import WebP from 'node-webpmux';
 
 const DEFAULT_NAME = '💜✨ 𝐅𝐢𝐠 𝐝𝐨 𝐓𝐨𝐠𝐢 ✨💜';
 const OWNER = 'LZ';
@@ -23,7 +23,7 @@ function buildExif(packName, requester, groupName = 'Privado') {
 }
 
 export async function applyStickerMetadata(webpBuffer, packName, requester, groupName) {
-  const image = new Image();
+  const image = new WebP.Image();
   await image.load(webpBuffer);
   image.exif = buildExif(packName || DEFAULT_NAME, requester || 'Usuário', groupName || 'Privado');
   return image.save(null);
