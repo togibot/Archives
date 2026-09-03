@@ -9,6 +9,7 @@ const stateTable = `${supabaseUrl}/rest/v1/bot_state`;
 
 let db;
 let timer = null;
+let interval = null;
 let syncing = false;
 let pending = false;
 
@@ -25,11 +26,7 @@ export function isSupabasePersistenceConfigured() {
 }
 
 function headers() {
-  return {
-    apikey: supabaseKey,
-    Authorization: `Bearer ${supabaseKey}`,
-    'Content-Type': 'application/json'
-  };
+  return { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' };
 }
 
 function tableNames() {
@@ -50,7 +47,8 @@ export function exportLocalSnapshot() {
   const database = getDb();
   const tables = {};
   for (const table of tableNames()) {
-    tables[table] = database.prepare(`SELECT * FROM "${table.replaceAll('"', '""')}"`).all().map(row => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, encodeValue(value)])));
+    const safe = table.replaceAll('"', '""');
+    tables[table] = database.prepare(`SELECT * FROM "${safe}"`).all().map(row => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, encodeValue(value)])));
   }
   return { version: 1, created_at: Date.now(), tables };
 }
@@ -82,12 +80,9 @@ export function restoreLocalSnapshot(snapshot) {
   const existing = new Set(tableNames());
   const names = Object.keys(snapshot.tables).filter(name => existing.has(name));
   if (!names.length) return { restored: false, reason: 'no_matching_tables' };
-
   const restore = database.transaction(() => {
     database.pragma('foreign_keys = OFF');
-    for (const table of [...names].reverse()) {
-      database.prepare(`DELETE FROM "${table.replaceAll('"', '""')}"`).run();
-    }
+    for (const table of [...names].reverse()) database.prepare(`DELETE FROM "${table.replaceAll('"', '""')}"`).run();
     for (const table of names) insertRows(table, snapshot.tables[table]);
     database.pragma('foreign_keys = ON');
   });
@@ -121,21 +116,14 @@ export async function syncToSupabase() {
   syncing = true;
   try {
     const state = exportLocalSnapshot();
-    await request('', {
-      method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({ id: 1, state })
-    });
+    await request('', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ id: 1, state }) });
     return true;
   } catch (error) {
     console.warn(`⚠️ Supabase sync indisponível: ${error.message}`);
     return false;
   } finally {
     syncing = false;
-    if (pending) {
-      pending = false;
-      scheduleSupabaseSync(2000);
-    }
+    if (pending) { pending = false; scheduleSupabaseSync(2000); }
   }
 }
 
@@ -155,4 +143,7 @@ export async function initializeSupabasePersistence() {
   if (result.restored) console.log(`☁️ Supabase: dados restaurados (${result.tables} tabelas).`);
   else if (result.reason === 'no_remote_snapshot') console.log('☁️ Supabase: primeiro boot detectado; o estado local será enviado após o uso.');
   scheduleSupabaseSync(1000);
+  clearInterval(interval);
+  interval = setInterval(() => { syncToSupabase().catch(() => {}); }, 30000);
+  interval.unref?.();
 }
