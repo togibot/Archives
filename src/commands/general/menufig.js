@@ -11,15 +11,22 @@ export default {
 ┃ • .brat — texto estilo Brat
 ┃
 ┃ 🏷️ *PERSONALIZAR*
-┃ • .nick <nome> — seu nome nas figs
-┃ • .take — renomear uma fig respondida
+┃ • .nick <nome> — nome padrão das suas figs
+┃ • .take <nome> — usa exatamente o nome enviado
 ┃ • .perfilfig — seu perfil de figs
 ┃
-┃ 📦 *PACKS*
-┃ • .packs — central de packs
+┃ 📦 *PACKS PERSONALIZADOS*
+┃ • .packs — lista e central de packs
+┃ • .packs criar <nome> — criar pack
+┃ • .packs add <nome> — adicionar FIG respondida
+┃ • .packs ver <nome> — ver conteúdo
+┃ • .packs enviar <nome> — enviar pack completo
+┃ • .packs remover <nome> <n> — remover FIG
+┃ • .packs renomear <antigo> | <novo>
+┃ • .packs apagar <nome> — excluir pack
 ┃
-┃ 💜 Sem nick: *💜✨ 𝐅𝐢𝐠 𝐝𝐨 𝐓𝐨𝐠𝐢 ✨💜*
-┃ ✨ Com .take: usa somente seu nick configurado
+┃ 💜 Sem .take: nome padrão do Togi ou seu .nick
+┃ ✨ Com .take LZ: o nome fica *LZ*, exatamente assim
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯`);
   }
 };
