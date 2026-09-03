@@ -125,6 +125,9 @@ export function ensureUser(jid, name = 'Usuário') {
 export function getUser(jid) { return db.prepare('SELECT * FROM users WHERE jid = ?').get(jid); }
 export function getTopUsers(limit = 10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY tokens DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function getTopXP(limit = 10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY xp DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
+export function getTopActivity(limit = 10) { return db.prepare('SELECT u.jid,u.name,g.played,g.wins,g.best_score FROM game_stats g JOIN users u ON u.jid=g.jid ORDER BY g.played DESC,g.wins DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
+export function getTopWins(limit = 10) { return db.prepare('SELECT u.jid,u.name,g.played,g.wins,g.best_score FROM game_stats g JOIN users u ON u.jid=g.jid ORDER BY g.wins DESC,g.played DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
+export function getTopStreak(limit = 10) { return db.prepare('SELECT u.jid,u.name,q.correct,q.wrong,q.streak,q.best_streak FROM quiz_stats q JOIN users u ON u.jid=q.jid ORDER BY q.best_streak DESC,q.correct DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function updateUser(jid, patch) {
   const allowed = new Set(['name','tokens','last_daily','last_weekly','last_steal','xp','level','afk_since','afk_reason','job','pet_shop_level','sticker_nick']);
   const keys = Object.keys(patch).filter(key => allowed.has(key));
