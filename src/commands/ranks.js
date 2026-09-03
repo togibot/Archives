@@ -1,4 +1,4 @@
-import { ensureUser, getTopUsers, getTopActivity, getTopStreak, getQuizRank } from '../database/index.js';
+import { ensureUser, getTopUsers, getTopActivity, getTopWins, getTopStreak, getQuizRank } from '../database/index.js';
 
 const LIMIT = 10;
 
@@ -41,7 +41,7 @@ export default {
     }
 
     if (['vitorias', 'wins', 'win'].includes(type)) {
-      const rows = getTopActivity(LIMIT).sort((a, b) => Number(b.wins) - Number(a.wins));
+      const rows = getTopWins(LIMIT);
       return reply(`╭━━━〔 🏆🔥 TOP VITÓRIAS 〕━━━╮\n┃\n${formatList(rows, row => `*${row.wins}* vitórias`)}\n┃\n╰━━━━━━━━━━━━━━━━━━━━╯`);
     }
 
