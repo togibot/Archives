@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS users (
   afk_since INTEGER,
   afk_reason TEXT,
   job TEXT,
-  pet_shop_level INTEGER NOT NULL DEFAULT 1
+  pet_shop_level INTEGER NOT NULL DEFAULT 1,
+  sticker_nick TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS groups (
   jid TEXT PRIMARY KEY,
@@ -103,6 +104,7 @@ CREATE TABLE IF NOT EXISTS game_stats (
 for (const sql of [
   'ALTER TABLE users ADD COLUMN job TEXT',
   'ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1',
+  "ALTER TABLE users ADD COLUMN sticker_nick TEXT NOT NULL DEFAULT ''",
   'ALTER TABLE groups ADD COLUMN anti_profanity INTEGER NOT NULL DEFAULT 0',
   "ALTER TABLE groups ADD COLUMN profanity_words TEXT NOT NULL DEFAULT '[]'",
   'ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100',
@@ -124,7 +126,7 @@ export function getUser(jid) { return db.prepare('SELECT * FROM users WHERE jid 
 export function getTopUsers(limit = 10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY tokens DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function getTopXP(limit = 10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY xp DESC LIMIT ?').all(Math.max(1, Math.min(50, Number(limit) || 10))); }
 export function updateUser(jid, patch) {
-  const allowed = new Set(['name','tokens','last_daily','last_weekly','last_steal','xp','level','afk_since','afk_reason','job','pet_shop_level']);
+  const allowed = new Set(['name','tokens','last_daily','last_weekly','last_steal','xp','level','afk_since','afk_reason','job','pet_shop_level','sticker_nick']);
   const keys = Object.keys(patch).filter(key => allowed.has(key));
   if (!keys.length) return getUser(jid);
   const set = keys.map(key => `${key} = @${key}`).join(', ');
@@ -170,7 +172,7 @@ export function createPet(ownerJid, name, species) {
 }
 export function getPets(ownerJid) { return db.prepare('SELECT * FROM pets WHERE owner_jid = ? ORDER BY id').all(ownerJid); }
 export function getPet(ownerJid, petIdOrName) {
-  const numeric = /^\d+$/.test(String(petIdOrName));
+  const numeric = /^\\d+$/.test(String(petIdOrName));
   return numeric ? db.prepare('SELECT * FROM pets WHERE owner_jid = ? AND id = ?').get(ownerJid, Number(petIdOrName)) : db.prepare('SELECT * FROM pets WHERE owner_jid = ? AND lower(name) = lower(?)').get(ownerJid, petIdOrName);
 }
 export function getAllLivingPets() { return db.prepare("SELECT * FROM pets WHERE status = 'vivo'").all(); }
@@ -218,48 +220,3 @@ export function getQuizStats(jid) {
   db.prepare('INSERT INTO quiz_stats (jid) VALUES (?) ON CONFLICT(jid) DO NOTHING').run(jid);
   return db.prepare('SELECT * FROM quiz_stats WHERE jid = ?').get(jid);
 }
-export function recordQuiz(jid, correct) {
-  const current = getQuizStats(jid);
-  const streak = correct ? current.streak + 1 : 0;
-  const best = Math.max(current.best_streak, streak);
-  db.prepare('UPDATE quiz_stats SET correct=correct+?, wrong=wrong+?, streak=?, best_streak=? WHERE jid=?').run(correct ? 1 : 0, correct ? 0 : 1, streak, best, jid);
-  return getQuizStats(jid);
-}
-export function getQuizRank(limit = 10) { return db.prepare(`SELECT u.jid,u.name,q.correct,q.wrong,q.best_streak,(q.correct*10-q.wrong) AS score FROM quiz_stats q JOIN users u ON u.jid=q.jid ORDER BY score DESC, q.correct DESC LIMIT ?`).all(Math.max(1, Math.min(50, Number(limit) || 10))); }
-
-export function getHouse(groupJid) { return db.prepare('SELECT * FROM group_houses WHERE group_jid = ?').get(groupJid); }
-export function createHouse(groupJid, name, createdBy) {
-  db.prepare('INSERT INTO group_houses (group_jid,name,created_by,created_at) VALUES (?,?,?,?)').run(groupJid, name, createdBy, Date.now());
-  return getHouse(groupJid);
-}
-export function renameHouse(groupJid, name) {
-  db.prepare('UPDATE group_houses SET name = ? WHERE group_jid = ?').run(name, groupJid);
-  return getHouse(groupJid);
-}
-export function contributeHouse(groupJid, userJid, points) {
-  const amount = Math.max(1, Math.trunc(points));
-  db.prepare('INSERT INTO house_contributions (group_jid,user_jid,points) VALUES (?,?,?) ON CONFLICT(group_jid,user_jid) DO UPDATE SET points=points+excluded.points').run(groupJid, userJid, amount);
-  db.prepare('UPDATE group_houses SET points=points+?, level=1+CAST((points+?)/1000 AS INTEGER) WHERE group_jid=?').run(amount, amount, groupJid);
-  return getHouse(groupJid);
-}
-export function getHouseContributions(groupJid, limit = 10) { return db.prepare('SELECT user_jid,points FROM house_contributions WHERE group_jid=? ORDER BY points DESC LIMIT ?').all(groupJid, Math.max(1, Math.min(20, Number(limit) || 10))); }
-
-export function getUserCards(jid) { return db.prepare('SELECT card_id,quantity FROM user_cards WHERE jid=? AND quantity>0 ORDER BY card_id').all(jid); }
-export function getCardQuantity(jid, cardId) { return db.prepare('SELECT quantity FROM user_cards WHERE jid=? AND card_id=?').get(jid, cardId)?.quantity || 0; }
-export function addCard(jid, cardId, quantity = 1) {
-  db.prepare('INSERT INTO user_cards (jid,card_id,quantity) VALUES (?,?,?) ON CONFLICT(jid,card_id) DO UPDATE SET quantity=quantity+excluded.quantity').run(jid, cardId, quantity);
-  db.prepare('DELETE FROM user_cards WHERE jid=? AND quantity<=0').run(jid);
-  return getCardQuantity(jid, cardId);
-}
-export function removeCard(jid, cardId, quantity = 1) { return addCard(jid, cardId, -Math.abs(quantity)); }
-export function recordGame(jid, won, score = 0) {
-  const current = getGameStats(jid);
-  if (!current) {
-    db.prepare('INSERT INTO game_stats (jid,played,wins,best_score) VALUES (?,?,?,?)').run(jid, 1, won ? 1 : 0, Math.max(0, Math.trunc(score)));
-  } else {
-    db.prepare('UPDATE game_stats SET played=played+1,wins=wins+?,best_score=MAX(best_score,?) WHERE jid=?').run(won ? 1 : 0, Math.max(0, Math.trunc(score)), jid);
-  }
-  return getGameStats(jid);
-}
-export function getGameStats(jid) { return db.prepare('SELECT * FROM game_stats WHERE jid=?').get(jid); }
-export function closeDatabase() { db.close(); }
