@@ -16,7 +16,7 @@ export default {
   name: 'play',
   aliases: [],
   category: 'music',
-  description: 'Busca e envia uma faixa com download permitido.',
+  description: 'Pesquisa em várias fontes e envia faixas com download permitido.',
   async execute({ sock, chat, message, reply, args }) {
     const query = args.join(' ').trim();
 
@@ -24,24 +24,24 @@ export default {
       return reply('🎵 Use: *.play <nome da música>*\n\nExemplo: *.play ambient chill*');
     }
 
-    if (!process.env.JAMENDO_CLIENT_ID) {
-      return reply('⚙️ O sistema de música ainda não foi configurado no servidor.\n\nDefina *JAMENDO_CLIENT_ID* no arquivo `.env` e reinicie o Togi.');
+    if (!process.env.FMA_KEY && !process.env.FMA_API_KEY && !process.env.JAMENDO_CLIENT_ID) {
+      return reply('⚙️ O sistema de música ainda não foi configurado.\n\nDefina *FMA_KEY* no `.env` para ativar o catálogo principal. *JAMENDO_CLIENT_ID* continua disponível como fallback.');
     }
 
-    await reply(`🎧 Procurando *${query}*...`);
+    await reply(`🎧 Procurando *${query}* em várias fontes...`);
 
     let track;
     try {
       track = await searchPlayableTrack(query);
     } catch (error) {
       if (error?.code === 'YOUTUBE_QUOTA_EXCEEDED') {
-        return reply('🎵 *Músicas encerradas*\n\nMotivo: *Cota encerrou* ⏳\n\nVolte depois!');
+        return reply('🎵 *Busca temporariamente limitada*\n\nA fonte de identificação atingiu a cota. O Togi ainda pode usar os catálogos licenciados configurados.');
       }
       throw error;
     }
 
     if (!track) {
-      return reply('❌ Não encontrei uma faixa com download permitido para esse pedido.\n\nTente outro nome, artista ou gênero.');
+      return reply('❌ Não encontrei uma faixa compatível com download permitido.\n\nTente outro nome, artista ou gênero.');
     }
 
     await reply(`⬇️ Preparando *${clean(track.name)}* — ${clean(track.artist_name, 'Artista desconhecido')}...`);
@@ -49,14 +49,16 @@ export default {
     const audio = await downloadTrack(track);
     const fileName = getTrackFileName(track);
     const caption = [
-      '🎵 *TOGI MUSIC*',
+      '🎵 *TOGI MUSIC BETA*',
       '',
       `🎧 ${clean(track.name)}`,
       `🎤 ${clean(track.artist_name, 'Artista desconhecido')}`,
       `⏱️ ${formatDuration(track.duration)}`,
+      `📚 Fonte: ${clean(track.source, 'Catálogo licenciado')}`,
+      track.license ? `📜 Licença: ${clean(track.license)}` : '',
       '',
-      '📚 Faixa disponibilizada com download permitido pelo catálogo.'
-    ].join('\n');
+      '✅ Áudio obtido de um catálogo que permite download da faixa.'
+    ].filter(Boolean).join('\n');
 
     await sock.sendMessage(chat, {
       audio,
