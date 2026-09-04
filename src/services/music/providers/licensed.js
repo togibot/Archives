@@ -21,12 +21,10 @@ function score(query, title, artist = '') {
   const a = normalize(artist);
   if (!q || !t) return 0;
   let points = t === q ? 100000 : t.includes(q) ? 30000 : 0;
-  const titleTokens = new Set(tokens(title));
-  const artistTokens = new Set(tokens(artist));
   let matched = 0;
   for (const token of qTokens) {
-    if (titleTokens.has(token)) { points += 7000; matched++; }
-    else if (artistTokens.has(token)) { points += 4000; matched++; }
+    if (t.includes(token)) { points += 7000; matched++; }
+    else if (a.includes(token)) { points += 4000; matched++; }
   }
   if (qTokens.length) points += (matched / qTokens.length) * 15000;
   if (matched < qTokens.length && qTokens.length >= 2) points *= matched / qTokens.length;
@@ -78,16 +76,28 @@ async function searchJamendo(query) {
 }
 
 export async function searchLicensedTracks(query, originalQuery = query) {
-  const [archive, fma, jamendo] = await Promise.all([
-    searchArchive(query).catch(() => null),
-    searchFma(query).catch(() => null),
-    searchJamendo(query).catch(() => null)
-  ]);
+  const queries = [
+    clean(query),
+    ...tokens(query).filter(token => token.length >= 3).map(token => token)
+  ].filter(Boolean).filter((value, index, list) => list.indexOf(value) === index);
 
-  const candidates = [archive, fma, jamendo].filter(Boolean).map(track => ({
+  const results = [];
+  for (const currentQuery of queries.slice(0, 4)) {
+    const [archive, fma, jamendo] = await Promise.all([
+      searchArchive(currentQuery).catch(() => null),
+      searchFma(currentQuery).catch(() => null),
+      searchJamendo(currentQuery).catch(() => null)
+    ]);
+    results.push(archive, fma, jamendo);
+
+    const exact = [archive, fma, jamendo].filter(Boolean).sort((a, b) =>
+      score(originalQuery, b.name || b.track_title, b.artist_name) - score(originalQuery, a.name || a.track_title, a.artist_name)
+    )[0];
+    if (exact && score(originalQuery, exact.name || exact.track_title, exact.artist_name) >= 30000) return exact;
+  }
+
+  return results.filter(Boolean).map(track => ({
     track,
     score: Math.max(score(originalQuery, track.name || track.track_title, track.artist_name), score(query, track.name || track.track_title, track.artist_name))
-  })).sort((a, b) => b.score - a.score);
-
-  return candidates[0]?.track || null;
+  })).sort((a, b) => b.score - a.score)[0]?.track || null;
 }
