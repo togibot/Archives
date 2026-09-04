@@ -1,8 +1,10 @@
 const SEARCH_URL = 'https://archive.org/advancedsearch.php';
 const METADATA_URL = 'https://archive.org/metadata/';
+const DOWNLOAD_URL = 'https://archive.org/download/';
 const MAX_RESULTS = 15;
 
 function clean(value, fallback = '') {
+  if (Array.isArray(value)) value = value.join(' ');
   const text = String(value ?? '').replace(/\s+/g, ' ').trim();
   return text || fallback;
 }
@@ -28,18 +30,37 @@ function score(query, title, artist = '') {
 
 function allowedLicense(value) {
   const license = normalize(value);
-  return license.includes('creativecommons.org') || license.includes('publicdomain');
+  return license.includes('creativecommons.org')
+    || license.includes('publicdomain')
+    || license.includes('public domain');
 }
 
-function playableFile(file) {
+function getLicense(doc, metadata) {
+  return clean(
+    doc?.licenseurl
+      || metadata?.metadata?.licenseurl
+      || metadata?.metadata?.license
+      || metadata?.metadata?.rights
+      || ''
+  );
+}
+
+function playableFile(file, identifier) {
   const name = clean(file?.name);
-  if (!name || !/^https?:\/\//i.test(file?.url || '')) return false;
-  return /\.(mp3|m4a|ogg|opus|wav|flac)$/i.test(name);
+  if (!name || !identifier) return false;
+  if (/\.(mp3|m4a|ogg|opus|wav|flac)$/i.test(name) === false) return false;
+
+  const directUrl = clean(file?.url);
+  const url = /^https?:\/\//i.test(directUrl)
+    ? directUrl
+    : `${DOWNLOAD_URL}${encodeURIComponent(identifier)}/${name.split('/').map(encodeURIComponent).join('/')}`;
+
+  return { ...file, url };
 }
 
 export async function searchArchive(query) {
   const params = new URLSearchParams({
-    q: `${query} AND mediatype:audio`,
+    q: `(${query}) AND mediatype:audio`,
     fl: 'identifier,title,creator,licenseurl',
     rows: String(MAX_RESULTS),
     output: 'json',
@@ -53,13 +74,17 @@ export async function searchArchive(query) {
 
   const candidates = [];
   for (const doc of docs) {
-    if (!doc?.identifier || !allowedLicense(doc.licenseurl)) continue;
+    if (!doc?.identifier) continue;
+
     const metadata = await fetch(`${METADATA_URL}${encodeURIComponent(doc.identifier)}`)
       .then(r => r.ok ? r.json() : null).catch(() => null);
     if (!metadata) continue;
 
+    const license = getLicense(doc, metadata);
+    if (!allowedLicense(license)) continue;
+
     const files = Array.isArray(metadata.files) ? metadata.files : [];
-    const file = files.find(playableFile);
+    const file = files.map(item => playableFile(item, doc.identifier)).find(Boolean);
     if (!file) continue;
 
     const title = clean(doc.title, clean(metadata.metadata?.title, 'Áudio'));
@@ -71,7 +96,7 @@ export async function searchArchive(query) {
         duration: Number(file.length || 0),
         audiodownload: file.url,
         source: 'Internet Archive',
-        license: clean(doc.licenseurl),
+        license,
         url: `https://archive.org/details/${doc.identifier}`
       },
       score: score(query, title, artist)
