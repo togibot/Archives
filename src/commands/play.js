@@ -24,10 +24,6 @@ export default {
       return reply('🎵 Use: *.play <nome da música>*\n\nExemplo: *.play Silent Circles GD*');
     }
 
-    if (!process.env.FMA_KEY && !process.env.FMA_API_KEY && !process.env.JAMENDO_CLIENT_ID) {
-      return reply('⚙️ O Music BETA ainda não foi configurado.\n\nDefina *FMA_KEY* no `.env` ou mantenha *JAMENDO_CLIENT_ID* como fallback.\n\n🧪 *YOUTUBE_API_KEY* é opcional e melhora a identificação da música.');
-    }
-
     await reply(`🎧 Pesquisando *${query}*...`);
 
     let track;
@@ -51,15 +47,13 @@ export default {
       const audio = await downloadTrack(track);
       const payload = getAudioPayload(audio, track);
       const caption = [
-        '🎵 *TOGI MUSIC BETA*',
-        '',
+        '🎵 *TOGI MUSIC BETA*', '',
         `🎧 ${clean(track.name)}`,
         `🎤 ${clean(track.artist_name, 'Artista desconhecido')}`,
         `⏱️ ${formatDuration(track.duration)}`,
         `📚 Áudio: ${clean(track.source, 'Fonte permitida')}`,
         track.identifiedBy ? `🔎 Pesquisa: ${track.identifiedBy}` : '',
-        track.license ? `📜 Licença: ${clean(track.license)}` : '',
-        '',
+        track.license ? `📜 Licença: ${clean(track.license)}` : '', '',
         '✅ Áudio obtido de uma fonte que disponibiliza download.'
       ].filter(Boolean).join('\n');
 
