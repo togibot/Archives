@@ -1,0 +1,7 @@
+{
+  "name": "better-sqlite3",
+  "version": "999.0.0-togi-node-sqlite",
+  "description": "Compatibility shim for Togi using Node.js built-in node:sqlite",
+  "main": "index.js",
+  "type": "commonjs"
+}
