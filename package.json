@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@whiskeysockets/baileys": "6.7.23",
-    "better-sqlite3": "latest",
+    "better-sqlite3": "file:vendor/better-sqlite3",
     "dotenv": "latest",
     "node-webpmux": "latest",
     "pino": "latest",
