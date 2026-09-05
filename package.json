@@ -1,19 +1,23 @@
 {
   "name": "togi-bot",
   "version": "1.0.0",
-  "description": "Togi Bot",
+  "description": "Togi Bot - bot modular para WhatsApp",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node src/index.js"
+    "start": "node src/bootstrap.js",
+    "dev": "node --watch src/bootstrap.js"
   },
-  "engines": {"node": ">=20"},
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@whiskeysockets/baileys": "6.7.23",
-    "dotenv": "^16.4.7",
-    "pino": "^9.6.0",
-    "sharp": "^0.33.5",
-    "yt-search": "^2.13.1"
+    "better-sqlite3": "file:vendor/better-sqlite3",
+    "dotenv": "latest",
+    "node-webpmux": "latest",
+    "pino": "latest",
+    "sharp": "latest",
+    "yt-search": "2.13.1"
   }
 }
