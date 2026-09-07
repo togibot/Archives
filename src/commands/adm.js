@@ -3,31 +3,36 @@ export default {
   aliases: ['menuadm', 'adminmenu'],
   category: 'admin',
   description: 'Menu de administração V2',
-  async execute({ sock, chat, isGroup, sender, reply }) {
+  async execute({ chat, isGroup, reply }) {
     if (!isGroup) return reply('❌ O Menu ADM só pode ser usado em grupos.');
 
     const text = `╭━━━〔 🛡️💜 𝐓𝐎𝐆𝐈 𝐀𝐃𝐌 𝐕𝟐 〕━━━╮
 ┃ ⚙️ *MENU DE ADMINISTRAÇÃO*
-┃ 🔐 Ferramentas para moderar o grupo
+┃ 🔐 Controle e proteção do grupo
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
 
-👮 *MODERAÇÃO*
+🚨 *MODERAÇÃO*
 ┃ 👢 .kick @membro — remove membro
-┃ 🗑️ .d — apaga mensagem respondida
-┃ ⚠️ .aviso @membro [motivo] — aplica aviso
-┃ 📋 .aviso ver @membro — consulta avisos
+┃ 🗑️ .d — apaga mensagem + comando
+┃ ⚠️ .aviso @membro [motivo] — adiciona aviso
+┃ 📋 .aviso ver @membro — vê os avisos
 ┃ ➖ .aviso remover @membro — remove 1 aviso
-┃ 🧹 .aviso limpar @membro — zera avisos
+┃ 🧹 .aviso limpar @membro — zera os avisos
 
 🛡️ *PROTEÇÕES*
-┃ 🔗 .antilink on/off — bloqueio de links
-┃ 🚫 .antipalavrao on/off — bloqueio de palavrões
-┃ ⚠️ Anti-palavrão apaga a mensagem e registra aviso
-┃ 🚨 3 avisos por palavrão → remoção automática
+┃ 🚫 .antipalavrao on/off — anti-palavrão
+┃ 🔗 .antilink on/off — anti-link
+┃ 📝 .antipalavras palavra1, palavra2 — filtro personalizado
 
-💜 *TOGI ADM V2*
-┃ 🔒 Apenas administradores podem usar estas ferramentas
-┃ 🧩 Novos sistemas de moderação serão adicionados aqui
+⚠️ *ANTI-PALAVRÃO*
+┃ 🗑️ A mensagem detectada é apagada
+┃ 📌 O autor recebe 1 aviso
+┃ 🚨 3 avisos → remoção automática
+┃ 👑 Administradores são protegidos
+
+⚙️ *CONFIGURAÇÕES*
+┃ 🛡️ Apenas administradores configuram
+┃ 💜 Menu ADM V2 em expansão
 
 ╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
 ┃ 👑 *TOGI BOT V2* • Painel ADM
