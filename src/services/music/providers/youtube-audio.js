@@ -44,7 +44,6 @@ async function getYouTube() {
     youtubePromise = Innertube.create({
       lang: 'pt-BR',
       location: 'BR',
-      client_type: 'TV',
       cache: new UniversalCache(true, YOUTUBE_CACHE_DIR)
     }).catch(error => {
       youtubePromise = null;
@@ -54,31 +53,28 @@ async function getYouTube() {
   return youtubePromise;
 }
 
-async function streamToBuffer(stream) {
-  if (!stream) throw new Error('O YouTube não retornou um stream de áudio.');
-
-  const response = new Response(stream);
-  const reader = response.body?.getReader();
-  if (!reader) return Buffer.from(await response.arrayBuffer());
-
-  const chunks = [];
-  let size = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (!value?.length) continue;
-
-    size += value.length;
-    if (size > MAX_AUDIO_BYTES * 2) {
-      await reader.cancel().catch(() => {});
-      throw new Error('O áudio bruto excede o limite permitido pelo Togi.');
-    }
-
-    chunks.push(Buffer.from(value));
+async function fetchAudioUrl(url) {
+  if (!url || !/^https:\/\//i.test(url)) {
+    throw new Error('O YouTube não retornou uma URL de áudio válida.');
   }
 
-  return Buffer.concat(chunks);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Falha ao obter o áudio do YouTube (HTTP ${response.status}).`);
+  }
+
+  const contentLength = Number(response.headers.get('content-length') || 0);
+  if (contentLength > MAX_AUDIO_BYTES * 2) {
+    throw new Error('O áudio bruto excede o limite permitido pelo Togi.');
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!buffer.length) throw new Error('O YouTube retornou áudio vazio.');
+  if (buffer.length > MAX_AUDIO_BYTES * 2) {
+    throw new Error('O áudio bruto excede o limite permitido pelo Togi.');
+  }
+
+  return buffer;
 }
 
 function convertToMp3(input) {
@@ -141,6 +137,28 @@ function convertToMp3(input) {
   });
 }
 
+async function tryClient(youtube, videoId, client) {
+  console.log(`[TOGI MUSIC YOUTUBE.JS] usando cliente ${client}`);
+
+  const info = await youtube.getBasicInfo(videoId, { client });
+  if (info.basic_info?.is_live) {
+    throw new Error('Transmissões ao vivo não são suportadas pelo .play.');
+  }
+
+  const format = info.chooseFormat({
+    type: 'audio',
+    quality: 'best'
+  });
+
+  if (!format?.url) {
+    throw new Error(`O cliente ${client} não retornou uma URL direta de áudio.`);
+  }
+
+  // Android/iOS podem fornecer uma URL utilizável sem chamar decipher().
+  const raw = await fetchAudioUrl(format.url);
+  return convertToMp3(raw);
+}
+
 export async function downloadYouTubeAudio(video) {
   const videoId = String(video?.videoId || '').trim();
   if (!videoId) throw new Error('ID do vídeo do YouTube inválido.');
@@ -155,25 +173,14 @@ export async function downloadYouTubeAudio(video) {
     };
   }
 
+  const youtube = await getYouTube();
   let lastError;
 
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+  // Evita os clientes WEB/TV que estão exigindo decipher e falhando no
+  // youtubei.js 18.0.0. Android e iOS podem expor URLs diretas de formato.
+  for (const client of ['ANDROID', 'IOS']) {
     try {
-      const youtube = await getYouTube();
-
-      // TV é um cliente do InnerTube que, atualmente, evita parte dos
-      // problemas de PO token/decipher que afetam o cliente WEB.
-      const stream = await youtube.download(videoId, {
-        client: 'TV',
-        type: 'audio',
-        format: 'mp4',
-        quality: 'best'
-      });
-
-      const raw = await streamToBuffer(stream);
-      if (!raw.length) throw new Error('O áudio retornado está vazio.');
-
-      const buffer = await convertToMp3(raw);
+      const buffer = await tryClient(youtube, videoId, client);
       await writeCache(videoId, buffer);
 
       return {
@@ -184,14 +191,7 @@ export async function downloadYouTubeAudio(video) {
       };
     } catch (error) {
       lastError = error;
-      console.error(
-        `[TOGI MUSIC YOUTUBE.JS] tentativa ${attempt}:`,
-        error?.message || error
-      );
-
-      if (attempt < 2) {
-        await new Promise(resolve => setTimeout(resolve, 700));
-      }
+      console.error(`[TOGI MUSIC YOUTUBE.JS] ${client}:`, error?.message || error);
     }
   }
 
