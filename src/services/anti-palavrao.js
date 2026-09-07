@@ -1,5 +1,6 @@
 import { getPermissionLevel } from '../core/permissions.js';
 import { getGroup, updateGroup } from '../database/index.js';
+import { addWarning } from './warnings.js';
 
 const DEFAULT_WORDS = [
   'caralho', 'porra', 'merda', 'puta', 'puto', 'putaria', 'foder', 'foda',
@@ -96,11 +97,29 @@ export async function moderateProfanity({ sock, chat, message, sender }) {
   if (botLevel < 3) return false;
 
   try {
-    await sock.groupParticipantsUpdate(chat, [sender], 'remove');
-    return true;
-  } catch {
-    return false;
+    await sock.sendMessage(chat, { delete: message.key });
+  } catch {}
+
+  const warning = addWarning(chat, sender, `Palavrão detectado: ${found}`, sock?.user?.id || null);
+
+  try {
+    await sock.sendMessage(chat, {
+      text: `⚠️ @${sender.split('@')[0]} recebeu um aviso por palavrão.\n📌 Avisos: *${warning.count}/3*`,
+      mentions: [sender]
+    });
+  } catch {}
+
+  if (warning.count >= 3) {
+    try {
+      await sock.groupParticipantsUpdate(chat, [sender], 'remove');
+      await sock.sendMessage(chat, {
+        text: `🚫 @${sender.split('@')[0]} atingiu *3 avisos* e foi removido do grupo.`,
+        mentions: [sender]
+      });
+    } catch {}
   }
+
+  return true;
 }
 
 export default {
