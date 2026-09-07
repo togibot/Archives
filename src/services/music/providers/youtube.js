@@ -1,48 +1,38 @@
-const YOUTUBE_BASE_URL = 'https://www.googleapis.com/youtube/v3/search';
+import ytSearch from 'yt-search';
 
-function clean(value) {
-  return String(value ?? '').replace(/\s+/g, ' ').trim();
+function clean(value, fallback = '') {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return text || fallback;
 }
 
-async function searchYouTube(query, maxResults = 5) {
-  const apiKey = clean(process.env.YOUTUBE_API_KEY);
-  if (!apiKey) return [];
-
-  const params = new URLSearchParams({
-    key: apiKey,
-    part: 'snippet',
-    q: query,
-    type: 'video',
-    maxResults: String(Math.min(Math.max(Number(maxResults) || 5, 1), 10)),
-    videoCategoryId: '10'
-  });
-
-  const response = await fetch(`${YOUTUBE_BASE_URL}?${params}`);
-  const data = await response.json().catch(() => ({}));
-
-  if (response.status === 403 && data?.error?.errors?.some(error => error?.reason === 'quotaExceeded')) {
-    const error = new Error('YOUTUBE_QUOTA_EXCEEDED');
-    error.code = 'YOUTUBE_QUOTA_EXCEEDED';
-    throw error;
-  }
-
-  if (!response.ok || !Array.isArray(data.items)) return [];
-
-  return data.items
-    .map(item => ({
-      title: clean(item?.snippet?.title),
-      artist: clean(item?.snippet?.channelTitle),
-      videoId: clean(item?.id?.videoId),
-      source: 'YouTube'
-    }))
-    .filter(item => item.title && item.videoId);
+function mapVideo(video) {
+  if (!video?.url || !video?.title) return null;
+  return {
+    title: clean(video.title),
+    artist: clean(video.author?.name || video.author?.channelName, 'Artista desconhecido'),
+    videoId: clean(video.videoId),
+    duration: Number(video.seconds || 0),
+    views: Number(video.views || 0),
+    ago: clean(video.ago, 'Não informado'),
+    description: clean(video.description, 'Sem descrição'),
+    url: clean(video.url),
+    thumbnail: clean(video.thumbnail),
+    source: 'YouTube'
+  };
 }
 
 export async function searchYouTubeTracks(query, maxResults = 5) {
-  return searchYouTube(query, maxResults);
+  const text = String(query || '').trim();
+  if (!text) return [];
+
+  const result = await ytSearch(text);
+  return (result?.videos || [])
+    .slice(0, Math.min(Math.max(Number(maxResults) || 5, 1), 10))
+    .map(mapVideo)
+    .filter(Boolean);
 }
 
 export async function searchYouTubeTrack(query) {
-  const results = await searchYouTube(query, 1);
+  const results = await searchYouTubeTracks(query, 1);
   return results[0] || null;
 }
