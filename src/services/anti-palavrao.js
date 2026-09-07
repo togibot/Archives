@@ -85,41 +85,59 @@ function getMessageText(message) {
     || '';
 }
 
+function normalizeJid(jid) {
+  return String(jid || '').split(':')[0].split('@')[0].replace(/\D/g, '');
+}
+
+async function isBotAdmin(sock, chat) {
+  try {
+    const metadata = await sock.groupMetadata(chat);
+    const botNumber = normalizeJid(sock?.user?.id);
+    const bot = metadata.participants.find((p) =>
+      normalizeJid(p.id) === botNumber || normalizeJid(p.phoneNumber) === botNumber
+    );
+    return bot?.admin === 'admin' || bot?.admin === 'superadmin';
+  } catch {
+    return false;
+  }
+}
+
 export async function moderateProfanity({ sock, chat, message, sender }) {
-  if (!chat?.endsWith('@g.us')) return false;
+  if (!chat?.endsWith('@g.us')) return { moderated: false };
   const found = findProfanity(getMessageText(message), chat);
-  if (!found) return false;
+  if (!found) return { moderated: false };
 
   const senderLevel = await getPermissionLevel({ sock, chat, jid: sender }).catch(() => 1);
-  if (senderLevel >= 3) return false;
+  if (senderLevel >= 3) return { moderated: false, exempt: true, word: found };
 
-  const botLevel = await getPermissionLevel({ sock, chat, jid: sock?.user?.id }).catch(() => 1);
-  if (botLevel < 3) return false;
+  if (!(await isBotAdmin(sock, chat))) {
+    return { moderated: false, reason: 'bot-not-admin', word: found };
+  }
 
   try {
     await sock.sendMessage(chat, { delete: message.key });
-  } catch {}
+  } catch {
+    return { moderated: false, reason: 'delete-failed', word: found };
+  }
 
   const warning = addWarning(chat, sender, `Palavrão detectado: ${found}`, sock?.user?.id || null);
-
-  try {
-    await sock.sendMessage(chat, {
-      text: `⚠️ @${sender.split('@')[0]} recebeu um aviso por palavrão.\n📌 Avisos: *${warning.count}/3*`,
-      mentions: [sender]
-    });
-  } catch {}
+  let removed = false;
 
   if (warning.count >= 3) {
     try {
       await sock.groupParticipantsUpdate(chat, [sender], 'remove');
-      await sock.sendMessage(chat, {
-        text: `🚫 @${sender.split('@')[0]} atingiu *3 avisos* e foi removido do grupo.`,
-        mentions: [sender]
-      });
+      removed = true;
     } catch {}
   }
 
-  return true;
+  try {
+    const text = removed
+      ? `🚫 @${sender.split('@')[0]} atingiu *3 avisos* por palavrão e foi removido do grupo.`
+      : `⚠️ @${sender.split('@')[0]} recebeu um aviso por palavrão.\n📌 Avisos: *${warning.count}/3*`;
+    await sock.sendMessage(chat, { text, mentions: [sender] });
+  } catch {}
+
+  return { moderated: true, word: found, warningCount: warning.count, removed };
 }
 
 export default {
