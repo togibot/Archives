@@ -1,5 +1,8 @@
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
+import ffmpegPath from 'ffmpeg-static';
 import { Innertube, UniversalCache } from 'youtubei.js';
 
 const MAX_AUDIO_BYTES = Number(process.env.MUSIC_MAX_BYTES || 20 * 1024 * 1024);
@@ -55,9 +58,7 @@ async function streamToBuffer(stream) {
 
   const response = new Response(stream);
   const reader = response.body?.getReader();
-  if (!reader) {
-    return Buffer.from(await response.arrayBuffer());
-  }
+  if (!reader) return Buffer.from(await response.arrayBuffer());
 
   const chunks = [];
   let size = 0;
@@ -67,14 +68,53 @@ async function streamToBuffer(stream) {
     if (done) break;
     if (!value?.length) continue;
     size += value.length;
-    if (size > MAX_AUDIO_BYTES) {
+    if (size > MAX_AUDIO_BYTES * 2) {
       await reader.cancel().catch(() => {});
-      throw new Error('O áudio excede o limite permitido pelo Togi.');
+      throw new Error('O áudio bruto excede o limite permitido pelo Togi.');
     }
     chunks.push(Buffer.from(value));
   }
 
   return Buffer.concat(chunks);
+}
+
+function convertToMp3(input) {
+  return new Promise((resolve, reject) => {
+    if (!ffmpegPath) return reject(new Error('FFmpeg não foi encontrado.'));
+
+    const output = path.join(os.tmpdir(), `togi-${Date.now()}-${Math.random().toString(16).slice(2)}.mp3`);
+    const ffmpeg = spawn(ffmpegPath, [
+      '-hide_banner', '-loglevel', 'error',
+      '-i', 'pipe:0',
+      '-vn', '-ac', '2', '-ar', '44100',
+      '-b:a', '128k',
+      '-f', 'mp3', output
+    ]);
+
+    const errors = [];
+    ffmpeg.stderr.on('data', chunk => errors.push(chunk));
+    ffmpeg.once('error', reject);
+    ffmpeg.once('close', async code => {
+      if (code !== 0) {
+        await fs.rm(output, { force: true }).catch(() => {});
+        return reject(new Error(`FFmpeg falhou (${code}): ${Buffer.concat(errors).toString().slice(0, 500)}`));
+      }
+
+      try {
+        const buffer = await fs.readFile(output);
+        await fs.rm(output, { force: true });
+        if (!buffer.length) return reject(new Error('FFmpeg gerou áudio vazio.'));
+        if (buffer.length > MAX_AUDIO_BYTES) return reject(new Error('Áudio convertido excedeu o limite.'));
+        resolve(buffer);
+      } catch (error) {
+        await fs.rm(output, { force: true }).catch(() => {});
+        reject(error);
+      }
+    });
+
+    ffmpeg.stdin.on('error', () => {});
+    ffmpeg.stdin.end(input);
+  });
 }
 
 export async function downloadYouTubeAudio(video) {
@@ -98,16 +138,13 @@ export async function downloadYouTubeAudio(video) {
       const raw = await streamToBuffer(stream);
       if (!raw.length) throw new Error('O áudio retornado está vazio.');
 
-      const buffer = raw;
-      if (buffer.length > MAX_AUDIO_BYTES) {
-        throw new Error('O áudio excede o limite permitido pelo Togi.');
-      }
-
+      const buffer = await convertToMp3(raw);
       await writeCache(videoId, buffer);
+
       return {
         buffer,
-        mimeType: 'audio/webm; codecs=opus',
-        extension: 'webm',
+        mimeType: 'audio/mpeg',
+        extension: 'mp3',
         cached: false
       };
     } catch (error) {
