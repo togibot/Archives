@@ -1,6 +1,15 @@
 import { searchMusic } from './search.js';
 
-export async function resolveMusic(query) {
+export async function resolveMusic(query, identified = null) {
+  if (identified?.url) {
+    return {
+      ...identified,
+      source: 'YouTube',
+      name: identified.title,
+      artist_name: identified.artist
+    };
+  }
+
   const result = await searchMusic(query);
   if (result.identified?.url) {
     return {
