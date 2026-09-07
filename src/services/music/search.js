@@ -6,7 +6,7 @@ export async function searchMusic(query) {
   if (!text) return { query: '', identified: null, playable: null };
 
   const identified = await searchYouTubeTrack(text).catch(() => null);
-  const searchQuery = identified?.title
+  const searchQuery = identified
     ? [identified.title, identified.artist].filter(Boolean).join(' ')
     : text;
 
