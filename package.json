@@ -21,6 +21,7 @@
     "yt-search": "2.13.1",
     "fluent-ffmpeg": "^2.1.2",
     "ffmpeg-static": "latest",
-    "youtubei.js": "latest"
+    "youtubei.js": "latest",
+    "@hoangquyet/ytdown": "1.0.2"
   }
 }
