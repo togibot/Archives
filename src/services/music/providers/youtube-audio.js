@@ -44,6 +44,7 @@ async function getYouTube() {
     youtubePromise = Innertube.create({
       lang: 'pt-BR',
       location: 'BR',
+      client_type: 'TV',
       cache: new UniversalCache(true, YOUTUBE_CACHE_DIR)
     }).catch(error => {
       youtubePromise = null;
@@ -67,11 +68,13 @@ async function streamToBuffer(stream) {
     const { done, value } = await reader.read();
     if (done) break;
     if (!value?.length) continue;
+
     size += value.length;
     if (size > MAX_AUDIO_BYTES * 2) {
       await reader.cancel().catch(() => {});
       throw new Error('O áudio bruto excede o limite permitido pelo Togi.');
     }
+
     chunks.push(Buffer.from(value));
   }
 
@@ -82,29 +85,50 @@ function convertToMp3(input) {
   return new Promise((resolve, reject) => {
     if (!ffmpegPath) return reject(new Error('FFmpeg não foi encontrado.'));
 
-    const output = path.join(os.tmpdir(), `togi-${Date.now()}-${Math.random().toString(16).slice(2)}.mp3`);
+    const output = path.join(
+      os.tmpdir(),
+      `togi-${Date.now()}-${Math.random().toString(16).slice(2)}.mp3`
+    );
+
     const ffmpeg = spawn(ffmpegPath, [
-      '-hide_banner', '-loglevel', 'error',
-      '-i', 'pipe:0',
-      '-vn', '-ac', '2', '-ar', '44100',
-      '-b:a', '128k',
-      '-f', 'mp3', output
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      'pipe:0',
+      '-vn',
+      '-ac',
+      '2',
+      '-ar',
+      '44100',
+      '-b:a',
+      '128k',
+      '-f',
+      'mp3',
+      output
     ]);
 
     const errors = [];
     ffmpeg.stderr.on('data', chunk => errors.push(chunk));
     ffmpeg.once('error', reject);
+
     ffmpeg.once('close', async code => {
       if (code !== 0) {
         await fs.rm(output, { force: true }).catch(() => {});
-        return reject(new Error(`FFmpeg falhou (${code}): ${Buffer.concat(errors).toString().slice(0, 500)}`));
+        return reject(new Error(
+          `FFmpeg falhou (${code}): ${Buffer.concat(errors).toString().slice(0, 500)}`
+        ));
       }
 
       try {
         const buffer = await fs.readFile(output);
         await fs.rm(output, { force: true });
+
         if (!buffer.length) return reject(new Error('FFmpeg gerou áudio vazio.'));
-        if (buffer.length > MAX_AUDIO_BYTES) return reject(new Error('Áudio convertido excedeu o limite.'));
+        if (buffer.length > MAX_AUDIO_BYTES) {
+          return reject(new Error('Áudio convertido excedeu o limite.'));
+        }
+
         resolve(buffer);
       } catch (error) {
         await fs.rm(output, { force: true }).catch(() => {});
@@ -123,15 +147,26 @@ export async function downloadYouTubeAudio(video) {
 
   const cached = await readCache(videoId);
   if (cached) {
-    return { buffer: cached, mimeType: 'audio/mpeg', extension: 'mp3', cached: true };
+    return {
+      buffer: cached,
+      mimeType: 'audio/mpeg',
+      extension: 'mp3',
+      cached: true
+    };
   }
 
   let lastError;
+
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       const youtube = await getYouTube();
+
+      // TV é um cliente do InnerTube que, atualmente, evita parte dos
+      // problemas de PO token/decipher que afetam o cliente WEB.
       const stream = await youtube.download(videoId, {
+        client: 'TV',
         type: 'audio',
+        format: 'mp4',
         quality: 'best'
       });
 
@@ -149,8 +184,14 @@ export async function downloadYouTubeAudio(video) {
       };
     } catch (error) {
       lastError = error;
-      console.error(`[TOGI MUSIC YOUTUBE.JS] tentativa ${attempt}:`, error?.message || error);
-      if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 700));
+      console.error(
+        `[TOGI MUSIC YOUTUBE.JS] tentativa ${attempt}:`,
+        error?.message || error
+      );
+
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 700));
+      }
     }
   }
 
