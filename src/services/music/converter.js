@@ -6,18 +6,23 @@ export function prepareAudio(buffer) {
   return buffer;
 }
 
-export function getAudioPayload(buffer, track) {
+export function getAudioPayload(audio, track) {
+  const buffer = Buffer.isBuffer(audio) ? audio : audio?.buffer;
+  const mimeType = audio?.mimeType || track?.mimeType || 'audio/mpeg';
+  const extension = audio?.extension || track?.extension || 'mp3';
+
   return {
     audio: prepareAudio(buffer),
-    mimetype: 'audio/mpeg',
-    fileName: getAudioFileName(track),
+    mimetype: mimeType,
+    fileName: getAudioFileName(track, extension),
     ptt: false
   };
 }
 
-export function getAudioFileName(track) {
-  const title = String(track?.name || 'togi-audio').replace(/\s+/g, ' ').trim();
-  const artist = String(track?.artist_name || '').replace(/\s+/g, ' ').trim();
+export function getAudioFileName(track, extension = 'mp3') {
+  const title = String(track?.name || track?.title || 'togi-audio').replace(/\s+/g, ' ').trim();
+  const artist = String(track?.artist_name || track?.artist || '').replace(/\s+/g, ' ').trim();
   const base = artist ? `${title} - ${artist}` : title;
-  return `${base.replace(/[\\/:*?"<>|]/g, '').slice(0, 100)}.mp3`;
+  const safeExtension = String(extension || 'mp3').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'mp3';
+  return `${base.replace(/[\\/:*?"<>|]/g, '').slice(0, 100)}.${safeExtension}`;
 }
