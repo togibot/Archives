@@ -24,11 +24,11 @@ export default {
 ┃ 🔗 .antilink on/off — anti-link
 ┃ 📝 .antipalavras palavra1, palavra2 — filtro personalizado
 
-⚠️ *ANTI-PALAVRÃO*
-┃ 🗑️ A mensagem detectada é apagada
-┃ 📌 O autor recebe 1 aviso
-┃ 🚨 3 avisos → remoção automática
+🧪 *ANTI-PALAVRÃO — TESTE*
+┃ 🗑️ Detectou palavrão → apaga a mensagem
+┃ ⏸️ Avisos e remoção automática estão pausados
 ┃ 👑 Administradores são protegidos
+┃ ⚠️ O Togi precisa ser administrador do grupo
 
 ⚙️ *CONFIGURAÇÕES*
 ┃ 🛡️ Apenas administradores configuram
