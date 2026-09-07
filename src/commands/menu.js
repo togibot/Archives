@@ -55,8 +55,11 @@ const MENU = `╭━━━〔 💜🤖 𝐓𝐎𝐆𝐈 𝐁𝐎𝐓 𝐕𝟐 �
 ┃ 👢 .kick • 🗑️ .d
 ┃ ⚙️ ADM V2 e comandos de administração
 
-🎵 *MÚSICA*
-┃ 🎧 .play <nome da música> — 🧪 *EM TESTE / BETA*
+🎵 *MÚSICA — TESTE / BETA*
+┃ 🎧 .play <nome> — pesquisar e enviar áudio
+┃ 🎵 .yta <nome> — áudio
+┃ 🔎 .yts <pesquisa> — resultados do YouTube
+┃ 📄 .ytadoc <nome> — áudio como documento
 ┃ ⚠️ Sistema de música ainda em desenvolvimento
 
 🎨 *FIGURINHAS*
