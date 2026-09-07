@@ -1,4 +1,3 @@
-import { getPermissionLevel } from '../core/permissions.js';
 import { getGroup, updateGroup } from '../database/index.js';
 
 const DEFAULT_WORDS = [
@@ -101,14 +100,14 @@ async function isBotAdmin(sock, chat) {
   }
 }
 
-export async function moderateProfanity({ sock, chat, message, sender }) {
+export async function moderateProfanity({ sock, chat, message }) {
   if (!chat?.endsWith('@g.us')) return { moderated: false };
+
   const found = findProfanity(getMessageText(message), chat);
   if (!found) return { moderated: false };
 
-  const senderLevel = await getPermissionLevel({ sock, chat, jid: sender }).catch(() => 1);
-  if (senderLevel >= 3) return { moderated: false, exempt: true, word: found };
-
+  // Modo de teste: ADM, dono e membro comum entram na mesma regra.
+  // A única exceção é o Togi não ter permissão para apagar mensagens.
   if (!(await isBotAdmin(sock, chat))) {
     return { moderated: false, reason: 'bot-not-admin', word: found };
   }
