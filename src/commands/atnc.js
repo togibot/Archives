@@ -1,17 +1,20 @@
 import config from '../config.js';
 import { addTokens, ensureUser } from '../database/index.js';
 
-function normalizeJid(value) {
-  return String(value || '').trim().replace(/:\d+(?=@)/, '');
+function normalizeNumber(value) {
+  return String(value || '').split('@')[0].replace(/\D/g, '');
 }
 
-function isOwner(jid) {
-  const normalizedJid = normalizeJid(jid);
-  const number = normalizedJid.split('@')[0].replace(/\D/g, '');
-  return config.owner.numbers.some((allowed) => {
-    const allowedNumber = String(allowed).replace(/\D/g, '');
-    return allowedNumber && allowedNumber === number;
-  });
+function isOwner(...values) {
+  const allowedNumbers = config.owner.numbers
+    .map(normalizeNumber)
+    .filter(Boolean);
+
+  return values
+    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .map(normalizeNumber)
+    .filter(Boolean)
+    .some((number) => allowedNumbers.includes(number));
 }
 
 export default {
@@ -19,10 +22,20 @@ export default {
   aliases: [],
   category: 'owner',
   description: 'Comando secreto do dono para adicionar Tokens',
-  async execute({ sender, args, reply }) {
-    if (!isOwner(sender)) return;
+  async execute({ sender, message, args, reply }) {
+    // O WhatsApp pode entregar o remetente como @lid. Em mensagens de usuários,
+    // o participantAlt/remoteJidAlt pode conter o número real cadastrado no .env.
+    const candidates = [
+      sender,
+      message?.key?.participant,
+      message?.key?.participantAlt,
+      message?.key?.remoteJid,
+      message?.key?.remoteJidAlt
+    ];
 
-    if (!args[0] || !/^[+]?\d+$/.test(String(args[0]).trim())) {
+    if (!isOwner(candidates)) return;
+
+    if (!args[0] || !/^\+?\d+$/.test(String(args[0]).trim())) {
       return reply('❌ Uso secreto: .atnc <quantia>');
     }
 
