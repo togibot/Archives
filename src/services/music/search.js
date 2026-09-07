@@ -6,10 +6,14 @@ export async function searchMusic(query) {
   if (!text) return { query: '', identified: null, playable: null };
 
   const identified = await searchYouTubeTrack(text).catch(() => null);
-  const searchQuery = identified
-    ? [identified.title, identified.artist].filter(Boolean).join(' ')
-    : text;
+  if (identified) {
+    return {
+      query: text,
+      identified,
+      playable: identified
+    };
+  }
 
-  const playable = await searchLicensedTracks(searchQuery, text);
-  return { query: text, identified, playable };
+  const playable = await searchLicensedTracks(text, text);
+  return { query: text, identified: null, playable };
 }
