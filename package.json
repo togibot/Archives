@@ -20,6 +20,7 @@
     "sharp": "latest",
     "yt-search": "2.13.1",
     "@distube/ytdl-core": "latest",
-    "fluent-ffmpeg": "^2.1.2"
+    "fluent-ffmpeg": "^2.1.2",
+    "ffmpeg-static": "latest"
   }
 }
