@@ -25,6 +25,7 @@ function score(query, title, artist = '') {
     else if (a.includes(token)) { points += 4000; matched++; }
   }
   if (tokens.length) points += (matched / tokens.length) * 15000;
+  if (tokens.length > 1 && matched < Math.ceil(tokens.length * 0.75)) return 0;
   return points;
 }
 
@@ -48,7 +49,7 @@ function getLicense(doc, metadata) {
 function playableFile(file, identifier) {
   const name = clean(file?.name);
   if (!name || !identifier) return false;
-  if (/\.(mp3|m4a|ogg|opus|wav|flac)$/i.test(name) === false) return false;
+  if (!/\.(mp3|m4a|ogg|opus|wav|flac)$/i.test(name)) return false;
 
   const directUrl = clean(file?.url);
   const url = /^https?:\/\//i.test(directUrl)
@@ -89,17 +90,21 @@ export async function searchArchive(query) {
 
     const title = clean(doc.title, clean(metadata.metadata?.title, 'Áudio'));
     const artist = clean(doc.creator, clean(metadata.metadata?.creator, 'Artista desconhecido'));
+    const matchScore = score(query, title, artist);
+    if (matchScore < 30000) continue;
+
+    const seconds = Number(metadata?.metadata?.length || file?.length || 0);
     candidates.push({
       track: {
         name: title,
         artist_name: artist,
-        duration: Number(file.length || 0),
+        duration: Number.isFinite(seconds) && seconds < 86400 ? seconds : 0,
         audiodownload: file.url,
         source: 'Internet Archive',
         license,
         url: `https://archive.org/details/${doc.identifier}`
       },
-      score: score(query, title, artist)
+      score: matchScore
     });
   }
 
