@@ -18,6 +18,8 @@
     "node-webpmux": "latest",
     "pino": "latest",
     "sharp": "latest",
-    "yt-search": "2.13.1"
+    "yt-search": "2.13.1",
+    "@distube/ytdl-core": "latest",
+    "fluent-ffmpeg": "^2.1.2"
   }
 }
