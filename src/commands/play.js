@@ -60,60 +60,60 @@ export default {
       console.error('[TOGI MUSIC SEARCH]', error);
     }
 
-    if (identified) {
-      const player = [
-        '╭━━━〔 🎵 𝐌𝐔𝐒𝐈𝐂 𝐏𝐋𝐀𝐘𝐄𝐑 〕━━━╮',
-        `┃ 👤 Solicitado por: ${mentionText(sender)}`,
-        '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
-        '',
-        '╭━━〔 🎧 𝐃𝐄𝐓𝐀𝐋𝐇𝐄𝐒 〕━━╮',
-        `┃ 🎵 *Título:* ${clean(identified.title)}`,
-        `┃ ⏳ *Duração:* ${formatDuration(identified.duration)}`,
-        `┃ 📊 *Views:* ${formatViews(identified.views)}`,
-        `┃ 🎤 *Artista:* ${clean(identified.artist, 'Artista desconhecido')}`,
-        `┃ 📅 *Postado:* ${clean(identified.ago)}`,
-        `┃ 🌐 *Link:* ${clean(identified.url)}`,
-        `┃ 📝 *Descrição:* ${truncate(identified.description)}`,
-        '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
-        '',
-        '╭━━〔 ⌁ 𝐏𝐑𝐎𝐂𝐄𝐒𝐒𝐀𝐍𝐃𝐎 〕━━╮',
-        '┃ 🎧 Processando o áudio...',
-        '┃ ıllı.ıllı.ıllı.ıllı',
-        '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯'
-      ].join('\n');
+    if (!identified) {
+      return reply('❌ Não encontrei essa música.');
+    }
 
-      const thumbnail = await fetchThumbnail(identified.thumbnail);
-      if (thumbnail) {
-        await sock.sendMessage(chat, {
-          image: thumbnail,
-          caption: player,
-          mentions: sender ? [sender] : []
-        }, { quoted: message });
-      } else {
-        await reply(player, { mentions: sender ? [sender] : [] });
-      }
+    const player = [
+      '╭━━━〔 🎵 𝐌𝐔𝐒𝐈𝐂 𝐏𝐋𝐀𝐘𝐄𝐑 〕━━━╮',
+      `┃ 👤 Solicitado por: ${mentionText(sender)}`,
+      '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
+      '',
+      '╭━━〔 🎧 𝐃𝐄𝐓𝐀𝐋𝐇𝐄𝐒 〕━━╮',
+      `┃ 🎵 *Título:* ${clean(identified.title)}`,
+      `┃ ⏳ *Duração:* ${formatDuration(identified.duration)}`,
+      `┃ 📊 *Views:* ${formatViews(identified.views)}`,
+      `┃ 🎤 *Artista:* ${clean(identified.artist, 'Artista desconhecido')}`,
+      `┃ 📅 *Postado:* ${clean(identified.ago)}`,
+      `┃ 🌐 *Link:* ${clean(identified.url)}`,
+      `┃ 📝 *Descrição:* ${truncate(identified.description)}`,
+      '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
+      '',
+      '╭━━〔 ⌁ 𝐏𝐑𝐎𝐂𝐄𝐒𝐒𝐀𝐍𝐃𝐎 〕━━╮',
+      '┃ 🎧 Processando o áudio...',
+      '┃ ıllı.ıllı.ıllı.ıllı',
+      '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯'
+    ].join('\n');
+
+    const thumbnail = await fetchThumbnail(identified.thumbnail);
+    if (thumbnail) {
+      await sock.sendMessage(chat, {
+        image: thumbnail,
+        caption: player,
+        mentions: sender ? [sender] : []
+      }, { quoted: message });
     } else {
-      await reply('🎧 Não consegui identificar a música. Procurando nas fontes de áudio disponíveis...');
+      await reply(player, { mentions: sender ? [sender] : [] });
     }
 
     let track;
     try {
-      track = await resolveMusic(query);
+      track = await resolveMusic(query, identified);
     } catch (error) {
       console.error('[TOGI MUSIC]', error);
       return reply('❌ Não consegui preparar o áudio agora.');
     }
 
     if (!track) {
-      return reply('❌ Não encontrei um áudio correspondente em uma fonte de download permitida.');
+      return reply('❌ Não encontrei uma fonte de áudio disponível para essa faixa.');
     }
 
     try {
       const audio = await downloadTrack(track);
       const payload = getAudioPayload(audio, {
         ...track,
-        name: identified?.title || track.name,
-        artist_name: identified?.artist || track.artist_name
+        name: identified.title || track.name,
+        artist_name: identified.artist || track.artist_name
       });
       await sock.sendMessage(chat, payload, { quoted: message });
     } catch (error) {
