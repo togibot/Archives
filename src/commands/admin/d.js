@@ -1,22 +1,10 @@
 import { getPermissionLevel } from '../../core/permissions.js';
 
-function getQuotedKey(message) {
-  const context = message?.message?.extendedTextMessage?.contextInfo;
-  return context?.stanzaId && (context?.participant || message?.key?.remoteJid)
-    ? {
-        remoteJid: message.key.remoteJid,
-        fromMe: Boolean(context.participant && context.participant === message.key.participant),
-        id: context.stanzaId,
-        participant: context.participant
-      }
-    : null;
-}
-
 export default {
   name: 'd',
   aliases: ['del', 'delete'],
   category: 'admin',
-  description: 'Apaga a mensagem respondida',
+  description: 'Apaga a mensagem respondida e o próprio comando',
   async execute({ sock, chat, isGroup, message, sender, reply }) {
     if (!isGroup) return reply('❌ Use este comando em um grupo.');
     if (await getPermissionLevel({ sock, chat, jid: sender }) < 3) return reply('❌ Apenas administradores podem apagar mensagens.');
@@ -25,18 +13,23 @@ export default {
     const stanzaId = context?.stanzaId;
     if (!stanzaId) return reply('❌ Responda à mensagem que deseja apagar usando *.d*.');
 
-    const key = {
+    const quotedKey = {
       remoteJid: chat,
       id: stanzaId,
       fromMe: false
     };
-    if (context.participant) key.participant = context.participant;
+    if (context.participant) quotedKey.participant = context.participant;
 
     try {
-      await sock.sendMessage(chat, { delete: key });
-      return;
+      await sock.sendMessage(chat, { delete: quotedKey });
     } catch (error) {
-      return reply(`❌ Não consegui apagar a mensagem.\n${error?.message || 'Erro desconhecido'}`);
+      return reply(`❌ Não consegui apagar a mensagem respondida.\n${error?.message || 'Erro desconhecido'}`);
+    }
+
+    try {
+      await sock.sendMessage(chat, { delete: message.key });
+    } catch {
+      // A mensagem respondida já foi apagada; não envia uma mensagem extra.
     }
   }
 };
