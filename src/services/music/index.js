@@ -1,12 +1,22 @@
 import { resolveMusic } from './resolver.js';
 import { getAudioPayload, getAudioFileName, prepareAudio } from './converter.js';
+import { downloadYouTubeAudio } from './providers/youtube-audio.js';
 
 export { resolveMusic, getAudioPayload, getAudioFileName, prepareAudio };
 
 export async function downloadTrack(track) {
+  if (track?.source === 'YouTube' && track?.url) {
+    const result = await downloadYouTubeAudio(track);
+    return {
+      buffer: prepareAudio(result.buffer),
+      mimeType: result.mimeType,
+      extension: result.extension
+    };
+  }
+
   const url = String(track?.audiodownload || '').trim();
   if (!url || !/^https:\/\//i.test(url)) {
-    throw new Error('Esta faixa não possui uma fonte de áudio permitida.');
+    throw new Error('Esta faixa não possui uma fonte de áudio disponível.');
   }
 
   const response = await fetch(url);
@@ -16,5 +26,9 @@ export async function downloadTrack(track) {
   const contentLength = Number(response.headers.get('content-length') || 0);
   if (contentLength > maxBytes) throw new Error('O áudio excede o limite permitido pelo Togi.');
 
-  return prepareAudio(Buffer.from(await response.arrayBuffer()));
+  return {
+    buffer: prepareAudio(Buffer.from(await response.arrayBuffer())),
+    mimeType: response.headers.get('content-type')?.split(';')[0] || 'audio/mpeg',
+    extension: 'mp3'
+  };
 }
