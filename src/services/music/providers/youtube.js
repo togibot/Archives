@@ -4,16 +4,16 @@ function clean(value) {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
 
-export async function searchYouTubeTrack(query) {
+async function searchYouTube(query, maxResults = 5) {
   const apiKey = clean(process.env.YOUTUBE_API_KEY);
-  if (!apiKey) return null;
+  if (!apiKey) return [];
 
   const params = new URLSearchParams({
     key: apiKey,
     part: 'snippet',
     q: query,
     type: 'video',
-    maxResults: '5',
+    maxResults: String(Math.min(Math.max(Number(maxResults) || 5, 1), 10)),
     videoCategoryId: '10'
   });
 
@@ -26,14 +26,23 @@ export async function searchYouTubeTrack(query) {
     throw error;
   }
 
-  if (!response.ok || !Array.isArray(data.items)) return null;
-  const item = data.items[0];
-  if (!item?.snippet) return null;
+  if (!response.ok || !Array.isArray(data.items)) return [];
 
-  return {
-    title: clean(item.snippet.title),
-    artist: clean(item.snippet.channelTitle),
-    videoId: clean(item.id?.videoId),
-    source: 'YouTube'
-  };
+  return data.items
+    .map(item => ({
+      title: clean(item?.snippet?.title),
+      artist: clean(item?.snippet?.channelTitle),
+      videoId: clean(item?.id?.videoId),
+      source: 'YouTube'
+    }))
+    .filter(item => item.title && item.videoId);
+}
+
+export async function searchYouTubeTracks(query, maxResults = 5) {
+  return searchYouTube(query, maxResults);
+}
+
+export async function searchYouTubeTrack(query) {
+  const results = await searchYouTube(query, 1);
+  return results[0] || null;
 }
