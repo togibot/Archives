@@ -20,14 +20,15 @@ export default {
 ┃ 🧹 .aviso limpar @membro — zera os avisos
 
 🛡️ *PROTEÇÕES*
-┃ 🚫 .antipalavrao on/off — anti-palavrão
+┃ 🚫 .antipalavrao — liga/desliga o anti-palavrão
 ┃ 🔗 .antilink on/off — anti-link
 ┃ 📝 .antipalavras palavra1, palavra2 — filtro personalizado
 
 🧪 *ANTI-PALAVRÃO — TESTE*
 ┃ 🗑️ Detectou palavrão → apaga a mensagem
+┃ 🔁 .antipalavrao novamente → desativa
+┃ 👥 A regra vale para membros e administradores
 ┃ ⏸️ Avisos e remoção automática estão pausados
-┃ 👑 Administradores são protegidos
 ┃ ⚠️ O Togi precisa ser administrador do grupo
 
 ⚙️ *CONFIGURAÇÕES*
