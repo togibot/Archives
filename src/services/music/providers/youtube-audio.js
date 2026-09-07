@@ -1,16 +1,13 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import YTdownload from '@hoangquyet/ytdown';
 import ffmpegPath from 'ffmpeg-static';
-import { Innertube, UniversalCache } from 'youtubei.js';
+import { spawn } from 'node:child_process';
 
 const MAX_AUDIO_BYTES = Number(process.env.MUSIC_MAX_BYTES || 20 * 1024 * 1024);
 const CACHE_DIR = path.resolve(process.env.MUSIC_CACHE_DIR || './data/music-cache');
-const YOUTUBE_CACHE_DIR = path.resolve(process.env.MUSIC_YOUTUBE_CACHE_DIR || './data/youtube-cache');
 const CACHE_TTL = Number(process.env.MUSIC_CACHE_TTL || 6 * 60 * 60 * 1000);
-
-let youtubePromise = null;
 
 function cacheFile(videoId) {
   return path.join(CACHE_DIR, `${videoId}.mp3`);
@@ -30,7 +27,6 @@ async function readCache(videoId) {
 }
 
 async function writeCache(videoId, buffer) {
-  if (!videoId || !Buffer.isBuffer(buffer) || !buffer.length) return;
   try {
     await fs.mkdir(CACHE_DIR, { recursive: true });
     await fs.writeFile(cacheFile(videoId), buffer);
@@ -39,59 +35,31 @@ async function writeCache(videoId, buffer) {
   }
 }
 
-async function getYouTube() {
-  if (!youtubePromise) {
-    youtubePromise = Innertube.create({
-      lang: 'pt-BR',
-      location: 'BR',
-      cache: new UniversalCache(true, YOUTUBE_CACHE_DIR)
-    }).catch(error => {
-      youtubePromise = null;
-      throw error;
-    });
-  }
-  return youtubePromise;
+function resolveVideoUrl(video) {
+  const url = String(video?.url || '').trim();
+  if (url) return url;
+
+  const videoId = String(video?.videoId || '').trim();
+  if (videoId) return `https://www.youtube.com/watch?v=${videoId}`;
+
+  throw new Error('URL do vídeo do YouTube inválida.');
 }
 
-async function fetchAudioUrl(url) {
-  if (!url || !/^https:\/\//i.test(url)) {
-    throw new Error('O YouTube não retornou uma URL de áudio válida.');
-  }
+async function transcodeToMp3(inputPath) {
+  if (!ffmpegPath) throw new Error('FFmpeg não foi encontrado.');
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Falha ao obter o áudio do YouTube (HTTP ${response.status}).`);
-  }
+  const outputPath = path.join(
+    os.tmpdir(),
+    `togi-${Date.now()}-${Math.random().toString(16).slice(2)}.mp3`
+  );
 
-  const contentLength = Number(response.headers.get('content-length') || 0);
-  if (contentLength > MAX_AUDIO_BYTES * 2) {
-    throw new Error('O áudio bruto excede o limite permitido pelo Togi.');
-  }
-
-  const buffer = Buffer.from(await response.arrayBuffer());
-  if (!buffer.length) throw new Error('O YouTube retornou áudio vazio.');
-  if (buffer.length > MAX_AUDIO_BYTES * 2) {
-    throw new Error('O áudio bruto excede o limite permitido pelo Togi.');
-  }
-
-  return buffer;
-}
-
-function convertToMp3(input) {
-  return new Promise((resolve, reject) => {
-    if (!ffmpegPath) return reject(new Error('FFmpeg não foi encontrado.'));
-
-    const output = path.join(
-      os.tmpdir(),
-      `togi-${Date.now()}-${Math.random().toString(16).slice(2)}.mp3`
-    );
-
+  await new Promise((resolve, reject) => {
     const ffmpeg = spawn(ffmpegPath, [
       '-hide_banner',
       '-loglevel',
       'error',
       '-i',
-      'pipe:0',
+      inputPath,
       '-vn',
       '-ac',
       '2',
@@ -101,61 +69,66 @@ function convertToMp3(input) {
       '128k',
       '-f',
       'mp3',
-      output
+      outputPath
     ]);
 
     const errors = [];
     ffmpeg.stderr.on('data', chunk => errors.push(chunk));
     ffmpeg.once('error', reject);
-
-    ffmpeg.once('close', async code => {
+    ffmpeg.once('close', code => {
       if (code !== 0) {
-        await fs.rm(output, { force: true }).catch(() => {});
         return reject(new Error(
           `FFmpeg falhou (${code}): ${Buffer.concat(errors).toString().slice(0, 500)}`
         ));
       }
-
-      try {
-        const buffer = await fs.readFile(output);
-        await fs.rm(output, { force: true });
-
-        if (!buffer.length) return reject(new Error('FFmpeg gerou áudio vazio.'));
-        if (buffer.length > MAX_AUDIO_BYTES) {
-          return reject(new Error('Áudio convertido excedeu o limite.'));
-        }
-
-        resolve(buffer);
-      } catch (error) {
-        await fs.rm(output, { force: true }).catch(() => {});
-        reject(error);
-      }
+      resolve();
     });
-
-    ffmpeg.stdin.on('error', () => {});
-    ffmpeg.stdin.end(input);
   });
+
+  try {
+    const buffer = await fs.readFile(outputPath);
+    if (!buffer.length) throw new Error('FFmpeg gerou áudio vazio.');
+    if (buffer.length > MAX_AUDIO_BYTES) {
+      throw new Error('Áudio convertido excedeu o limite permitido pelo Togi.');
+    }
+    return buffer;
+  } finally {
+    await fs.rm(outputPath, { force: true }).catch(() => {});
+  }
 }
 
-async function tryClient(youtube, videoId, client) {
-  console.log(`[TOGI MUSIC YOUTUBE.JS] usando cliente ${client}`);
+async function downloadRawAudio(videoUrl) {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'togi-ytdown-'));
+  const inputPath = path.join(tempDir, 'audio');
 
-  const info = await youtube.getBasicInfo(videoId, { client });
-  if (info.basic_info?.is_live) {
-    throw new Error('Transmissões ao vivo não são suportadas pelo .play.');
+  try {
+    const result = await YTdownload.down(videoUrl, {
+      audioOnly: true,
+      output: inputPath
+    });
+
+    const candidates = [
+      result?.path,
+      result?.filePath,
+      inputPath,
+      `${inputPath}.m4a`,
+      `${inputPath}.webm`,
+      `${inputPath}.mp3`,
+      `${inputPath}.opus`
+    ].filter(Boolean);
+
+    for (const candidate of candidates) {
+      try {
+        const stat = await fs.stat(candidate);
+        if (stat.isFile() && stat.size > 0) return candidate;
+      } catch {}
+    }
+
+    throw new Error('O downloader não gerou um arquivo de áudio utilizável.');
+  } catch (error) {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    throw new Error(`Falha no download do YouTube: ${error?.message || error}`);
   }
-
-  const format = info.chooseFormat({
-    type: 'audio',
-    quality: 'best'
-  });
-
-  if (!format?.url) {
-    throw new Error(`O cliente ${client} não retornou uma URL direta de áudio.`);
-  }
-
-  const raw = await fetchAudioUrl(format.url);
-  return convertToMp3(raw);
 }
 
 export async function downloadYouTubeAudio(video) {
@@ -172,25 +145,21 @@ export async function downloadYouTubeAudio(video) {
     };
   }
 
-  const youtube = await getYouTube();
-  let lastError;
+  const videoUrl = resolveVideoUrl(video);
+  const inputPath = await downloadRawAudio(videoUrl);
+  const tempDir = path.dirname(inputPath);
 
-  for (const client of ['ANDROID', 'IOS']) {
-    try {
-      const buffer = await tryClient(youtube, videoId, client);
-      await writeCache(videoId, buffer);
+  try {
+    const buffer = await transcodeToMp3(inputPath);
+    await writeCache(videoId, buffer);
 
-      return {
-        buffer,
-        mimeType: 'audio/mpeg',
-        extension: 'mp3',
-        cached: false
-      };
-    } catch (error) {
-      lastError = error;
-      console.error(`[TOGI MUSIC YOUTUBE.JS] ${client}:`, error?.message || error);
-    }
+    return {
+      buffer,
+      mimeType: 'audio/mpeg',
+      extension: 'mp3',
+      cached: false
+    };
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
-
-  throw lastError || new Error('Não foi possível obter o áudio do YouTube.');
 }
