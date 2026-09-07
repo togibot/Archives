@@ -2,7 +2,9 @@ import config from '../config.js';
 import { addTokens, ensureUser } from '../database/index.js';
 
 function normalizeNumber(value) {
-  return String(value || '').split('@')[0].replace(/\D/g, '');
+  return String(value || '')
+    .split('@')[0]
+    .replace(/\D/g, '');
 }
 
 function isOwner(...values) {
@@ -23,14 +25,23 @@ export default {
   category: 'owner',
   description: 'Comando secreto do dono para adicionar Tokens',
   async execute({ sender, message, args, reply }) {
-    // O WhatsApp pode entregar o remetente como @lid. Em mensagens de usuários,
-    // o participantAlt/remoteJidAlt pode conter o número real cadastrado no .env.
+    const key = message?.key || {};
+
+    // Baileys pode entregar o remetente como LID. Dependendo do tipo de
+    // mensagem/versão, o número real pode aparecer em campos diferentes.
     const candidates = [
       sender,
-      message?.key?.participant,
-      message?.key?.participantAlt,
-      message?.key?.remoteJid,
-      message?.key?.remoteJidAlt
+      key.participant,
+      key.participantAlt,
+      key.participantPn,
+      key.senderPn,
+      key.remoteJid,
+      key.remoteJidAlt,
+      message?.participant,
+      message?.participantAlt,
+      message?.senderPn,
+      message?.sender?.id,
+      message?.sender?.phoneNumber
     ];
 
     if (!isOwner(candidates)) return;
