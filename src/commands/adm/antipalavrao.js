@@ -5,26 +5,25 @@ export default {
   name: 'antipalavrao',
   aliases: [],
   category: 'admin',
-  description: 'Ativa ou desativa o anti-palavrão em modo de teste',
+  description: 'Liga ou desliga o anti-palavrão',
   async execute({ sock, chat, isGroup, sender, text, reply }) {
     if (!isGroup) return reply('❌ Use este comando em um grupo.');
     if (await getPermissionLevel({ sock, chat, jid: sender }) < 3) {
       return reply('❌ Apenas administradores podem configurar o anti-palavrão.');
     }
 
-    const value = text.trim().toLowerCase();
-    if (!['on', 'off', 'ativar', 'desativar'].includes(value)) {
-      return reply(`🛡️ Anti-palavrão está *${isAntiProfanityEnabled(chat) ? 'ATIVADO ✅' : 'DESATIVADO ❌'}*\n\nUse *.antipalavrao on* ou *.antipalavrao off*.`);
+    if (text.trim()) {
+      return reply('⚙️ Use apenas *.antipalavrao* — envie novamente para alternar entre ligado e desligado.');
     }
 
-    const enabled = value === 'on' || value === 'ativar';
+    const enabled = !isAntiProfanityEnabled(chat);
     setAntiProfanity(chat, enabled);
 
     return reply(
       `🛡️ Anti-palavrão: *${enabled ? 'ATIVADO ✅' : 'DESATIVADO ❌'}*\n` +
       (enabled
-        ? '🧪 Modo de teste: palavrões detectados terão a mensagem apagada.\n⚠️ Avisos e remoção automática estão pausados por enquanto.'
-        : '🔓 A moderação automática foi desativada neste grupo.')
+        ? '🧪 Modo de teste: mensagens detectadas serão apagadas.\n⚠️ Avisos e remoção automática estão pausados.'
+        : '🔓 A proteção contra palavrões foi desativada neste grupo.')
     );
   }
 };
