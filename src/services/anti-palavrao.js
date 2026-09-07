@@ -1,4 +1,5 @@
 import { getGroup, updateGroup } from '../database/index.js';
+import { getText } from '../utils/message.js';
 
 const DEFAULT_WORDS = [
   'caralho','carai','porra','p0rra','p0rr4','merda','m3rda','puta','put4','puto','put0','putaria',
@@ -21,59 +22,114 @@ const DEFAULT_WORDS = [
 ];
 
 function normalize(value) {
-  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    .replace(/[@4]/g, 'a').replace(/3/g, 'e').replace(/[1!|]/g, 'i').replace(/0/g, 'o')
-    .replace(/[5$]/g, 's').replace(/7/g, 't').replace(/8/g, 'b').replace(/9/g, 'g')
-    .replace(/(.)\1{2,}/g, '$1');
+  return String(value || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[@4]/g, 'a').replace(/3/g, 'e').replace(/[1!|]/g, 'i')
+    .replace(/0/g, 'o').replace(/[5$]/g, 's').replace(/7/g, 't')
+    .replace(/8/g, 'b').replace(/9/g, 'g').replace(/(.)\1{2,}/g, '$1');
 }
+
 function compact(value) { return normalize(value).replace(/[^a-z0-9]+/g, ''); }
-function readCustomWords(group) { try { const words=JSON.parse(group?.profanity_words||'[]'); return Array.isArray(words)?words.map(compact).filter(Boolean):[]; } catch { return []; } }
-function getWords(chat) { return [...DEFAULT_WORDS,...readCustomWords(getGroup(chat))]; }
+
+function readCustomWords(group) {
+  try {
+    const words = JSON.parse(group?.profanity_words || '[]');
+    return Array.isArray(words) ? words.map(compact).filter(Boolean) : [];
+  } catch { return []; }
+}
+
+function getWords(chat) {
+  return [...DEFAULT_WORDS, ...readCustomWords(getGroup(chat))];
+}
+
 export function isAntiProfanityEnabled(chat) { return Boolean(getGroup(chat)?.anti_profanity); }
-export function setAntiProfanity(chat,enabled) { if(chat) updateGroup(chat,{anti_profanity:enabled?1:0}); }
-export function setCustomWords(chat,words) { if(chat) updateGroup(chat,{profanity_words:JSON.stringify([...new Set((words||[]).map(compact).filter(Boolean))])}); }
+
+export function setAntiProfanity(chat, enabled) {
+  if (chat) updateGroup(chat, { anti_profanity: enabled ? 1 : 0 });
+}
+
+export function setCustomWords(chat, words) {
+  if (chat) updateGroup(chat, { profanity_words: JSON.stringify([...new Set((words || []).map(compact).filter(Boolean))]) });
+}
+
 export function getCustomWords(chat) { return readCustomWords(getGroup(chat)); }
-export function findProfanity(text,chat) {
-  if(!isAntiProfanityEnabled(chat)) return null;
-  const normalized=compact(text); if(!normalized) return null;
-  for(const word of getWords(chat)){const compactWord=compact(word);if(compactWord.length<=2?normalized===compactWord:normalized.includes(compactWord))return compactWord;}
+
+export function findProfanity(text, chat) {
+  if (!isAntiProfanityEnabled(chat)) return null;
+  const normalized = compact(text);
+  if (!normalized) return null;
+  for (const word of getWords(chat)) {
+    const compactWord = compact(word);
+    if (compactWord.length <= 2 ? normalized === compactWord : normalized.includes(compactWord)) return compactWord;
+  }
   return null;
 }
-function getMessageText(message){return message?.message?.conversation||message?.message?.extendedTextMessage?.text||message?.message?.imageMessage?.caption||message?.message?.videoMessage?.caption||message?.message?.documentMessage?.caption||'';}
-function normalizeJid(jid){return String(jid||'').split(':')[0].split('@')[0].replace(/\D/g,'');}
-async function getBotAdminStatus(sock,chat){
-  const metadata=await sock.groupMetadata(chat);
-  const botIds=[sock?.user?.id,sock?.user?.jid,sock?.user?.phoneNumber].map(normalizeJid).filter(Boolean);
-  const participant=metadata.participants.find(p=>[p?.id,p?.phoneNumber].map(normalizeJid).some(id=>botIds.includes(id)));
-  return {isAdmin:Boolean(participant?.admin==='admin'||participant?.admin==='superadmin'),botIds,participant};
+
+function normalizeJid(jid) {
+  return String(jid || '').split(':')[0].split('@')[0].replace(/\D/g, '');
 }
-function buildDeleteKey(chat,message){
-  const key=message?.key||{};
-  return {remoteJid:chat,id:key.id,fromMe:Boolean(key.fromMe),...(key.participant?{participant:key.participant}:{}),...(key.participantAlt?{participantAlt:key.participantAlt}:{})};
-}
-export async function moderateProfanity({sock,chat,message}){
-  const result={moderated:false};
-  if(!chat?.endsWith('@g.us')) return result;
-  if(!isAntiProfanityEnabled(chat)) return result;
-  const text=getMessageText(message);
-  const found=findProfanity(text,chat);
-  if(!found) return result;
-  console.log(`🛡️ [ANTI-PALAVRÃO] Mensagem detectada no grupo ${chat}`);
-  console.log(`   💬 Palavra detectada: ${found.replace(/./g,'•')}`);
+
+async function isBotAdmin(sock, chat) {
   try {
-    const adminStatus=await getBotAdminStatus(sock,chat);
-    console.log(`   🤖 Togi é ADM: ${adminStatus.isAdmin?'SIM':'NÃO'}`);
-    if(!adminStatus.isAdmin){console.log('   ⛔ Exclusão cancelada: Togi não é administrador.');return {...result,reason:'bot-not-admin',word:found};}
-    const deleteKey=buildDeleteKey(chat,message);
-    console.log(`   🆔 ID da mensagem: ${deleteKey.id||'ausente'}`);
-    console.log(`   👤 Participante: ${deleteKey.participant||'ausente'}`);
-    if(!deleteKey.id){console.log('   ❌ Exclusão: FALHOU (ID ausente)');return {...result,reason:'missing-message-id',word:found};}
-    await sock.sendMessage(chat,{delete:deleteKey});
-    console.log('   🗑️ Exclusão: SUCESSO');
-    return {moderated:true,word:found,testMode:true};
-  } catch(error) {
-    console.log(`   ❌ Exclusão: FALHOU — ${error?.message||String(error)}`);
-    return {...result,reason:'delete-failed',word:found,error:error?.message||String(error)};
+    const metadata = await sock.groupMetadata(chat);
+    const botIds = [sock?.user?.id, sock?.user?.jid, sock?.user?.phoneNumber].map(normalizeJid).filter(Boolean);
+    return metadata.participants.some((participant) => {
+      const ids = [participant?.id, participant?.phoneNumber].map(normalizeJid).filter(Boolean);
+      return ids.some((id) => botIds.includes(id)) && ['admin', 'superadmin'].includes(participant?.admin);
+    });
+  } catch { return false; }
+}
+
+function buildDeleteKey(chat, message) {
+  const key = message?.key || {};
+  return {
+    remoteJid: key.remoteJid || chat,
+    id: key.id,
+    fromMe: Boolean(key.fromMe),
+    ...(key.participant ? { participant: key.participant } : {}),
+    ...(key.participantAlt ? { participantAlt: key.participantAlt } : {})
+  };
+}
+
+function maskWord(word) {
+  const value = String(word || '');
+  if (value.length <= 2) return '••';
+  return `${value[0]}${'•'.repeat(Math.min(value.length - 2, 12))}${value.at(-1)}`;
+}
+
+export async function moderateProfanity({ sock, chat, message }) {
+  if (!chat?.endsWith('@g.us')) return { moderated: false };
+  if (!isAntiProfanityEnabled(chat)) return { moderated: false };
+
+  const text = getText(message);
+  const found = findProfanity(text, chat);
+  if (!found) return { moderated: false };
+
+  console.log(`\n🛡️ [ANTI-PALAVRÃO] Mensagem detectada!`);
+  console.log(`👤 Autor: ${message?.key?.participant || 'desconhecido'}`);
+  console.log(`💬 Palavra detectada: ${maskWord(found)}`);
+
+  const botAdmin = await isBotAdmin(sock, chat);
+  console.log(`🤖 Togi é ADM: ${botAdmin ? 'SIM ✅' : 'NÃO ❌'}`);
+
+  if (!botAdmin) return { moderated: false, reason: 'bot-not-admin', word: found };
+
+  const deleteKey = buildDeleteKey(chat, message);
+  console.log(`🆔 ID da mensagem: ${deleteKey.id || 'ausente'}`);
+  if (!deleteKey.id) {
+    console.log(`🗑️ Exclusão: FALHOU ❌ (ID da mensagem ausente)`);
+    return { moderated: false, reason: 'missing-message-id', word: found };
+  }
+
+  try {
+    await sock.sendMessage(chat, { delete: deleteKey });
+    console.log(`🗑️ Exclusão: SUCESSO ✅`);
+    return { moderated: true, word: found, testMode: true };
+  } catch (error) {
+    console.log(`🗑️ Exclusão: FALHOU ❌`);
+    console.log(`❌ Erro: ${error?.message || String(error)}`);
+    return { moderated: false, reason: 'delete-failed', word: found, error: error?.message || String(error) };
   }
 }
-export default {isAntiProfanityEnabled,setAntiProfanity,setCustomWords,getCustomWords,findProfanity,moderateProfanity};
+
+export default { isAntiProfanityEnabled, setAntiProfanity, setCustomWords, getCustomWords, findProfanity, moderateProfanity };
