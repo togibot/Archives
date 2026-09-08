@@ -74,6 +74,15 @@ function buildRankText({ sender, isGroup, ranks, user, games, quiz, rank, phrase
 ╰━━━━━━━━━━━━━━━━━━━━╯`;
 }
 
+function pickRandomMembers(memberJids, amount = 5) {
+  const unique = [...new Set((memberJids || []).filter(Boolean))];
+  for (let i = unique.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [unique[i], unique[j]] = [unique[j], unique[i]];
+  }
+  return unique.slice(0, Math.min(amount, unique.length));
+}
+
 export default {
   name: 'rank',
   aliases: ['meurank', 'meuranks', 'rankgay', 'ranksapato', 'rankgostoso', 'rankgostosa'],
@@ -98,16 +107,14 @@ export default {
     const jokeRank = JOKE_RANKS[String(commandName || '').toLowerCase()];
 
     if (jokeRank) {
-      const text = buildRankText({
-        sender,
-        isGroup,
-        ranks,
-        user,
-        games,
-        quiz,
-        rank: jokeRank.title,
-        phrase: jokeRank.phrase
-      });
+      if (!isGroup || !memberJids?.length) {
+        return reply('Esse Rank só pode ser usado dentro de um grupo.');
+      }
+
+      const selected = pickRandomMembers(memberJids, 5);
+      const mentions = selected;
+      const lines = selected.map((jid, index) => `${index + 1}- ${mention(jid)}`);
+      const text = `╭━━━〔 ${jokeRank.title} 〕━━━╮\n┃\n┃ ${jokeRank.phrase}\n┃\n${lines.map(line => `┃ ${line}`).join('\n')}\n┃\n╰━━━━━━━━━━━━━━━━━━━━╯`;
 
       try {
         const response = await fetch(jokeRank.imageUrl);
@@ -115,11 +122,11 @@ export default {
         const image = Buffer.from(await response.arrayBuffer());
         return await sock.sendMessage(
           chat,
-          { image, caption: text, mentions: [sender] },
+          { image, caption: text, mentions },
           message.key.fromMe ? undefined : { quoted: message }
         );
       } catch {
-        return reply(text, { mentions: [sender] });
+        return reply(text, { mentions });
       }
     }
 
