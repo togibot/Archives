@@ -35,7 +35,36 @@ function displayChat(chat, isGroup) {
   return isGroup ? chat : 'Conversa privada';
 }
 function normalizePhone(value) { return String(value || '').replace(/\D/g, ''); }
-async function reactToCommand(sock, message, command) { const emoji = getCommandReaction(command); if (!emoji) return; try { await sock.sendMessage(message.key.remoteJid, { react: { text: emoji, key: message.key } }); } catch (error) { logger.debug({ err: error }, 'Não foi possível reagir ao comando.'); } }
+
+async function withTimeout(promise, timeoutMs, label) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} excedeu ${timeoutMs}ms`)), timeoutMs);
+        timer.unref?.();
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function reactToCommand(sock, message, command) {
+  const emoji = getCommandReaction(command);
+  if (!emoji) return;
+  try {
+    await withTimeout(
+      sock.sendMessage(message.key.remoteJid, { react: { text: emoji, key: message.key } }),
+      10000,
+      'Reação'
+    );
+  } catch (error) {
+    logger.debug({ err: error }, 'Não foi possível reagir ao comando.');
+  }
+}
+
 function getMentionedJids(message) { const context = message?.message?.extendedTextMessage?.contextInfo; return Array.isArray(context?.mentionedJid) ? context.mentionedJid : []; }
 function formatAfkDuration(since) { const elapsedMs = Math.max(0, Date.now() - since); const minutes = Math.floor(elapsedMs / 60000); if (minutes < 1) return 'menos de 1 minuto'; if (minutes === 1) return '1 minuto'; if (minutes < 60) return `${minutes} minutos`; const hours = Math.floor(minutes / 60), remaining = minutes % 60; if (remaining === 0) return hours === 1 ? '1 hora' : `${hours} horas`; return `${hours}h ${remaining}min`; }
 function getAfkKeys({ effectiveSender, sender, pairingPhone, sock }) { const keys = [effectiveSender, sender, sock?.user?.id, pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''].filter(Boolean); return [...new Set(keys)]; }
@@ -76,7 +105,16 @@ async function startBot() {
 
       logInfo('💬 NOVA MENSAGEM', [`👤 Usuário: ${userName || 'desconhecido'} (${displayJid(effectiveSender)})`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `📝 Mensagem: ${text || '[sem texto]'}`]);
 
-      const reply = async (content, options = {}) => { const payload = { text: String(content), ...options }; if (message.key.fromMe) return sock.sendMessage(chat, payload); return sock.sendMessage(chat, payload, { quoted: message }); };
+      const reply = async (content, options = {}) => {
+        const payload = { text: String(content), ...options };
+        try {
+          if (message.key.fromMe) return await withTimeout(sock.sendMessage(chat, payload), 30000, 'Envio da mensagem');
+          return await withTimeout(sock.sendMessage(chat, payload, { quoted: message }), 30000, 'Envio da mensagem');
+        } catch (error) {
+          logError('❌ FALHA AO ENVIAR RESPOSTA', [`👥 Grupo: ${displayChat(chat, isGroup)}`, `💥 ${error?.message || 'Erro desconhecido'}`]);
+          return null;
+        }
+      };
       let parsedCommandName = '';
       if (text.startsWith(config.bot.prefix)) { const body = text.slice(config.bot.prefix.length).trim(); parsedCommandName = body.split(/\s+/)[0]?.toLowerCase() || ''; }
       const isAfkToggle = parsedCommandName === 'afk' || parsedCommandName === 'ausente';
@@ -95,8 +133,21 @@ async function startBot() {
       if (!command) { console.log(`⚠️ Comando não encontrado: .${name}`); continue; }
 
       logInfo('⚙️ COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `▶️ Executando: .${name}${args.length ? ` ${args.join(' ')}` : ''}`]);
-      await reactToCommand(sock, message, command);
-      try { await command.execute({ sock, message, sender: effectiveSender, chat, args, text: args.join(' '), rawText: text, commandName: name.toLowerCase(), isGroup, reply, commands, react: async emoji => { try { await sock.sendMessage(chat, { react: { text: emoji, key: message.key } }); } catch {} } }); console.log(`✅ Comando concluído: .${name}`); } catch (error) { logError('❌ ERRO NO COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `⚙️ Comando: .${name}`, `💥 ${error?.message || 'Erro desconhecido'}`]); await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`); }
+
+      // A reação é secundária: nunca pode bloquear a execução do comando.
+      void reactToCommand(sock, message, command);
+
+      try {
+        await withTimeout(
+          command.execute({ sock, message, sender: effectiveSender, chat, args, text: args.join(' '), rawText: text, commandName: name.toLowerCase(), isGroup, reply, commands, react: async emoji => { try { await withTimeout(sock.sendMessage(chat, { react: { text: emoji, key: message.key } }), 10000, 'Reação'); } catch {} } }),
+          90000,
+          `Comando .${name}`
+        );
+        console.log(`✅ Comando concluído: .${name}`);
+      } catch (error) {
+        logError('❌ ERRO NO COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `⚙️ Comando: .${name}`, `💥 ${error?.message || 'Erro desconhecido'}`]);
+        await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`);
+      }
     }
   });
 }
