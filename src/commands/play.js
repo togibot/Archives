@@ -1,5 +1,5 @@
-import { downloadTrack, getAudioPayload, resolveMusic } from '../services/music.js';
-import { searchYouTubeTrack } from '../services/music/providers/youtube.js';
+import { downloadTrack, getAudioPayload } from '../services/music.js';
+import { searchYouTubeTracks } from '../services/music/providers/youtube.js';
 
 function clean(value, fallback = 'Não informado') {
   const text = String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -46,22 +46,51 @@ export default {
   name: 'play',
   aliases: [],
   category: 'music',
-  description: 'Pesquisa a música, mostra detalhes com thumbnail e envia áudio disponível.',
+  description: 'Pesquisa a música e tenta múltiplos resultados até encontrar um áudio disponível.',
   async execute({ sock, chat, message, reply, args, sender }) {
     const query = args.join(' ').trim();
     if (!query) return reply('🎵 Use: *.play <nome da música>*\n\nExemplo: *.play Silent Circles GD*');
 
     await reply(`🔎 Pesquisando *${query}*...`);
 
-    let identified = null;
+    let candidates = [];
     try {
-      identified = await searchYouTubeTrack(query);
+      candidates = await searchYouTubeTracks(query, 5);
     } catch (error) {
       console.error('[TOGI MUSIC SEARCH]', error);
     }
 
-    if (!identified) {
+    if (!candidates.length) {
       return reply('❌ Não encontrei essa música.');
+    }
+
+    let identified = null;
+    let track = null;
+    let audio = null;
+    let lastError = null;
+
+    for (const candidate of candidates) {
+      try {
+        const candidateTrack = {
+          ...candidate,
+          source: 'YouTube',
+          name: candidate.title,
+          artist_name: candidate.artist
+        };
+
+        audio = await downloadTrack(candidateTrack);
+        identified = candidate;
+        track = candidateTrack;
+        break;
+      } catch (error) {
+        lastError = error;
+        console.warn(`[TOGI MUSIC FALLBACK] Falha em "${candidate.title}": ${error?.message || error}`);
+      }
+    }
+
+    if (!identified || !track || !audio) {
+      console.error('[TOGI MUSIC DOWNLOAD] Todos os resultados falharam:', lastError);
+      return reply('❌ Não consegui preparar o áudio. Tente outra versão ou outro nome da música.');
     }
 
     const player = [
@@ -80,7 +109,7 @@ export default {
       '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
       '',
       '╭━━〔 ⌁ 𝐏𝐑𝐎𝐂𝐄𝐒𝐒𝐀𝐍𝐃𝐎 〕━━╮',
-      '┃ 🎧 Processando o áudio...',
+      '┃ 🎧 Áudio encontrado e processado!',
       '┃ ıllı.ıllı.ıllı.ıllı',
       '╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯'
     ].join('\n');
@@ -96,20 +125,7 @@ export default {
       await reply(player, { mentions: sender ? [sender] : [] });
     }
 
-    let track;
     try {
-      track = await resolveMusic(query, identified);
-    } catch (error) {
-      console.error('[TOGI MUSIC]', error);
-      return reply('❌ Não consegui preparar o áudio agora.');
-    }
-
-    if (!track) {
-      return reply('❌ Não encontrei uma fonte de áudio disponível para essa faixa.');
-    }
-
-    try {
-      const audio = await downloadTrack(track);
       const payload = getAudioPayload(audio, {
         ...track,
         name: identified.title || track.name,
@@ -117,8 +133,8 @@ export default {
       });
       await sock.sendMessage(chat, payload, { quoted: message });
     } catch (error) {
-      console.error('[TOGI MUSIC DOWNLOAD]', error);
-      return reply('❌ A fonte de áudio não respondeu corretamente.');
+      console.error('[TOGI MUSIC SEND]', error);
+      return reply('❌ O áudio foi preparado, mas não consegui enviá-lo.');
     }
   }
 };
