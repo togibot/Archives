@@ -1,11 +1,12 @@
 import { pets } from '../../data/catalog.js';
 import { createPet, getUser, updateUser } from '../../database/index.js';
+import { distributeGroupPurchase } from '../../services/group-tax.js';
 
 export default {
   name: 'comprarpet',
   aliases: ['adotarpet'],
   category: 'economy',
-  async execute({ sender, args, reply }) {
+  async execute({ sender, args, reply, chat, isGroup, sock }) {
     const id = args[0]?.toLowerCase();
     const pet = pets[id];
     if (!pet) return reply('❌ Pet inválido. Use .petshop para ver o catálogo.');
@@ -23,6 +24,11 @@ export default {
     const name = args.slice(1).join(' ').slice(0, 20) || pet.name;
     updateUser(sender, { tokens: user.tokens - pet.price });
     const created = createPet(sender, name, id);
+
+    if (isGroup) {
+      const metadata = await sock.groupMetadata(chat);
+      distributeGroupPurchase({ amount: pet.price, groupJid: chat, metadata });
+    }
 
     await reply(`🎉 PET ADQUIRIDO!\n\n${pet.emoji} ${created.name}\n🏷️ ${pet.tier}\n❤️ Saúde: 100\n🍖 Fome: 100\n💧 Sede: 100\n😊 Felicidade: 100\n\n🪙 -${pet.price} Tokens`);
   }
