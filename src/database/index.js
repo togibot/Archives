@@ -23,7 +23,9 @@ CREATE TABLE IF NOT EXISTS users (
   afk_reason TEXT,
   job TEXT,
   pet_shop_level INTEGER NOT NULL DEFAULT 1,
-  sticker_nick TEXT NOT NULL DEFAULT ''
+  sticker_nick TEXT NOT NULL DEFAULT '',
+  steal_count INTEGER NOT NULL DEFAULT 0,
+  steal_window_start INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS groups (
   jid TEXT PRIMARY KEY,
@@ -42,6 +44,7 @@ CREATE TABLE IF NOT EXISTS group_houses (group_jid TEXT PRIMARY KEY,name TEXT NO
 CREATE TABLE IF NOT EXISTS house_contributions (group_jid TEXT NOT NULL,user_jid TEXT NOT NULL,points INTEGER NOT NULL DEFAULT 0,PRIMARY KEY (group_jid,user_jid));
 CREATE TABLE IF NOT EXISTS user_cards (jid TEXT NOT NULL,card_id TEXT NOT NULL,quantity INTEGER NOT NULL DEFAULT 0,PRIMARY KEY (jid,card_id));
 CREATE TABLE IF NOT EXISTS game_stats (jid TEXT PRIMARY KEY,played INTEGER NOT NULL DEFAULT 0,wins INTEGER NOT NULL DEFAULT 0,best_score INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS togi_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,actor_jid TEXT NOT NULL,actor_name TEXT NOT NULL,target_jid TEXT NOT NULL,target_name TEXT NOT NULL,group_jid TEXT,group_name TEXT NOT NULL,action TEXT NOT NULL,amount INTEGER NOT NULL,created_at INTEGER NOT NULL);
 `);
 
 for (const sql of ['ALTER TABLE users ADD COLUMN job TEXT','ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1',"ALTER TABLE users ADD COLUMN sticker_nick TEXT NOT NULL DEFAULT ''",'ALTER TABLE groups ADD COLUMN anti_profanity INTEGER NOT NULL DEFAULT 0',"ALTER TABLE groups ADD COLUMN profanity_words TEXT NOT NULL DEFAULT '[]'",'ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100','ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0','ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0',"ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''","ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'"]) {
@@ -80,7 +83,35 @@ export function getGroupTopWins(memberJids, limit=10) { const members=memberFilt
 export function getGroupQuizRank(memberJids, limit=10) { const members=memberFilter(memberJids); if(!members.length)return []; const q=members.map(()=>'?').join(','); return db.prepare(`SELECT u.jid,u.name,q.correct,q.wrong,q.best_streak,(q.correct*10-q.wrong) AS score FROM quiz_stats q JOIN users u ON u.jid=q.jid WHERE q.jid IN (${q}) ORDER BY score DESC,q.correct DESC LIMIT ?`).all(...members,Math.max(1,Math.min(50,Number(limit)||10))); }
 export function getGroupTopStreak(memberJids, limit=10) { const members=memberFilter(memberJids); if(!members.length)return []; const q=members.map(()=>'?').join(','); return db.prepare(`SELECT u.jid,u.name,q.correct,q.wrong,q.streak,q.best_streak FROM quiz_stats q JOIN users u ON u.jid=q.jid WHERE q.jid IN (${q}) ORDER BY q.best_streak DESC,q.correct DESC LIMIT ?`).all(...members,Math.max(1,Math.min(50,Number(limit)||10))); }
 
-export function updateUser(jid,patch){const allowed=new Set(['name','tokens','last_daily','last_weekly','last_steal','xp','level','afk_since','afk_reason','job','pet_shop_level','sticker_nick']);const keys=Object.keys(patch).filter(k=>allowed.has(k));if(!keys.length)return getUser(jid);const set=keys.map(k=>`${k}=@${k}`).join(', ');db.prepare(`UPDATE users SET ${set} WHERE jid=@jid`).run({...patch,jid});return getUser(jid);}
+export function updateUser(jid,patch){const allowed=new Set(['name','tokens','last_daily','last_weekly','last_steal','steal_count','steal_window_start','xp','level','afk_since','afk_reason','job','pet_shop_level','sticker_nick']);const keys=Object.keys(patch).filter(k=>allowed.has(k));if(!keys.length)return getUser(jid);const set=keys.map(k=>`${k}=@${k}`).join(', ');db.prepare(`UPDATE users SET ${set} WHERE jid=@jid`).run({...patch,jid});return getUser(jid);}
+export function getStealStatus(jid) {
+  const user = getUser(jid);
+  if (!user) return { count: 0, windowStart: 0, remaining: 3 };
+  const now = Date.now();
+  const windowStart = Number(user.steal_window_start || 0);
+  if (!windowStart || now - windowStart >= 60 * 60 * 1000) return { count: 0, windowStart: now, remaining: 3 };
+  const count = Number(user.steal_count || 0);
+  return { count, windowStart, remaining: Math.max(0, 3 - count) };
+}
+export function consumeStealAttempt(jid) {
+  const now = Date.now();
+  const user = getUser(jid);
+  if (!user) return { allowed: false, remaining: 0, resetAt: now + 60 * 60 * 1000 };
+  let count = Number(user.steal_count || 0);
+  let windowStart = Number(user.steal_window_start || 0);
+  if (!windowStart || now - windowStart >= 60 * 60 * 1000) { count = 0; windowStart = now; }
+  if (count >= 3) return { allowed: false, remaining: 0, resetAt: windowStart + 60 * 60 * 1000 };
+  count += 1;
+  updateUser(jid, { steal_count: count, steal_window_start: windowStart });
+  return { allowed: true, remaining: 3 - count, resetAt: windowStart + 60 * 60 * 1000 };
+}
+export function addTogiLog({ actorJid, actorName, targetJid, targetName, groupJid = null, groupName = 'Conversa privada', action, amount }) {
+  db.prepare('INSERT INTO togi_logs (actor_jid,actor_name,target_jid,target_name,group_jid,group_name,action,amount,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(actorJid,actorName,targetJid,targetName,groupJid,groupName,action,Math.trunc(amount),Date.now());
+}
+export function getTogiLogs(limit = 30) {
+  return db.prepare('SELECT * FROM togi_logs ORDER BY id DESC LIMIT ?').all(Math.max(1, Math.min(100, Number(limit) || 30)));
+}
+
 export function addTokens(jid,amount){db.prepare('UPDATE users SET tokens=MAX(0,tokens+?) WHERE jid=?').run(Math.trunc(amount),jid);return getUser(jid);}
 export function spendTokens(jid,amount){const cost=Math.max(0,Math.trunc(amount));const result=db.prepare('UPDATE users SET tokens=tokens-? WHERE jid=? AND tokens>=?').run(cost,jid,cost);return result.changes>0;}
 export function getGroup(jid){return db.prepare('SELECT * FROM groups WHERE jid=?').get(jid);}
