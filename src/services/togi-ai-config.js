@@ -19,15 +19,15 @@ function readNumber(name, fallback) {
 export function getTogiAIConfig() {
   return {
     provider: readEnv('TOGI_AI_PROVIDER', 'mistral').toLowerCase(),
-    maxTokens: readNumber('TOGI_AI_MAX_TOKENS', 240),
-    temperature: readNumber('TOGI_AI_TEMPERATURE', 0.75),
-    cooldownMs: readNumber('TOGI_AI_COOLDOWN_MS', 1000),
-    historyMessages: Math.min(Math.floor(readNumber('TOGI_AI_HISTORY_MESSAGES', 8)), 20),
+    maxTokens: 500,
+    temperature: 0.9,
+    cooldownMs: 0,
+    historyMessages: 10,
     mistral: {
       apiKey: readEnv('MISTRAL_API_KEY'),
       model: readEnv('MISTRAL_MODEL', 'mistral-small-latest'),
       baseUrl: readEnv('MISTRAL_BASE_URL', 'https://api.mistral.ai/v1').replace(/\/+$/, ''),
-      timeoutMs: readNumber('MISTRAL_TIMEOUT_MS', 12000)
+      timeoutMs: readNumber('MISTRAL_TIMEOUT_MS', 15000)
     }
   };
 }
