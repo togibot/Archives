@@ -2,7 +2,7 @@ import config from '../config.js';
 import { getTogiLogs } from '../database/index.js';
 
 function normalize(value) {
-  return String(value || '').split('@')[0].replace(/\\D/g, '');
+  return String(value || '').split('@')[0].replace(/\D/g, '');
 }
 
 function isOwner(sender) {
