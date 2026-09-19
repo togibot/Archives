@@ -2,8 +2,13 @@ function readEnv(name, fallback = '') {
   const raw = String(process.env[name] ?? '').trim();
   if (!raw) return fallback;
 
-  const quoted = raw.match(/^([\"'])(.*)\\1$/);
-  return (quoted ? quoted[2] : raw).trim();
+  const first = raw[0];
+  const last = raw.at(-1);
+  if ((first === '"' || first === "'") && last === first && raw.length >= 2) {
+    return raw.slice(1, -1).trim();
+  }
+
+  return raw;
 }
 
 function readNumber(name, fallback) {
