@@ -24,7 +24,11 @@ function createChallenge(streak) {
 }
 
 function getTimeLimit(streak) {
-  return Math.min(120000 + streak * 15000, 300000);
+  return Math.max(3000, 15000 - streak * 1000);
+}
+
+function expireMessage(streak) {
+  return `⏰ *TEMPO ESGOTADO!*\n\n🔥 Sua sequência terminou em *${streak}* acerto(s).\nUse *.streak* para tentar novamente.`;
 }
 
 export default {
@@ -64,7 +68,8 @@ export default {
           answer: challenge.answer,
           difficulty: challenge.difficulty
         },
-        timeLimit
+        timeLimit,
+        () => reply(expireMessage(streak))
       );
 
       return reply(
@@ -83,11 +88,12 @@ export default {
         answer: challenge.answer,
         difficulty: challenge.difficulty
       },
-      timeLimit
+      timeLimit,
+      () => reply(expireMessage(0))
     );
 
     return reply(
-      `🔥 *STREAK*\n\nComeçou!\n\nQuanto é *${challenge.text}*?\n⏱️ Você tem *${Math.floor(timeLimit / 1000)}s*.\nUse *.streak <resposta>*\n💜 Cada acerto aumenta a dificuldade e a recompensa.`
+      `🔥 *STREAK*\n\nComeçou!\n\nQuanto é *${challenge.text}*?\n⏱️ Você tem *${Math.floor(timeLimit / 1000)}s*.\nUse *.streak <resposta>*\n💜 Cada acerto aumenta a dificuldade e o tempo diminui.`
     );
   }
 };
