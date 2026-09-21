@@ -11,23 +11,15 @@ function readEnv(name, fallback = '') {
   return raw;
 }
 
-function readNumber(name, fallback) {
-  const value = Number(readEnv(name));
-  return Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
 export function getTogiAIConfig() {
   return {
-    provider: readEnv('TOGI_AI_PROVIDER', 'mistral').toLowerCase(),
+    provider: 'mistral',
     maxTokens: 500,
     temperature: 0.9,
-    cooldownMs: 0,
     historyMessages: 10,
     mistral: {
       apiKey: readEnv('MISTRAL_API_KEY'),
-      model: readEnv('MISTRAL_MODEL', 'mistral-small-latest'),
-      baseUrl: readEnv('MISTRAL_BASE_URL', 'https://api.mistral.ai/v1').replace(/\/+$/, ''),
-      timeoutMs: readNumber('MISTRAL_TIMEOUT_MS', 15000)
+      model: readEnv('MISTRAL_MODEL', 'mistral-small-latest')
     }
   };
 }
