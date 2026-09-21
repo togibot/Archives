@@ -1,5 +1,5 @@
 import { ensureUser, getUser, updateUser } from '../database/index.js';
-import { isOwnerMessage } from '../core/permissions.js';
+import { isOwnerMessage, resolveOwnerJid } from '../core/permissions.js';
 import { resolveTargetJid } from '../utils/targets.js';
 
 export default {
@@ -12,10 +12,11 @@ export default {
     const numeric = args.filter(arg => /^\d+$/.test(String(arg)));
     const amount = Number(numeric.at(-1));
     if (!Number.isSafeInteger(amount) || amount < 0) return reply('❌ Use *.settk [@user] <quantia>*');
-    const target = (await resolveTargetJid({ sock, chat, message })) || sender;
+    const mentioned = await resolveTargetJid({ sock, chat, message });
+    const target = mentioned || resolveOwnerJid(message, sender);
     ensureUser(target);
     updateUser(target, { tokens: amount });
     const user = getUser(target);
-    return reply(`✅ *TOKENS DEFINIDOS*\n\n👤 ${user.name || 'Usuário'}\n🪙 Novo saldo: *${amount.toLocaleString('pt-BR')} Tokens*`);
+    return reply('✅ *TOKENS DEFINIDOS*\n\n👤 ' + (user.name || 'Usuário') + '\n🪙 Novo saldo: *' + amount.toLocaleString('pt-BR') + ' Tokens*');
   }
 };

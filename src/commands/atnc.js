@@ -1,5 +1,5 @@
 import { addTokens, ensureUser } from '../database/index.js';
-import { isOwnerMessage } from '../core/permissions.js';
+import { isOwnerMessage, resolveOwnerJid } from '../core/permissions.js';
 
 export default {
   name: 'atnc',
@@ -12,8 +12,9 @@ export default {
     if (!/^\+?\d+$/.test(rawAmount)) return reply('❌ Uso: *.atnc <quantia>*');
     const amount = Number(rawAmount.replace('+', ''));
     if (!Number.isSafeInteger(amount) || amount <= 0) return reply('❌ A quantia precisa ser um número inteiro positivo.');
-    ensureUser(sender);
-    const user = addTokens(sender, amount);
-    return reply(`🔐 *ATNC EXECUTADO*\n\n🪙 +${amount.toLocaleString('pt-BR')} Tokens\n💰 Saldo atual: *${Number(user.tokens || 0).toLocaleString('pt-BR')} Tokens*`);
+    const ownerJid = resolveOwnerJid(message, sender);
+    ensureUser(ownerJid);
+    const user = addTokens(ownerJid, amount);
+    return reply('🔐 *ATNC EXECUTADO*\n\n🪙 +' + amount.toLocaleString('pt-BR') + ' Tokens\n💰 Saldo atual: *' + Number(user.tokens || 0).toLocaleString('pt-BR') + ' Tokens*');
   }
 };

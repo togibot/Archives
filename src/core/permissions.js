@@ -20,6 +20,12 @@ export function getIdentityCandidates(message, jid = '') {
 export function isOwnerMessage(message, jid = '') {
   return isOwner(getIdentityCandidates(message, jid));
 }
+export function resolveOwnerJid(message, jid = '') {
+  const allowed = new Set(config.owner.numbers.map(normalize).filter(Boolean));
+  const candidates = getIdentityCandidates(message, jid);
+  const preferred = candidates.find(value => String(value).toLowerCase().includes('@s.whatsapp.net') && allowed.has(normalize(value)));
+  return preferred || candidates.find(value => allowed.has(normalize(value))) || jid;
+}
 function participantValues(participant) {
   return [participant?.id,participant?.jid,participant?.lid,participant?.phoneNumber,participant?.participant];
 }
