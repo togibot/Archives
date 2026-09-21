@@ -1,5 +1,6 @@
 import { downloadTrack, getAudioPayload } from '../services/music.js';
 import { searchYouTubeTracks } from '../services/music/providers/youtube.js';
+import { searchLicensedTracks } from '../services/music/providers/licensed.js';
 
 function clean(value, fallback = 'Não informado') {
   const text = String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -89,7 +90,36 @@ export default {
     }
 
     if (!identified || !track || !audio) {
-      console.error('[TOGI MUSIC DOWNLOAD] Todos os resultados falharam:', lastError);
+      console.warn('[TOGI MUSIC FALLBACK] YouTube indisponível para a pesquisa. Tentando fontes licenciadas...');
+      try {
+        const licensed = await searchLicensedTracks(query, query);
+        if (licensed) {
+          audio = await downloadTrack(licensed);
+          track = {
+            ...licensed,
+            source: licensed.source || 'Fonte licenciada',
+            name: licensed.name,
+            artist_name: licensed.artist_name
+          };
+          identified = {
+            title: licensed.name,
+            artist: licensed.artist_name,
+            duration: licensed.duration,
+            views: 0,
+            ago: 'Fonte licenciada',
+            description: licensed.license || 'Áudio com licença livre.',
+            url: licensed.url || '',
+            thumbnail: ''
+          };
+        }
+      } catch (error) {
+        lastError = error;
+        console.warn('[TOGI MUSIC FALLBACK] Fontes licenciadas também falharam:', error?.message || error);
+      }
+    }
+
+    if (!identified || !track || !audio) {
+      console.error('[TOGI MUSIC DOWNLOAD] Todas as fontes falharam:', lastError);
       return reply('❌ Não consegui preparar o áudio. Tente outra versão ou outro nome da música.');
     }
 
