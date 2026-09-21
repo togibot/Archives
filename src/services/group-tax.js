@@ -78,6 +78,17 @@ export function claimOwnerFund() {
   return amount;
 }
 
+export function withdrawOwnerFund(amount) {
+  const value = Math.max(0, Math.trunc(Number(amount)));
+  if (!value) return 0;
+
+  const result = db.prepare(
+    'UPDATE owner_fund SET tokens=tokens-? WHERE id=1 AND tokens>=?'
+  ).run(value, value);
+
+  return result.changes > 0 ? value : 0;
+}
+
 export function addOwnerFund(amount) {
   const value = Math.max(0, Math.trunc(amount));
   if (!value) return getOwnerFund();
