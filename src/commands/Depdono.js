@@ -1,6 +1,6 @@
 import config from '../config.js';
-import { addTokens } from '../database/index.js';
-import { claimOwnerFund, getOwnerFund } from '../services/group-tax.js';
+import { getPurchaseLogs } from '../database/index.js';
+import { getOwnerFund } from '../services/group-tax.js';
 
 function normalizeNumber(value) {
   return String(value || '')
@@ -23,11 +23,10 @@ function isOwner(...values) {
 export default {
   name: 'depdono',
   aliases: ['dep-dono', 'fundodono'],
-  category: 'admin',
-  description: 'Consulta e saca o fundo do dono',
-  async execute({ sender, message, args, reply }) {
+  category: 'owner',
+  description: 'Mostra o fundo do dono e os últimos gastos registrados.',
+  async execute({ sender, message, reply }) {
     const key = message?.key || {};
-
     const candidates = [
       sender,
       key.participant,
@@ -48,26 +47,29 @@ export default {
     }
 
     const fund = getOwnerFund();
+    const logs = getPurchaseLogs(10);
 
-    if (args[0]?.toLowerCase() === 'sacar') {
-      if (fund <= 0) return reply('🏦 O fundo do dono está vazio.');
-
-      const amount = claimOwnerFund();
-      addTokens(sender, amount);
-
-      return reply(
-        '💜 *DEP. DONO*\n\n' +
-        '🪙 ' + amount.toLocaleString('pt-BR') +
-        ' Tokens foram adicionados ao seu saldo.'
-      );
-    }
+    const history = logs.length
+      ? logs.map(log => {
+          const purchase = String(log.action || '').startsWith('compra:')
+            ? String(log.action).slice('compra:'.length).trim()
+            : 'Compra';
+          return (
+            `👤 ${log.actorName || log.actor_jid || 'Usuário'}\n` +
+            `🛒 ${purchase}\n` +
+            `👥 ${log.groupName || 'Conversa privada'}\n` +
+            `🪙 ${Number(log.amount || 0).toLocaleString('pt-BR')} Tokens`
+          );
+        }).join('\n\n')
+      : 'Nenhum gasto registrado ainda.';
 
     return reply(
       '╭━━━〔 👑 DEP. DONO 〕━━━╮\n' +
-      '┃ 🏦 Fundo acumulado\n' +
-      '┃ 🪙 ' + fund.toLocaleString('pt-BR') + ' Tokens\n' +
-      '╰━━━━━━━━━━━━━━━━━━━━╯\n\n' +
-      '💡 Use *.Depdono sacar* para transferir o fundo para seu saldo.'
+      `┃ 🏦 Fundo: ${fund.toLocaleString('pt-BR')} Tokens\n` +
+      '╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n' +
+      '📜 *ÚLTIMOS GASTOS*\n\n' +
+      history +
+      '\n\n💡 Use *.sacardep <quantia>* para sacar parte do fundo.'
     );
   }
 };
