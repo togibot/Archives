@@ -1,5 +1,5 @@
 import { pets } from '../../data/catalog.js';
-import { createPet, getUser, updateUser } from '../../database/index.js';
+import { createPet, getUser, updateUser, addTogiLog } from '../../database/index.js';
 import { distributeGroupPurchase } from '../../services/group-tax.js';
 
 export default {
@@ -25,10 +25,23 @@ export default {
     updateUser(sender, { tokens: user.tokens - pet.price });
     const created = createPet(sender, name, id);
 
+    let groupName = 'Conversa privada';
     if (isGroup) {
       const metadata = await sock.groupMetadata(chat);
+      groupName = metadata?.subject || chat;
       distributeGroupPurchase({ amount: pet.price, groupJid: chat, metadata });
     }
+
+    addTogiLog({
+      actorJid: sender,
+      actorName: user.name || sender.split('@')[0],
+      targetJid: sender,
+      targetName: user.name || sender.split('@')[0],
+      groupJid: isGroup ? chat : null,
+      groupName,
+      action: `compra: ${pet.emoji || ''} ${created.name || pet.name}`.trim(),
+      amount: pet.price
+    });
 
     await reply(`🎉 PET ADQUIRIDO!\n\n${pet.emoji} ${created.name}\n🏷️ ${pet.tier}\n❤️ Saúde: 100\n🍖 Fome: 100\n💧 Sede: 100\n😊 Felicidade: 100\n\n🪙 -${pet.price} Tokens`);
   }
