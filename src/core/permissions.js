@@ -6,6 +6,12 @@ function normalize(value) {
   const local = raw.split('@')[0].split(':')[0];
   return local.replace(/\D/g, '');
 }
+function asJid(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.includes('@')) return raw;
+  return raw.split(':')[0] + '@s.whatsapp.net';
+}
 function flatten(values) {
   return values.flatMap(value => Array.isArray(value) ? value : [value]).map(normalize).filter(Boolean);
 }
@@ -24,7 +30,7 @@ export function resolveOwnerJid(message, jid = '') {
   const allowed = new Set(config.owner.numbers.map(normalize).filter(Boolean));
   const candidates = getIdentityCandidates(message, jid);
   const preferred = candidates.find(value => String(value).toLowerCase().includes('@s.whatsapp.net') && allowed.has(normalize(value)));
-  return preferred || candidates.find(value => allowed.has(normalize(value))) || jid;
+  return asJid(preferred || candidates.find(value => allowed.has(normalize(value))) || jid);
 }
 function participantValues(participant) {
   return [participant?.id,participant?.jid,participant?.lid,participant?.phoneNumber,participant?.participant];
