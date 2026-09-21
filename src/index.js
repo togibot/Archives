@@ -129,7 +129,24 @@ async function startBot() {
       if (!text.startsWith(config.bot.prefix)) continue;
       const body = text.slice(config.bot.prefix.length).trim();
       if (!body) continue;
-      const [name, ...args] = body.split(/\s+/), command = commands.get(name.toLowerCase());
+      const words = body.split(/\s+/);
+      let name = words[0]?.toLowerCase() || '';
+      let args = words.slice(1);
+      let command = commands.get(name);
+
+      const maxParts = Math.min(5, words.length);
+      if (!command) {
+        for (let size = maxParts; size >= 2; size--) {
+          const candidate = words.slice(0, size).join(' ').toLowerCase();
+          const found = commands.get(candidate);
+          if (!found) continue;
+          name = candidate;
+          args = words.slice(size);
+          command = found;
+          break;
+        }
+      }
+
       if (!command) { console.log(`⚠️ Comando não encontrado: .${name}`); continue; }
 
       logInfo('⚙️ COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `▶️ Executando: .${name}${args.length ? ` ${args.join(' ')}` : ''}`]);
