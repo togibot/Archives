@@ -111,6 +111,50 @@ export function addTogiLog({ actorJid, actorName, targetJid, targetName, groupJi
 export function getTogiLogs(limit = 30) {
   return db.prepare('SELECT * FROM togi_logs ORDER BY id DESC LIMIT ?').all(Math.max(1, Math.min(100, Number(limit) || 30)));
 }
+export function getPurchaseLogs(limit = 10) {
+  return db.prepare("SELECT * FROM togi_logs WHERE action LIKE 'compra:%' ORDER BY id DESC LIMIT ?").all(Math.max(1, Math.min(50, Number(limit) || 10)));
+}
+export function resetUserAccount(jid, mode = 'tokens') {
+  const id = String(jid || '').trim();
+  if (!id) return null;
+
+  const user = getUser(id);
+  if (!user) return null;
+
+  if (mode === 'tokens') {
+    updateUser(id, { tokens: 0 });
+    return getUser(id);
+  }
+
+  if (mode !== 'tudo') throw new Error('Modo de reset inválido.');
+
+  const tx = db.transaction(() => {
+    updateUser(id, {
+      tokens: config.economy.startingBalance,
+      last_daily: 0,
+      last_weekly: 0,
+      last_steal: 0,
+      xp: 0,
+      level: 1,
+      afk_since: null,
+      afk_reason: null,
+      job: null,
+      pet_shop_level: 1,
+      sticker_nick: '',
+      steal_count: 0,
+      steal_window_start: 0
+    });
+    db.prepare('DELETE FROM inventory WHERE jid=?').run(id);
+    db.prepare('DELETE FROM user_cards WHERE jid=?').run(id);
+    db.prepare('DELETE FROM quiz_stats WHERE jid=?').run(id);
+    db.prepare('DELETE FROM game_stats WHERE jid=?').run(id);
+    db.prepare('DELETE FROM pets WHERE owner_jid=?').run(id);
+    db.prepare('DELETE FROM rp_relationships WHERE user_a=? OR user_b=?').run(id, id);
+    db.prepare('DELETE FROM rp_family WHERE user_jid=? OR target_jid=?').run(id, id);
+  });
+  tx();
+  return getUser(id);
+}
 
 export function addTokens(jid,amount){db.prepare('UPDATE users SET tokens=MAX(0,tokens+?) WHERE jid=?').run(Math.trunc(amount),jid);return getUser(jid);}
 export function spendTokens(jid,amount){const cost=Math.max(0,Math.trunc(amount));const result=db.prepare('UPDATE users SET tokens=tokens-? WHERE jid=? AND tokens>=?').run(cost,jid,cost);return result.changes>0;}
