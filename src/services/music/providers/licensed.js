@@ -1,4 +1,5 @@
 import { searchArchive } from './archive.js';
+import { searchWikimediaAudio } from './wikimedia.js';
 
 const FMA_BASE_URL = 'https://freemusicarchive.org/api/get/tracks.json';
 const JAMENDO_BASE_URL = 'https://api.jamendo.com/v3.0/tracks/';
@@ -83,14 +84,15 @@ export async function searchLicensedTracks(query, originalQuery = query) {
 
   const results = [];
   for (const currentQuery of queries.slice(0, 4)) {
-    const [archive, fma, jamendo] = await Promise.all([
+    const [archive, fma, jamendo, wikimedia] = await Promise.all([
       searchArchive(currentQuery).catch(() => null),
       searchFma(currentQuery).catch(() => null),
-      searchJamendo(currentQuery).catch(() => null)
+      searchJamendo(currentQuery).catch(() => null),
+      searchWikimediaAudio(currentQuery).catch(() => null)
     ]);
-    results.push(archive, fma, jamendo);
+    results.push(archive, fma, jamendo, wikimedia);
 
-    const exact = [archive, fma, jamendo].filter(Boolean).sort((a, b) =>
+    const exact = [archive, fma, jamendo, wikimedia].filter(Boolean).sort((a, b) =>
       score(originalQuery, b.name || b.track_title, b.artist_name) - score(originalQuery, a.name || a.track_title, a.artist_name)
     )[0];
     if (exact && score(originalQuery, exact.name || exact.track_title, exact.artist_name) >= 30000) return exact;
