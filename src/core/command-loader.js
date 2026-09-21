@@ -25,7 +25,7 @@ export async function loadCommands() {
       if (!raw) continue;
 
       // Compatibilidade com comandos antigos que usavam { command, run }.
-      const name = raw.name || raw.command;
+      const name = String(raw.name || raw.command || '').trim().toLowerCase();
       const execute = typeof raw.execute === 'function'
         ? raw.execute
         : typeof raw.run === 'function'
