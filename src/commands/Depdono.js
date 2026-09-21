@@ -2,11 +2,22 @@ import config from '../config.js';
 import { addTokens } from '../database/index.js';
 import { claimOwnerFund, getOwnerFund } from '../services/group-tax.js';
 
-function ownerJids() {
-  return (config.owner?.numbers || [])
-    .map(String)
+function normalizeNumber(value) {
+  return String(value || '')
+    .split('@')[0]
+    .replace(/\D/g, '');
+}
+
+function isOwner(...values) {
+  const allowedNumbers = config.owner.numbers
+    .map(normalizeNumber)
+    .filter(Boolean);
+
+  return values
+    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .map(normalizeNumber)
     .filter(Boolean)
-    .map(v => v.includes('@') ? v : v + '@s.whatsapp.net');
+    .some((number) => allowedNumbers.includes(number));
 }
 
 export default {
@@ -14,8 +25,25 @@ export default {
   aliases: ['dep-dono', 'fundodono'],
   category: 'admin',
   description: 'Consulta e saca o fundo do dono',
-  async execute({ sender, args, reply }) {
-    if (!ownerJids().includes(String(sender))) {
+  async execute({ sender, message, args, reply }) {
+    const key = message?.key || {};
+
+    const candidates = [
+      sender,
+      key.participant,
+      key.participantAlt,
+      key.participantPn,
+      key.senderPn,
+      key.remoteJid,
+      key.remoteJidAlt,
+      message?.participant,
+      message?.participantAlt,
+      message?.senderPn,
+      message?.sender?.id,
+      message?.sender?.phoneNumber
+    ];
+
+    if (!isOwner(candidates)) {
       return reply('❌ Apenas o dono do Togi pode usar este comando.');
     }
 
