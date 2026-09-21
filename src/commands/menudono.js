@@ -42,23 +42,33 @@ export default {
       '╭━━━〔 👑 𝐓𝐎𝐆𝐈 — 𝐌𝐄𝐍𝐔 𝐃𝐎𝐍𝐎 〕━━━╮\n' +
       '┃ 💜 Painel exclusivo do proprietário\n' +
       '╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n' +
-      '💰 *ECONOMIA*\n' +
+
+      '💰 *ECONOMIA / CONTAS*\n' +
       '┃ 🔐 .atnc <quantia> — adiciona Tokens\n' +
-      '┃ 🏦 .Depdono — consulta o fundo do dono\n' +
-      '┃ 💸 .Depdono sacar — transfere o fundo para seu saldo\n\n' +
-      '📋 *AUDITORIA*\n' +
-      '┃ 🧾 .logTogi — últimos registros administrativos\n\n' +
+      '┃ ⚙️ .settk <quantia> — define seus Tokens\n' +
+      '┃ 👤 .settk @user <quantia> — define os Tokens de alguém\n' +
+      '┃ 💳 .csaldo @user — consulta o saldo da pessoa\n' +
+      '┃ ♻️ .resetuser @user tokens — zera somente os Tokens\n' +
+      '┃ ♻️ .resetuser @user tudo — reseta a conta completa\n\n' +
+
+      '🏦 *DEPÓSITO DO DONO*\n' +
+      '┃ 📊 .Depdono — fundo + últimos gastos\n' +
+      '┃ 💸 .sacardep <quantia> — saca parte do fundo\n\n' +
+
+      '📜 *AUDITORIA*\n' +
+      '┃ 🧾 .logTogi — últimos registros internos\n\n' +
+
       '🛡️ *ADMINISTRAÇÃO*\n' +
       '┃ ⚙️ .adm — painel de administração do grupo\n\n' +
+
       '🎵 *MÚSICA*\n' +
       '┃ 🎧 .play <música> — pesquisa e envia áudio\n' +
       '┃ 🎵 .yta <música> — áudio\n' +
       '┃ 📄 .ytadoc <música> — áudio como documento\n\n' +
-      '⚙️ *SISTEMAS*\n' +
-      '┃ 💜 Área do dono em expansão\n\n' +
+
       '╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n' +
       '┃ 👑 *TOGI BOT V2*\n' +
-      '┃ 🔒 Acesso restrito\n' +
+      '┃ 🔒 Área exclusiva do dono\n' +
       '╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯'
     );
   }
