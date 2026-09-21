@@ -30,9 +30,11 @@ try { db.exec("ALTER TABLE groups ADD COLUMN tax_percent INTEGER NOT NULL DEFAUL
 const MAX_TAX = 10;
 
 function normalizeJid(value) {
-  const raw = String(value || '').trim();
+  const raw = String(value || '').trim().toLowerCase();
   if (!raw) return '';
-  return raw.includes('@') ? raw : raw + '@s.whatsapp.net';
+  const [local, server = 's.whatsapp.net'] = raw.split('@');
+  const cleanLocal = local.split(':')[0];
+  return `${cleanLocal}@${server}`;
 }
 
 function addTokens(jid, amount) {
@@ -56,15 +58,15 @@ export function setGroupTax(groupJid, percent, subject = '') {
 export function isGroupAdmin(metadata, jid) {
   const normalized = normalizeJid(jid);
   return Boolean(metadata?.participants?.some(p => {
-    const participantJid = normalizeJid(p.id || p.jid);
-    return participantJid === normalized && (p.admin === 'admin' || p.admin === 'superadmin');
+    const candidates = [p?.phoneNumber, p?.jid, p?.id, p?.lid, p?.participant];
+    return (p.admin === 'admin' || p.admin === 'superadmin') && candidates.some(value => normalizeJid(value) === normalized);
   }));
 }
 
 export function getGroupAdminJids(metadata) {
   return [...new Set((metadata?.participants || [])
     .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
-    .map(p => normalizeJid(p.id || p.jid))
+    .map(p => normalizeJid(p.phoneNumber || p.jid || p.id || p.lid || p.participant))
     .filter(Boolean))];
 }
 
