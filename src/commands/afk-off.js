@@ -1,5 +1,5 @@
-import { clearAfk, getAfk } from '../../services/afk-store.js';
-import { getSender } from '../../utils/message.js';
+import { clearAfk, getAfk } from '../services/afk-store.js';
+import { getSender } from '../utils/message.js';
 
 export default {
   command: 'afkoff',
