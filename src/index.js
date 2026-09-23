@@ -35,6 +35,36 @@ function displayChat(chat, isGroup) {
   return isGroup ? chat : 'Conversa privada';
 }
 function normalizePhone(value) { return String(value || '').replace(/\D/g, ''); }
+function normalizeJid(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.includes('@')) return raw.split(':')[0];
+  return raw.split(':')[0] + '@s.whatsapp.net';
+}
+function jidNumber(value) {
+  return normalizePhone(String(value || '').split('@')[0].split(':')[0]);
+}
+function getSelfJids(sock, pairingPhone) {
+  const values = [
+    sock?.user?.id,
+    sock?.user?.jid,
+    pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''
+  ];
+  return [...new Set(values.map(normalizeJid).filter(Boolean))];
+}
+function isSelfMessage(message, sock, pairingPhone) {
+  if (message?.key?.fromMe) return true;
+  const selfNumbers = new Set(getSelfJids(sock, pairingPhone).map(jidNumber).filter(Boolean));
+  if (!selfNumbers.size) return false;
+  const candidates = [
+    message?.key?.participantPn,
+    message?.key?.senderPn,
+    message?.key?.participant,
+    message?.key?.remoteJidAlt,
+    message?.key?.remoteJid
+  ].map(jidNumber).filter(Boolean);
+  return candidates.some(number => selfNumbers.has(number));
+}
 
 async function withTimeout(promise, timeoutMs, label) {
   let timer;
@@ -65,11 +95,11 @@ async function reactToCommand(sock, message, command) {
   }
 }
 
-function getMentionedJids(message) { const context = message?.message?.extendedTextMessage?.contextInfo; return Array.isArray(context?.mentionedJid) ? context.mentionedJid : []; }
+function getMentionedJids(message) { const context = message?.message?.extendedTextMessage?.contextInfo || message?.message?.imageMessage?.contextInfo || message?.message?.videoMessage?.contextInfo || message?.message?.documentMessage?.contextInfo; return Array.isArray(context?.mentionedJid) ? context.mentionedJid : []; }
 function formatAfkDuration(since) { const elapsedMs = Math.max(0, Date.now() - since); const minutes = Math.floor(elapsedMs / 60000); if (minutes < 1) return 'menos de 1 minuto'; if (minutes === 1) return '1 minuto'; if (minutes < 60) return `${minutes} minutos`; const hours = Math.floor(minutes / 60), remaining = minutes % 60; if (remaining === 0) return hours === 1 ? '1 hora' : `${hours} horas`; return `${hours}h ${remaining}min`; }
 function getAfkKeys({ effectiveSender, sender, pairingPhone, sock }) { const keys = [effectiveSender, sender, sock?.user?.id, pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''].filter(Boolean); return [...new Set(keys)]; }
 function findAfkEntry(keys) { for (const key of keys) { const entry = getAfk(key); if (entry) return { key, entry }; } return null; }
-async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, autoDisable = true) { if (autoDisable && !message.key.fromMe) { const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock })); if (ownAfk) { clearAfk(ownAfk.key); await reply(`👋 @${effectiveSender.split('@')[0]} saiu do AFK!\n⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.entry.since)}\n📝 Motivo: ${ownAfk.entry.reason}`, { mentions: [effectiveSender] }); } } if (!isGroup) return; const mentioned = [...new Set(getMentionedJids(message))]; if (!mentioned.length) return; const notices = [], mentions = []; for (const jid of mentioned) { const entry = getAfk(jid); if (!entry) continue; notices.push(`💤 @${jid.split('@')[0]} está AFK.\n📝 Motivo: ${entry.reason}\n⏱️ Ausente há ${formatAfkDuration(entry.since)}`); mentions.push(jid); } if (notices.length) await reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n${notices.join('\n\n')}\n╰━━━━━━━━━━━━━━━━━━╯`, { mentions }); }
+async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, autoDisable = true) { if (autoDisable && !isSelfMessage(message, sock, pairingPhone)) { const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock })); if (ownAfk) { clearAfk(ownAfk.key); await reply(`👋 @${effectiveSender.split('@')[0]} saiu do AFK!\n⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.entry.since)}\n📝 Motivo: ${ownAfk.entry.reason}`, { mentions: [effectiveSender] }); } } if (!isGroup) return; const mentioned = [...new Set(getMentionedJids(message))]; if (!mentioned.length) return; const notices = [], mentions = []; for (const jid of mentioned) { const entry = getAfk(jid); if (!entry) continue; notices.push(`💤 @${jid.split('@')[0]} está AFK.\n📝 Motivo: ${entry.reason}\n⏱️ Ausente há ${formatAfkDuration(entry.since)}`); mentions.push(jid); } if (notices.length) await reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n${notices.join('\n\n')}\n╰━━━━━━━━━━━━━━━━━━╯`, { mentions }); }
 
 async function startBot() {
   restarting = false;
@@ -99,7 +129,10 @@ async function startBot() {
       if (!message?.message) continue;
       messageCache.set(message.key.id, message);
       if (messageCache.size > 200) messageCache.delete(messageCache.keys().next().value);
-      const text = getText(message).trim(), sender = getSender(message), chat = message.key.remoteJid, isGroup = chat?.endsWith('@g.us'), userName = getName(message), effectiveSender = message.key.fromMe ? `${pairingPhone}@s.whatsapp.net` : sender;
+      const text = getText(message).trim(), sender = getSender(message), chat = message.key.remoteJid, isGroup = chat?.endsWith('@g.us'), userName = getName(message), selfJids = getSelfJids(sock, pairingPhone), effectiveSender = isSelfMessage(message, sock, pairingPhone) ? (selfJids[0] || normalizeJid(sender)) : normalizeJid(sender);
+      // Nunca procesar mensagens do próprio Togi. Isso evita loops de AFK, IA e comandos.
+      if (isSelfMessage(message, sock, pairingPhone)) continue;
+
       ensureUser(effectiveSender, userName);
       if (isGroup) ensureGroup(chat);
 

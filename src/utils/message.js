@@ -16,8 +16,25 @@ export function getText(message) {
   return m.conversation || m.extendedTextMessage?.text || m.imageMessage?.caption || m.videoMessage?.caption || m.documentMessage?.caption || '';
 }
 
+export function getSenderCandidates(message) {
+  const key = message?.key || {};
+  return [
+    key.participantPn,
+    key.senderPn,
+    key.participant,
+    key.remoteJidAlt,
+    key.remoteJid,
+    message?.participantPn,
+    message?.senderPn,
+    message?.participant,
+    message?.sender?.phoneNumber,
+    message?.sender?.id
+  ].filter(Boolean);
+}
+
 export function getSender(message) {
-  return message?.key?.participant || message?.key?.remoteJid || '';
+  const candidates = getSenderCandidates(message);
+  return candidates[0] || '';
 }
 
 export function getName(message) {
