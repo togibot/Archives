@@ -22,7 +22,7 @@ export default {
       '┃ ♻️ .resetuser @user tudo — reseta a conta completa\n\n' +
       '🏦 *DEPÓSITO DO DONO*\n┃ 📊 .Depdono — fundo + últimos gastos\n┃ 💸 .sacardep <quantia> — saca parte do fundo\n\n' +
       '📜 *AUDITORIA*\n┃ 🧾 .logTogi [quantia] — últimos registros internos\n\n' +
-      '🛡️ *ADMINISTRAÇÃO*\n┃ ⚙️ .adm — painel de administração do grupo\n┃ 🧮 .imposto <0-10> — configura imposto do grupo\n\n' +
+      '🛡️ *ADMINISTRAÇÃO*\n┃ ⚙️ .adm — painel de administração do grupo\n┃ 📢 .Ann <mensagem> — comunicado em todos os grupos\n\n' +
       '🎵 *MÚSICA*\n┃ 🎧 .play <música> — pesquisa e envia áudio\n┃ 🎵 .yta <música> — áudio\n┃ 📄 .ytadoc <música> — áudio como documento\n\n' +
       '╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\n┃ 👑 *TOGI BOT V2*\n┃ 🔒 Área exclusiva do dono\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯'
     );
