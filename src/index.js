@@ -4,12 +4,13 @@ import P from 'pino';
 import fs from 'node:fs/promises';
 import config from './config.js';
 import { loadCommands } from './core/command-loader.js';
-import { ensureUser, ensureGroup } from './database/index.js';
+import { ensureUser, ensureGroup, isGroupMuted, isSoAdmEnabled } from './database/index.js';
 import { getText, getSender, getName } from './utils/message.js';
 import { askTogi, isTogiActive } from './services/togi-ai.js';
 import { getAfk, clearAfk } from './services/afk-store.js';
 import { moderateProfanity, isAntiProfanityEnabled } from './services/anti-palavrao.js';
 import { getCommandReaction } from './config/reactions.js';
+import { getPermissionLevel } from './core/permissions.js';
 
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
@@ -151,6 +152,25 @@ async function startBot() {
       let parsedCommandName = '';
       if (text.startsWith(config.bot.prefix)) { const body = text.slice(config.bot.prefix.length).trim(); parsedCommandName = body.split(/\s+/)[0]?.toLowerCase() || ''; }
       const isAfkToggle = parsedCommandName === 'afk' || parsedCommandName === 'ausente';
+
+      if (isGroup && isGroupMuted(chat, effectiveSender)) {
+        try {
+          await sock.sendMessage(chat, { delete: message.key });
+        } catch (error) {
+          logger.debug({ err: error }, 'Não foi possível apagar mensagem de usuário mutado.');
+        }
+        continue;
+      }
+
+      if (isGroup && isSoAdmEnabled(chat) && parsedCommandName && parsedCommandName !== 'soadm') {
+        try {
+          const permission = await getPermissionLevel({ sock, chat, jid: effectiveSender, message });
+          if (permission < 3) continue;
+        } catch (error) {
+          logger.debug({ err: error }, 'Não foi possível verificar o modo SOADM.');
+          continue;
+        }
+      }
       try { await handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, !isAfkToggle); } catch (error) { logger.debug({ err: error }, 'Falha ao processar AFK.'); }
 
       // Anti-palavrão desativado temporariamente. O código original permanece intacto.
