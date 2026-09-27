@@ -39,7 +39,8 @@ export default {
     }
 
     const basePayment = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-    const payment = applyPetReward(sender, basePayment);
+    const paymentResult = applyPetReward(sender, basePayment, 'work');
+    const payment = Number(paymentResult?.amount || basePayment);
     state.uses += 1;
     updateUser(sender, { work_count: state.uses, work_window_start: state.windowStart });
 
