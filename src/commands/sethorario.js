@@ -27,7 +27,7 @@ export default {
     return reply(
       '✅ *HORÁRIO AUTOMÁTICO CONFIGURADO!*\n\n' +
       '🔴 Fecha: *' + result.schedule.closeTime + '*\n' +
-      '🟢 Abre: *' + result.schedule.openTime + '*'\n\n' +
+      '🟢 Abre: *' + result.schedule.openTime + '*\n\n' +
       '⏰ O Togi verificará o horário automaticamente.'
     );
   }
