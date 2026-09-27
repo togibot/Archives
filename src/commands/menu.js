@@ -45,6 +45,7 @@ const MENU = `╭━━━〔 💜🤖 𝐓𝐎𝐆𝐈 𝐁𝐎𝐓 𝐕𝟐.�
 🐾 *PETS ALIVE*
 ┃ 🐶 .pets • .petshop • .comprarpet
 ┃ 🐱 .petinfo • .petstats • .upgradepetshop
+┃ 🎒 .menuEquip • .equip • .unequip • .upgradeequip
 ┃ 🍖 .alimentar • 💧 .beber • 🎾 .brincar
 ┃ 😴 .dormir • 💚 .curar
 ┃ ✨ Pets Alive V2.3
