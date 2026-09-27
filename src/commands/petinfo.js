@@ -1,6 +1,7 @@
 import { ensureUser, getPet } from '../database/index.js';
 import { getPetDefinition } from '../data/pets.js';
 import { getFreshPet } from '../services/pets.js';
+import { getPetLevelProgress, getPetAbilityCooldownRemaining } from '../services/pet-abilities.js';
 
 export default {
   name: 'petinfo',
@@ -15,6 +16,9 @@ export default {
     const def = getPetDefinition(pet.species);
     if (!def) return reply('❌ Esse Pet usa uma espécie que não existe mais no catálogo atual.');
     const status = String(pet.status || 'vivo') === 'vivo' ? '🟢 Vivo' : '⚫ ' + pet.status;
+    const progress = getPetLevelProgress(pet);
+    const cooldownMs = getPetAbilityCooldownRemaining(pet);
+    const cooldown = cooldownMs > 0 ? Math.ceil(cooldownMs / 60000) + ' min' : 'Disponível';
     return reply('╭━━━〔 ' + def.emoji + ' 𝐏𝐄𝐓 𝐈𝐍𝐅𝐎 〕━━━╮\n' +
       '┃ 🆔 ID: ' + pet.id + '\n' +
       '┃ 🐾 Nome: ' + pet.name + '\n' +
@@ -23,7 +27,8 @@ export default {
       '┃ ⚡ Habilidade: ' + def.abilityName + '\n' +
       '┃ 📖 ' + def.abilityDescription + '\n' +
       '┃ 🎚️ Nível: ' + Number(pet.level || 1) + '\n' +
-      '┃ ✨ XP: ' + Number(pet.xp || 0) + '\n' +
+      '┃ ✨ XP: ' + progress.xp + '/' + progress.needed + ' (' + progress.percent + '%)\n' +
+      '┃ ⏱️ Habilidade: ' + cooldown + '\n' +
       '┃ ❤️ Vida: ' + Number(pet.health || 0) + '/100\n' +
       '┃ 🍖 Fome: ' + Number(pet.hunger || 0) + '/100\n' +
       '┃ 💧 Sede: ' + Number(pet.thirst || 0) + '/100\n' +
