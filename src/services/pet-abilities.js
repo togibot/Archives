@@ -209,14 +209,18 @@ export async function tryAutomaticPetAbility(pet, { targetJids = [], random = Ma
     if (!low) return { activated: false, reason: 'condition_not_met' };
   }
 
-  if (random >= getAbilityChance(config, level)) return { activated: false, reason: 'chance_failed' };
+  // Um ciclo disponível representa uma tentativa da habilidade. Mesmo quando
+  // a chance falha, marcamos o horário para respeitar o cooldown e evitar
+  // várias tentativas em sequência pelo scheduler.
+  markPetAbilityUsed(pet);
+  if (random >= getAbilityChance(config, level)) return { activated: false, reason: 'chance_failed', attempted: true };
 
   if (config.effect === 'pet_steal') {
     const candidates = targetJids.filter(jid => String(jid) && String(jid) !== String(pet.owner_jid));
-    if (!candidates.length) return { activated: false, reason: 'no_target' };
+    if (!candidates.length) return { activated: false, reason: 'no_target', attempted: true };
     const targetJid = candidates[Math.floor(random * candidates.length) % candidates.length];
     const target = getUser(targetJid);
-    if (!target || Number(target.tokens || 0) <= 0) return { activated: false, reason: 'target_empty' };
+    if (!target || Number(target.tokens || 0) <= 0) return { activated: false, reason: 'target_empty', attempted: true };
 
     const minPercent = Math.max(0, Number(config.minPercent || 0));
     const maxPercent = Math.max(minPercent, Number(config.maxPercent || minPercent));
@@ -225,7 +229,6 @@ export async function tryAutomaticPetAbility(pet, { targetJids = [], random = Ma
     const amount = Math.max(1, Math.min(Number(target.tokens || 0), Math.floor(Number(target.tokens || 0) * percent)));
     addTokens(targetJid, -amount);
     addTokens(pet.owner_jid, amount);
-    markPetAbilityUsed(pet);
     const xp = addPetExperience(pet, 20);
     return { activated: true, effect: config.effect, amount, targetJid, xp, description: 'Pet realizou um furto automático.' };
   }
@@ -235,7 +238,6 @@ export async function tryAutomaticPetAbility(pet, { targetJids = [], random = Ma
     if (!items.length) return { activated: false, reason: 'no_items' };
     const itemId = items[Math.floor(random * items.length) % items.length];
     addItem(pet.owner_jid, itemId, Number(config.quantity || 1));
-    markPetAbilityUsed(pet);
     const xp = addPetExperience(pet, 12);
     return { activated: true, effect: config.effect, itemId, quantity: Number(config.quantity || 1), xp };
   }
@@ -258,7 +260,6 @@ export async function tryAutomaticPetAbility(pet, { targetJids = [], random = Ma
     const duration = Math.max(15 * 60 * 1000, Number(config.durationMs || 0) + Number(config.levelDuration || 0) * Math.max(0, level - 1));
     const expiresAt = Date.now() + duration;
     setPetBuff(pet.owner_jid, pet.id, 'moon_blessing', value, expiresAt);
-    markPetAbilityUsed(pet);
     const xp = addPetExperience(pet, 25);
     return { activated: true, effect: config.effect, value, durationMs: duration, expiresAt, xp };
   }
