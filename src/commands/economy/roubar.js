@@ -1,5 +1,6 @@
 import { addItem, addTokens, consumeStealAttempt, getItemQuantity, getUser, addTogiLog } from '../../database/index.js';
 import { getMentionedJid } from '../../utils/targets.js';
+import { tryPetProtection } from '../../services/pet-abilities.js';
 
 function formatTokens(amount) {
   return Number(amount || 0).toLocaleString('pt-BR');
@@ -20,6 +21,11 @@ export default {
     const victim = getUser(target);
     const thief = getUser(sender);
     if (!victim) return reply('❌ Essa pessoa ainda não possui um perfil no Togi Bot.');
+
+    const petProtection = tryPetProtection(target);
+    if (petProtection.blocked) {
+      return reply(`🐾🛡️ *PET PROTEGEU O DONO!*\n\n@${victim.name || 'Usuário'} foi protegido pelo ${petProtection.pet.name}!\n⚡ Habilidade: ${petProtection.effect === 'absolute_block' ? 'Proteção Absoluta' : 'Guardião'}`, { mentions: [target] });
+    }
 
     const attempt = consumeStealAttempt(sender);
     if (!attempt.allowed) return reply(`⏳ *LADRÃO, CALMA!*\n\nVocê já usou suas *3 tentativas* desta hora.\n🕐 Tente novamente em aproximadamente *${formatRemaining(attempt.resetAt)}*.`);
