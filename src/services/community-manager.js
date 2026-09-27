@@ -52,7 +52,7 @@ export function commandBelongsToMenu(command, menuKey) {
     pets: ['pet','alimentar','beber','brincar','dormir','curar','equip','unequip','upgradeequip'],
     cards: ['card','album','pack','abrirpack','vendercarta'],
     music: ['play','yta','yts','ytadoc'],
-    stickers: ['sticker','brat','take','nick','packs','s'],
+    stickers: ['sticker','brat','take','nick','packs'],
     quiz: ['quiz','streak'],
     economy: ['saldo','daily','weekly','trabalhar','loja','comprar','pagar','rank','perfil'],
     groups: ['adm','kick','mute','desmute','warn','aviso','antilink','soadm'],
@@ -103,14 +103,6 @@ export function configureGoodbye(communityJid, groupJid, message = null) {
   const patch = { goodbye_group_jid: groupJid };
   if (String(message || '').trim()) patch.goodbye_message = String(message).trim();
   return updateCommunitySettings(communityJid, patch);
-}
-
-export function getCMStatus(groupJid, communityJid = groupJid) {
-  return {
-    rules: '',
-    community: getCommunitySettings(communityJid),
-    blocks: listGroupBlocks(groupJid)
-  };
 }
 
 export function formatCMTargetList(blocks) {
