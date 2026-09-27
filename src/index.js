@@ -12,6 +12,7 @@ import { moderateProfanity, isAntiProfanityEnabled } from './services/anti-palav
 import { getCommandReaction } from './config/reactions.js';
 import { getPermissionLevel } from './core/permissions.js';
 import { startPetEventLoop } from './services/pet-events.js';
+import { notifyPetEvent } from './services/pet-notifications.js';
 
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
@@ -127,13 +128,16 @@ async function startBot() {
         stopPetEventLoop = startPetEventLoop({
           logger,
           onEvent: async event => {
+            const notification = await notifyPetEvent(sock, event, logger);
             logger.info({
               ownerJid: event.ownerJid,
               petId: event.pet?.id,
               petName: event.pet?.name,
               effect: event.result?.effect,
               amount: event.result?.amount,
-              targetJid: event.result?.targetJid
+              targetJid: event.result?.targetJid,
+              notified: notification.sent,
+              notificationReason: notification.reason
             }, '🐾 Evento automático de Pet processado');
           }
         });
