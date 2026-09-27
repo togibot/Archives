@@ -48,7 +48,7 @@ export default {
         '👋 *BOAS-VINDAS / DESPEDIDA*\n' +
         '• .setBV [mensagem]\n' +
         '• .setBD [mensagem]\n' +
-        '• Variáveis: {user} {grupo} {acao}'\n\n' +
+        '• Variáveis: {user} {grupo} {acao}\n\n' +
         '📢 *COMUNICAÇÃO*\n' +
         '• .marcar\n\n' +
         '⏰ *AUTOMAÇÃO DE HORÁRIO*\n' +
