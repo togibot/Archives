@@ -13,6 +13,7 @@ import { getCommandReaction } from './config/reactions.js';
 import { getPermissionLevel } from './core/permissions.js';
 import { startPetEventLoop } from './services/pet-events.js';
 import { notifyPetEvent } from './services/pet-notifications.js';
+import { handleCommunityParticipantUpdate, startCommunityAutomationLoop } from './services/community-automation.js';
 import { isCommandBlocked } from './services/community-manager.js';
 
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
@@ -117,6 +118,7 @@ async function startBot() {
   const pairingPhone = normalizePhone(config.connection.pairingPhone);
   let pairingRequested = false;
   let stopPetEventLoop = null;
+  let stopCommunityAutomationLoop = null;
 
   logInfo(`🚀 ${config.bot.name} iniciando`, [`📦 ${commands.size} comandos carregados`, `🗃️ Banco: ${process.env.DATABASE_PATH || './data/togi.sqlite'}`, '🛡️ Anti-palavrão: DESATIVADO']);
 
@@ -143,12 +145,23 @@ async function startBot() {
           }
         });
       }
+      if (!stopCommunityAutomationLoop) {
+        stopCommunityAutomationLoop = startCommunityAutomationLoop(sock, logger);
+      }
     }
-    if (connection === 'close') { const statusCode = lastDisconnect?.error?.output?.statusCode; const shouldReconnect = statusCode !== DisconnectReason.loggedOut; if (stopPetEventLoop) { stopPetEventLoop(); stopPetEventLoop = null; } logError('🔌 CONEXÃO ENCERRADA', [`📡 Código: ${statusCode ?? 'desconhecido'}`, `🔁 Reconectar: ${shouldReconnect ? 'SIM' : 'NÃO'}`]); if (shouldReconnect && !restarting) { restarting = true; setTimeout(() => startBot().catch(error => { restarting = false; logError('❌ FALHA AO REINICIAR O TOGI', [`💥 ${error?.message || 'Erro desconhecido'}`]); }), 3000); } }
+    if (connection === 'close') { const statusCode = lastDisconnect?.error?.output?.statusCode; const shouldReconnect = statusCode !== DisconnectReason.loggedOut; if (stopPetEventLoop) { stopPetEventLoop(); stopPetEventLoop = null; } if (stopCommunityAutomationLoop) { stopCommunityAutomationLoop(); stopCommunityAutomationLoop = null; } logError('🔌 CONEXÃO ENCERRADA', [`📡 Código: ${statusCode ?? 'desconhecido'}`, `🔁 Reconectar: ${shouldReconnect ? 'SIM' : 'NÃO'}`]); if (shouldReconnect && !restarting) { restarting = true; setTimeout(() => startBot().catch(error => { restarting = false; logError('❌ FALHA AO REINICIAR O TOGI', [`💥 ${error?.message || 'Erro desconhecido'}`]); }), 3000); } }
   });
 
   if (!state.creds.registered && !pairingPhone) console.log('⚠️ PAIRING_PHONE não configurado.');
   else if (state.creds.registered) console.log('🔑 Sessão existente encontrada.');
+
+  sock.ev.on('group-participants.update', async event => {
+    try {
+      await handleCommunityParticipantUpdate(sock, event, logger);
+    } catch (error) {
+      logger.debug({ err:error, groupJid:event?.id }, 'Falha na automação de entrada/saída da comunidade.');
+    }
+  });
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const message of messages || []) {
