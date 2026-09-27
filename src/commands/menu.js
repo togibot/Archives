@@ -57,6 +57,8 @@ const MENU = `╭━━━〔 💜🤖 𝐓𝐎𝐆𝐈 𝐁𝐎𝐓 𝐕𝟐.�
 ┃ 🔗 .antilink • 🚫 .antipalavrao
 ┃ 👢 .kick • 🗑️ .d
 ┃ ⚙️ ADM V2 e comandos de administração
+┃ 🧩 .CMmenu • .setBV • .setBD
+┃ 📜 .setregras • .regras • .marcar
 
 🎵 *MÚSICA — TESTE / BETA*
 ┃ 🎧 .play <nome> — pesquisar e enviar áudio
