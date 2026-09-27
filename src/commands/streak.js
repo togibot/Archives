@@ -1,4 +1,5 @@
 import { addTokens, ensureUser, recordGame } from '../database/index.js';
+import { applyPetReward } from '../services/pet-abilities.js';
 import { getArcadeSession, setArcadeSession, clearArcadeSession } from '../services/arcade-sessions.js';
 
 function createChallenge(streak) {
@@ -53,7 +54,9 @@ export default {
       }
 
       const streak = active.streak + 1;
-      const gain = 15 + streak * 10;
+      const baseGain = 15 + streak * 10;
+      const reward = applyPetReward(sender, baseGain, 'streak');
+      const gain = reward.amount;
       const challenge = createChallenge(streak);
       const timeLimit = getTimeLimit(streak);
 
