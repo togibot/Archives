@@ -1,6 +1,6 @@
 import { addItem, addTokens, consumeStealAttempt, getItemQuantity, getUser, addTogiLog } from '../../database/index.js';
 import { getMentionedJid } from '../../utils/targets.js';
-import { tryPetProtection } from '../../services/pet-abilities.js';
+import { tryPetProtection, getPetLossReduction } from '../../services/pet-abilities.js';
 
 function formatTokens(amount) {
   return Number(amount || 0).toLocaleString('pt-BR');
@@ -38,11 +38,13 @@ export default {
     if (victim.tokens <= 0) return reply(`🥷 @${victim.name || 'Usuário'} não tem Tokens para roubar.`, { mentions: [target] });
 
     if (Math.random() < 0.40) {
-      return reply(`🥷 *ROUBO FALHOU!*\n\n@${victim.name || 'Usuário'} escapou da tentativa.\n🎯 Tentativas restantes: *${attempt.remaining}/3*`, { mentions: [target] });
+      return reply(`🥷 *ROUBO FALHOU!*\n\n@${victim.name || 'Usuário'} escapou da tentativa.\n🎯 Tentativas restantes: *${attempt.remaining}/3*${lossReduction > 0 ? `\n🛡️ Pets reduziram a perda em *${Math.floor(lossReduction * 100)}%*.` : ''}`, { mentions: [target] });
     }
 
     const percentage = 0.20 + Math.random() * 0.30;
-    const amount = Math.max(1, Math.min(victim.tokens, Math.floor(victim.tokens * percentage)));
+    const rawAmount = Math.max(1, Math.min(victim.tokens, Math.floor(victim.tokens * percentage)));
+    const lossReduction = getPetLossReduction(target, 'risk');
+    const amount = Math.max(1, Math.min(rawAmount, Math.floor(rawAmount * (1 - lossReduction))));
     addTokens(target, -amount);
     addTokens(sender, amount);
 
