@@ -39,6 +39,7 @@ const MENU = `╭━━━〔 💜🤖 𝐓𝐎𝐆𝐈 𝐁𝐎𝐓 𝐕𝟐.�
 🪙 *ECONOMIA*
 ┃ 💰 .saldo • .daily • .weekly
 ┃ 💼 .trabalhar • .loja • .comprar
+┃ ⏰ .horaextra — 1x a cada 24h
 ┃ 💸 .pagar • .rank • .perfil
 ┃ 🏆 Ranks e recompensas do Arcade
 
