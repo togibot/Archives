@@ -1,4 +1,5 @@
 import { addTokens, ensureUser, recordQuiz } from '../database/index.js';
+import { applyPetReward } from '../services/pet-abilities.js';
 import { randomFlag, randomQuestion, QUIZ_CATEGORIES, normalizeCategory } from '../data/quiz.js';
 import { getArcadeSession, setArcadeSession, clearArcadeSession } from '../services/arcade-sessions.js';
 
@@ -42,9 +43,11 @@ export default {
       clearArcadeSession(sender);
       const stats = recordQuiz(sender, correct);
       if (correct) {
-        const gain = active.category === 'bandeiras' ? 50 : 30;
+        const baseGain = active.category === 'bandeiras' ? 50 : 30;
+        const reward = applyPetReward(sender, baseGain, 'quiz');
+        const gain = reward.amount;
         addTokens(sender, gain);
-        return reply(`🧠💜 *ACERTOU!*\n\n🎯 Categoria: *${CATEGORY_NAMES[active.category]}*\n🏆 +${gain} 🪙\n🔥 Streak: *${stats.streak}* | Melhor: *${stats.best_streak}*`);
+        return reply(`🧠💜 *ACERTOU!*\n\n🎯 Categoria: *${CATEGORY_NAMES[active.category]}*\n🏆 +${gain} 🪙${gain > baseGain ? ` (base ${baseGain})` : ''}\n🔥 Streak: *${stats.streak}* | Melhor: *${stats.best_streak}*`);
       }
       return reply(`❌ *ERROU!*\n\nA resposta correta era *${active.correctAnswer}*.\n📊 Acertos: ${stats.correct} | Erros: ${stats.wrong}\n\nUse *.quiz* para outra rodada.`);
     }
