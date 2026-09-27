@@ -8,6 +8,7 @@ import {
   updatePet
 } from '../database/index.js';
 import { getPetAbilityConfig, getAbilityChance, getAbilityRewardRange, getAbilityValue } from '../data/pet-abilities.js';
+import { getPetDefinition } from '../data/pets.js';
 
 const RARITY_ORDER = Object.freeze({
   Comum: 1,
@@ -261,7 +262,7 @@ export async function tryAutomaticPetAbility(pet, { targetJids = [], random = Ma
 export function tryPetProtection(ownerJid, { random = Math.random() } = {}) {
   const equipped = getEquippedPets(ownerJid)
     .filter(pet => ['block_steal', 'absolute_block'].includes(getPetAbilityConfig(pet.species)?.effect))
-    .sort((a, b) => (RARITY_ORDER[getPetAbilityConfig(b.species)?.rarity] || 0) - (RARITY_ORDER[getPetAbilityConfig(a.species)?.rarity] || 0));
+    .sort((a, b) => (RARITY_ORDER[getPetDefinition(b.species)?.rarity] || 0) - (RARITY_ORDER[getPetDefinition(a.species)?.rarity] || 0));
 
   for (const pet of equipped) {
     const config = getPetAbilityConfig(pet.species);
