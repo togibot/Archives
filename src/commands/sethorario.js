@@ -12,10 +12,11 @@ export default {
       return reply('❌ Apenas administradores podem configurar o horário.');
     }
     if (args.length < 2) {
-      return reply('⏰ Use: .sethorario 22:00 07:00\n📌 Primeiro horário = abre\n📌 Segundo horário = fecha');
+      return reply('⏰ Use: .sethorario 22:00 07:00\n📌 Primeiro horário = fecha\n📌 Segundo horário = abre');
     }
 
-    const result = await configureGroupSchedule(sock, chat, args[0], args[1]);
+    // Ordem: primeiro FECHA, depois ABRE. Ex.: .sethorario 22:00 07:00
+    const result = await configureGroupSchedule(sock, chat, args[1], args[0]);
     if (!result.ok) {
       if (result.reason === 'invalid_time') return reply('❌ Horário inválido. Use o formato HH:MM, por exemplo 22:00.');
       if (result.reason === 'same_time') return reply('❌ O horário de abertura e fechamento não pode ser igual.');
@@ -25,8 +26,8 @@ export default {
 
     return reply(
       '✅ *HORÁRIO AUTOMÁTICO CONFIGURADO!*\n\n' +
-      '🟢 Abre: *' + result.schedule.openTime + '*\n' +
-      '🔴 Fecha: *' + result.schedule.closeTime + '*\n\n' +
+      '🔴 Fecha: *' + result.schedule.closeTime + '*\n' +
+      '🟢 Abre: *' + result.schedule.openTime + '*'\n\n' +
       '⏰ O Togi verificará o horário automaticamente.'
     );
   }
