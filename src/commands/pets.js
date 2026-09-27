@@ -1,4 +1,5 @@
 import { ensureUser, getPets } from '../database/index.js';
+import { getFreshPet } from '../services/pets.js';
 import { getPetDefinition } from '../data/pets.js';
 
 export default {
@@ -11,7 +12,8 @@ export default {
     const pets = getPets(sender);
     if (!pets.length) return reply('🐾 Você ainda não tem nenhum Pet.\n🛒 Use .petshop para conhecer os Pets disponíveis.');
     const lines = ['╭━━━〔 🐾 𝐒𝐄𝐔𝐒 𝐏𝐄𝐓𝐒 〕━━━╮'];
-    for (const [index, pet] of pets.entries()) {
+    for (const [index, rawPet] of pets.entries()) {
+      const pet = getFreshPet(sender, rawPet.id) || rawPet;
       const def = getPetDefinition(pet.species);
       const emoji = def ? def.emoji : '🐾';
       const rarity = def ? def.rarity : 'Desconhecida';
