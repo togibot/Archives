@@ -58,6 +58,16 @@ CREATE TABLE IF NOT EXISTS pet_settings (
   notifications_enabled INTEGER NOT NULL DEFAULT 1,
   updated_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS pet_buffs (
+  owner_jid TEXT NOT NULL,
+  pet_id INTEGER NOT NULL,
+  effect TEXT NOT NULL,
+  value REAL NOT NULL,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY (owner_jid, pet_id, effect)
+);
+CREATE INDEX IF NOT EXISTS idx_pet_buffs_owner_expiry ON pet_buffs(owner_jid, expires_at);
+
 CREATE INDEX IF NOT EXISTS idx_pets_owner_status ON pets(owner_jid,status);
 CREATE INDEX IF NOT EXISTS idx_pet_equipped_owner ON pet_equipped(owner_jid);
 
@@ -154,6 +164,7 @@ export function resetUserAccount(jid, mode = 'tokens') {
     db.prepare('DELETE FROM game_stats WHERE jid=?').run(id);
     db.prepare('DELETE FROM pet_equipped WHERE owner_jid=?').run(id);
     db.prepare('DELETE FROM pet_settings WHERE owner_jid=?').run(id);
+    db.prepare('DELETE FROM pet_buffs WHERE owner_jid=?').run(id);
     db.prepare('DELETE FROM pet_slots WHERE owner_jid=?').run(id);
     db.prepare('DELETE FROM pets WHERE owner_jid=?').run(id);
     db.prepare('DELETE FROM rp_relationships WHERE user_a=? OR user_b=?').run(id,id);
@@ -229,6 +240,20 @@ export function unequipPet(ownerJid,petId) {
 }
 export function getPetEquipment(ownerJid,petId) {
   return db.prepare('SELECT * FROM pet_equipped WHERE owner_jid=? AND pet_id=?').get(ownerJid,Number(petId)) || null;
+}
+
+export function setPetBuff(ownerJid,petId,effect,value,expiresAt) {
+  db.prepare('INSERT INTO pet_buffs(owner_jid,pet_id,effect,value,expires_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_jid,pet_id,effect) DO UPDATE SET value=excluded.value,expires_at=excluded.expires_at').run(ownerJid,Number(petId),String(effect),Number(value),Number(expiresAt));
+  return getPetBuffs(ownerJid);
+}
+export function getPetBuffs(ownerJid) {
+  const now = Date.now();
+  db.prepare('DELETE FROM pet_buffs WHERE owner_jid=? AND expires_at<=?').run(ownerJid,now);
+  return db.prepare('SELECT * FROM pet_buffs WHERE owner_jid=? ORDER BY expires_at').all(ownerJid);
+}
+export function getActivePetBuffValue(ownerJid,effect) {
+  const rows=getPetBuffs(ownerJid).filter(row=>row.effect===String(effect));
+  return rows.reduce((total,row)=>total+Number(row.value||0),0);
 }
 
 export function getPets(ownerJid){return db.prepare('SELECT * FROM pets WHERE owner_jid=? ORDER BY id').all(ownerJid);}
