@@ -1,4 +1,4 @@
-const MENU = `╭━━━〔 💜🤖 𝐓𝐎𝐆𝐈 𝐁𝐎𝐓 𝐕𝟐 〕━━━╮
+const MENU = `╭━━━〔 💜🤖 𝐓𝐎𝐆𝐈 𝐁𝐎𝐓 𝐕𝟐.𝟑 〕━━━╮
 ┃ ✨ *MENU PRINCIPAL*
 ┃ 🎮 Diversão • 🎴 Cards • 🐾 Pets
 ┃ 🪙 Economia • 🎨 Figurinhas • 🛡️ ADM
@@ -79,7 +79,7 @@ const MENU = `╭━━━〔 💜🤖 𝐓𝐎𝐆𝐈 𝐁𝐎𝐓 𝐕𝟐 �
 ┃ ⚽ Esportes • 🎵 Música • ➗ Matemática
 
 ╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
-┃ 💜 *TOGI BOT V2* — mais jogos, mais sistemas!
+┃ 💜 *TOGI BOT V2.3* — mais jogos, mais sistemas!
 ┃ 👑 Criador: *LZ*
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯`;
 
