@@ -10,6 +10,7 @@ export default {
     if (!isGroup) return reply('❌ Use o .setBV dentro de um grupo.');
     if (await getPermissionLevel({ sock, chat, jid: sender, message }) < 3) return reply('❌ Apenas administradores podem configurar o .setBV.');
     const metadata = await sock.groupMetadata(chat);
+    if (!metadata?.announce) return reply('❌ Este comando deve ser configurado no grupo de anúncios, onde apenas administradores podem falar.');
     const communityJid = getCommunityId(metadata, chat);
     const custom = args.join(' ').trim();
     const settings = configureWelcome(communityJid, chat, custom || null);
