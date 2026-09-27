@@ -1,5 +1,6 @@
 import { getAllLivingPets, getEquippedPets, getPet, updatePet } from '../database/index.js';
 import { getPetPassiveModifiers } from './pet-abilities.js';
+import { getPetAbilityConfig } from '../data/pet-abilities.js';
 
 const NEED_TICK_MS = 20 * 60 * 1000;
 const HUNGER_DECAY = 5;
@@ -44,7 +45,11 @@ export function refreshPet(pet) {
   const firstNeglectedTick = Math.min(hungerZeroTick, thirstZeroTick);
   const neglectedTicks = Math.max(0, ticks - firstNeglectedTick);
 
-  const health = clamp(Number(pet.health) - HEALTH_DAMAGE_WHEN_NEGLECTED * neglectedTicks);
+  let health = clamp(Number(pet.health) - HEALTH_DAMAGE_WHEN_NEGLECTED * neglectedTicks);
+  const rebirthCapable = getPetAbilityConfig(pet.species)?.effect === 'rebirth';
+  // A Fênix não é eliminada pelo tick de necessidades antes que seu
+  // Renascimento automático tenha a chance de ser processado.
+  if (rebirthCapable && health <= 0) health = 1;
   const status = health <= 0 ? 'morto' : 'vivo';
 
   return updatePet(pet.id, {
