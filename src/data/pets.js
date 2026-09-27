@@ -23,6 +23,19 @@ export const PET_STATUS = Object.freeze({
   ALIVE: 'vivo'
 });
 
+// Upgrades de slots são intencionalmente caros para controlar o poder de equipar vários Pets.
+export const PET_SLOT_UPGRADES = Object.freeze({
+  2: 10000,
+  3: 25000,
+  4: 50000,
+  5: 100000,
+  6: 200000,
+  7: 400000,
+  8: 800000,
+  9: 1600000,
+  10: 3200000
+});
+
 export const PETS = Object.freeze({
   cachorro: {
     emoji: '🐶',
