@@ -40,6 +40,27 @@ CREATE TABLE IF NOT EXISTS groups (
 );
 CREATE TABLE IF NOT EXISTS inventory (jid TEXT NOT NULL,item_id TEXT NOT NULL,quantity INTEGER NOT NULL DEFAULT 0,PRIMARY KEY (jid,item_id));
 CREATE TABLE IF NOT EXISTS pets (id INTEGER PRIMARY KEY AUTOINCREMENT,owner_jid TEXT NOT NULL,name TEXT NOT NULL,species TEXT NOT NULL,health INTEGER NOT NULL DEFAULT 100,hunger INTEGER NOT NULL DEFAULT 100,thirst INTEGER NOT NULL DEFAULT 100,happiness INTEGER NOT NULL DEFAULT 100,last_needs_update INTEGER NOT NULL DEFAULT 0,walk_count INTEGER NOT NULL DEFAULT 0,walk_date TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'vivo',created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS pet_slots (
+  owner_jid TEXT PRIMARY KEY,
+  max_slots INTEGER NOT NULL DEFAULT 1,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS pet_equipped (
+  owner_jid TEXT NOT NULL,
+  pet_id INTEGER NOT NULL,
+  slot INTEGER NOT NULL,
+  equipped_at INTEGER NOT NULL,
+  PRIMARY KEY (owner_jid, slot),
+  UNIQUE (owner_jid, pet_id)
+);
+CREATE TABLE IF NOT EXISTS pet_settings (
+  owner_jid TEXT PRIMARY KEY,
+  notifications_enabled INTEGER NOT NULL DEFAULT 1,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pets_owner_status ON pets(owner_jid,status);
+CREATE INDEX IF NOT EXISTS idx_pet_equipped_owner ON pet_equipped(owner_jid);
+
 CREATE TABLE IF NOT EXISTS quiz_stats (jid TEXT PRIMARY KEY,correct INTEGER NOT NULL DEFAULT 0,wrong INTEGER NOT NULL DEFAULT 0,streak INTEGER NOT NULL DEFAULT 0,best_streak INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS rp_relationships (user_a TEXT PRIMARY KEY,user_b TEXT NOT NULL,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS rp_family (user_jid TEXT NOT NULL,relation TEXT NOT NULL,target_jid TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY (user_jid,relation,target_jid));
@@ -51,7 +72,7 @@ CREATE TABLE IF NOT EXISTS togi_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,actor
 CREATE TABLE IF NOT EXISTS group_mutes (group_jid TEXT NOT NULL,user_jid TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(group_jid,user_jid));
 `);
 
-for (const sql of ['ALTER TABLE users ADD COLUMN job TEXT','ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1',"ALTER TABLE users ADD COLUMN sticker_nick TEXT NOT NULL DEFAULT ''","ALTER TABLE users ADD COLUMN steal_count INTEGER NOT NULL DEFAULT 0","ALTER TABLE users ADD COLUMN steal_window_start INTEGER NOT NULL DEFAULT 0",'ALTER TABLE groups ADD COLUMN anti_profanity INTEGER NOT NULL DEFAULT 0',"ALTER TABLE groups ADD COLUMN profanity_words TEXT NOT NULL DEFAULT '[]'","ALTER TABLE groups ADD COLUMN warn_limit INTEGER NOT NULL DEFAULT 3","ALTER TABLE groups ADD COLUMN warn_timeout_ms INTEGER NOT NULL DEFAULT 0","ALTER TABLE groups ADD COLUMN soadm_only INTEGER NOT NULL DEFAULT 0",'ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100','ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0','ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0',"ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''","ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'"]) {
+for (const sql of ['ALTER TABLE users ADD COLUMN job TEXT','ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1',"ALTER TABLE users ADD COLUMN sticker_nick TEXT NOT NULL DEFAULT ''","ALTER TABLE users ADD COLUMN steal_count INTEGER NOT NULL DEFAULT 0","ALTER TABLE users ADD COLUMN steal_window_start INTEGER NOT NULL DEFAULT 0",'ALTER TABLE groups ADD COLUMN anti_profanity INTEGER NOT NULL DEFAULT 0',"ALTER TABLE groups ADD COLUMN profanity_words TEXT NOT NULL DEFAULT '[]'","ALTER TABLE groups ADD COLUMN warn_limit INTEGER NOT NULL DEFAULT 3","ALTER TABLE groups ADD COLUMN warn_timeout_ms INTEGER NOT NULL DEFAULT 0","ALTER TABLE groups ADD COLUMN soadm_only INTEGER NOT NULL DEFAULT 0",'ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100','ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0','ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0',"ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''","ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'","ALTER TABLE pets ADD COLUMN level INTEGER NOT NULL DEFAULT 1","ALTER TABLE pets ADD COLUMN xp INTEGER NOT NULL DEFAULT 0","ALTER TABLE pets ADD COLUMN last_ability_at INTEGER NOT NULL DEFAULT 0"]) {
   try { db.exec(sql); } catch (error) { if (!String(error?.message || '').includes('duplicate column name')) throw error; }
 }
 
@@ -131,6 +152,9 @@ export function resetUserAccount(jid, mode = 'tokens') {
     db.prepare('DELETE FROM user_cards WHERE jid=?').run(id);
     db.prepare('DELETE FROM quiz_stats WHERE jid=?').run(id);
     db.prepare('DELETE FROM game_stats WHERE jid=?').run(id);
+    db.prepare('DELETE FROM pet_equipped WHERE owner_jid=?').run(id);
+    db.prepare('DELETE FROM pet_settings WHERE owner_jid=?').run(id);
+    db.prepare('DELETE FROM pet_slots WHERE owner_jid=?').run(id);
     db.prepare('DELETE FROM pets WHERE owner_jid=?').run(id);
     db.prepare('DELETE FROM rp_relationships WHERE user_a=? OR user_b=?').run(id,id);
     db.prepare('DELETE FROM rp_family WHERE user_jid=? OR target_jid=?').run(id,id);
@@ -155,11 +179,63 @@ export function getInventory(jid){return db.prepare('SELECT * FROM inventory WHE
 export function getItemQuantity(jid,itemId){return db.prepare('SELECT quantity FROM inventory WHERE jid=? AND item_id=?').get(jid,itemId)?.quantity||0;}
 export function addItem(jid,itemId,quantity){db.prepare('INSERT INTO inventory (jid,item_id,quantity) VALUES (?,?,?) ON CONFLICT(jid,item_id) DO UPDATE SET quantity=quantity+excluded.quantity').run(jid,itemId,quantity);db.prepare('DELETE FROM inventory WHERE jid=? AND quantity<=0').run(jid);return getItemQuantity(jid,itemId);}
 export function createPet(ownerJid,name,species){const now=Date.now();const result=db.prepare("INSERT INTO pets (owner_jid,name,species,health,hunger,thirst,happiness,last_needs_update,walk_count,walk_date,status,created_at) VALUES (?,?,?,100,100,100,100,?,0,?,'vivo',?)").run(ownerJid,name,species,now,'',now);return db.prepare('SELECT * FROM pets WHERE id=?').get(result.lastInsertRowid);}
+export function ensurePetSlots(ownerJid) {
+  const now = Date.now();
+  db.prepare('INSERT INTO pet_slots(owner_jid,max_slots,updated_at) VALUES(?,?,?) ON CONFLICT(owner_jid) DO NOTHING').run(ownerJid,1,now);
+  return db.prepare('SELECT * FROM pet_slots WHERE owner_jid=?').get(ownerJid);
+}
+export function getPetSlots(ownerJid) {
+  return ensurePetSlots(ownerJid);
+}
+export function setPetSlots(ownerJid,maxSlots) {
+  const value = Math.max(1, Math.min(10, Math.trunc(Number(maxSlots) || 1)));
+  const now = Date.now();
+  db.prepare('INSERT INTO pet_slots(owner_jid,max_slots,updated_at) VALUES(?,?,?) ON CONFLICT(owner_jid) DO UPDATE SET max_slots=excluded.max_slots,updated_at=excluded.updated_at').run(ownerJid,value,now);
+  return getPetSlots(ownerJid);
+}
+export function ensurePetSettings(ownerJid) {
+  const now = Date.now();
+  db.prepare('INSERT INTO pet_settings(owner_jid,notifications_enabled,updated_at) VALUES(?,?,?) ON CONFLICT(owner_jid) DO NOTHING').run(ownerJid,1,now);
+  return db.prepare('SELECT * FROM pet_settings WHERE owner_jid=?').get(ownerJid);
+}
+export function getPetSettings(ownerJid) {
+  return ensurePetSettings(ownerJid);
+}
+export function setPetNotifications(ownerJid,enabled) {
+  const now = Date.now();
+  db.prepare('INSERT INTO pet_settings(owner_jid,notifications_enabled,updated_at) VALUES(?,?,?) ON CONFLICT(owner_jid) DO UPDATE SET notifications_enabled=excluded.notifications_enabled,updated_at=excluded.updated_at').run(ownerJid,enabled?1:0,now);
+  return getPetSettings(ownerJid);
+}
+export function getEquippedPets(ownerJid) {
+  return db.prepare('SELECT e.*,p.name,p.species,p.health,p.hunger,p.thirst,p.happiness,p.status,p.level,p.xp,p.last_ability_at FROM pet_equipped e JOIN pets p ON p.id=e.pet_id WHERE e.owner_jid=? AND p.status=? ORDER BY e.slot').all(ownerJid,'vivo');
+}
+export function equipPet(ownerJid,petId) {
+  return db.transaction(() => {
+    const pet = db.prepare("SELECT * FROM pets WHERE id=? AND owner_jid=? AND status='vivo'").get(Number(petId),ownerJid);
+    if (!pet) return { ok:false, reason:'pet_not_found' };
+    const slots = ensurePetSlots(ownerJid);
+    const existing = db.prepare('SELECT slot FROM pet_equipped WHERE owner_jid=? AND pet_id=?').get(ownerJid,pet.id);
+    if (existing) return { ok:false, reason:'already_equipped', pet, slot:existing.slot, slots };
+    const occupied = new Set(db.prepare('SELECT slot FROM pet_equipped WHERE owner_jid=?').all(ownerJid).map(row=>Number(row.slot)));
+    let slot = 1;
+    while (occupied.has(slot)) slot += 1;
+    if (slot > Number(slots.max_slots)) return { ok:false, reason:'no_slot', pet, slots };
+    db.prepare('INSERT INTO pet_equipped(owner_jid,pet_id,slot,equipped_at) VALUES(?,?,?,?)').run(ownerJid,pet.id,slot,Date.now());
+    return { ok:true, pet, slot, slots:getPetSlots(ownerJid) };
+  })();
+}
+export function unequipPet(ownerJid,petId) {
+  return db.prepare('DELETE FROM pet_equipped WHERE owner_jid=? AND pet_id=?').run(ownerJid,Number(petId)).changes>0;
+}
+export function getPetEquipment(ownerJid,petId) {
+  return db.prepare('SELECT * FROM pet_equipped WHERE owner_jid=? AND pet_id=?').get(ownerJid,Number(petId)) || null;
+}
+
 export function getPets(ownerJid){return db.prepare('SELECT * FROM pets WHERE owner_jid=? ORDER BY id').all(ownerJid);}
 export function getPet(ownerJid,petIdOrName){const numeric=/^\d+$/.test(String(petIdOrName));return numeric?db.prepare('SELECT * FROM pets WHERE owner_jid=? AND id=?').get(ownerJid,Number(petIdOrName)):db.prepare('SELECT * FROM pets WHERE owner_jid=? AND lower(name)=lower(?)').get(ownerJid,petIdOrName);}
 export function getAllLivingPets(){return db.prepare("SELECT * FROM pets WHERE status='vivo'").all();}
 export function getTopPets(limit=10){return db.prepare("SELECT owner_jid,name,species,health,hunger,thirst,happiness FROM pets WHERE status='vivo' ORDER BY happiness DESC,health DESC LIMIT ?").all(Math.max(1,Math.min(50,Number(limit)||10)));}
-export function updatePet(id,patch){const allowed=['name','health','hunger','thirst','happiness','owner_jid','last_needs_update','walk_count','walk_date','status'];const keys=Object.keys(patch).filter(k=>allowed.includes(k));if(!keys.length)return db.prepare('SELECT * FROM pets WHERE id=?').get(id);const set=keys.map(k=>`${k}=@${k}`).join(', ');db.prepare(`UPDATE pets SET ${set} WHERE id=@id`).run({...patch,id});return db.prepare('SELECT * FROM pets WHERE id=?').get(id);}
+export function updatePet(id,patch){const allowed=['name','health','hunger','thirst','happiness','owner_jid','last_needs_update','walk_count','walk_date','status','level','xp','last_ability_at'];const keys=Object.keys(patch).filter(k=>allowed.includes(k));if(!keys.length)return db.prepare('SELECT * FROM pets WHERE id=?').get(id);const set=keys.map(k=>`${k}=@${k}`).join(', ');db.prepare(`UPDATE pets SET ${set} WHERE id=@id`).run({...patch,id});return db.prepare('SELECT * FROM pets WHERE id=?').get(id);}
 export function transferPet(id,fromJid,toJid){const pet=db.prepare("SELECT * FROM pets WHERE id=? AND owner_jid=? AND status='vivo'").get(id,fromJid);if(!pet)return null;db.prepare('UPDATE pets SET owner_jid=? WHERE id=?').run(toJid,id);return db.prepare('SELECT * FROM pets WHERE id=?').get(id);}
 function relationshipKey(a,b){return[String(a),String(b)].sort();}
 export function getRelationship(jid){return db.prepare('SELECT * FROM rp_relationships WHERE user_a=? OR user_b=?').get(jid,jid)||null;}
