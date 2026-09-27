@@ -88,6 +88,7 @@ for (const sql of ['ALTER TABLE users ADD COLUMN job TEXT','ALTER TABLE users AD
 
 export function ensureUser(jid, name = 'Usuário') { db.prepare('INSERT INTO users (jid,name) VALUES (?,?) ON CONFLICT(jid) DO UPDATE SET name=excluded.name').run(jid,name); return getUser(jid); }
 export function getUser(jid) { return db.prepare('SELECT * FROM users WHERE jid=?').get(jid); }
+export function getAllUserJids() { return db.prepare('SELECT jid FROM users ORDER BY jid').all().map(row => row.jid).filter(Boolean); }
 export function getTopUsers(limit=10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY tokens DESC LIMIT ?').all(Math.max(1,Math.min(50,Number(limit)||10))); }
 export function getTopXP(limit=10) { return db.prepare('SELECT jid,name,tokens,xp,level FROM users ORDER BY xp DESC LIMIT ?').all(Math.max(1,Math.min(50,Number(limit)||10))); }
 export function getTopActivity(limit=10) { return db.prepare('SELECT u.jid,u.name,g.played,g.wins,g.best_score FROM game_stats g JOIN users u ON u.jid=g.jid ORDER BY g.played DESC,g.wins DESC LIMIT ?').all(Math.max(1,Math.min(50,Number(limit)||10))); }
