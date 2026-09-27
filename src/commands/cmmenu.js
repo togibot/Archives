@@ -50,6 +50,10 @@ export default {
         '• .setBD [mensagem]\n\n' +
         '📢 *COMUNICAÇÃO*\n' +
         '• .marcar\n\n' +
+        '⏰ *AUTOMAÇÃO DE HORÁRIO*\n' +
+        '• .sethorario 22:00 07:00\n' +
+        '• .verhorario\n' +
+        '• .remhorario\n\n' +
         '🧩 *MENUS DISPONÍVEIS*\n' +
         Object.entries(COMMUNITY_MENU_DEFS).map(([key,def]) => '• ' + key + ' — ' + def.label).join('\n') +
         '\n\n🌐 Comunidade vinculada: ' + community +
