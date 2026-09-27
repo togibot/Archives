@@ -10,6 +10,7 @@ export default {
     if (!isGroup) return reply('❌ Use o .setBD dentro de um grupo.');
     if (await getPermissionLevel({ sock, chat, jid: sender, message }) < 3) return reply('❌ Apenas administradores podem configurar o .setBD.');
     const metadata = await sock.groupMetadata(chat);
+    if (!metadata?.announce) return reply('❌ Este comando deve ser configurado no grupo de anúncios, onde apenas administradores podem falar.');
     const communityJid = getCommunityId(metadata, chat);
     const custom = args.join(' ').trim();
     const settings = configureGoodbye(communityJid, chat, custom || null);
