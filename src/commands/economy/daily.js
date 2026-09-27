@@ -1,6 +1,7 @@
 import { ensureUser, updateUser } from '../../database/index.js';
 import { getName } from '../../utils/message.js';
 import config from '../../config.js';
+import { applyPetReward } from '../../services/pet-abilities.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -27,7 +28,9 @@ export default {
     const bonus = bonusChance
       ? Math.floor(Math.random() * (1000 - 120 + 1)) + 120
       : 0;
-    const total = base + bonus;
+    const baseTotal = base + bonus;
+    const reward = applyPetReward(sender, baseTotal, 'daily');
+    const total = reward.amount;
 
     updateUser(sender, {
       tokens: user.tokens + total,
