@@ -13,6 +13,7 @@ import { getCommandReaction } from './config/reactions.js';
 import { getPermissionLevel } from './core/permissions.js';
 import { startPetEventLoop } from './services/pet-events.js';
 import { notifyPetEvent } from './services/pet-notifications.js';
+import { isCommandBlocked } from './services/community-manager.js';
 
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
@@ -225,6 +226,20 @@ async function startBot() {
       }
 
       if (!command) { console.log(`⚠️ Comando não encontrado: .${name}`); continue; }
+
+      // Community Manager: bloqueios específicos por grupo.
+      // O próprio .CMmenu fica sempre acessível para permitir desbloquear configurações.
+      if (isGroup && command.name !== 'cmmenu') {
+        const block = isCommandBlocked(chat, name, command);
+        if (block.blocked) {
+          await reply(
+            block.type === 'menu'
+              ? '🔒 Este comando pertence ao menu *' + block.target + '* e está bloqueado neste grupo.'
+              : '🔒 O comando *.' + block.target + '* está bloqueado neste grupo.'
+          );
+          continue;
+        }
+      }
 
       logInfo('⚙️ COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `▶️ Executando: .${name}${args.length ? ` ${args.join(' ')}` : ''}`]);
 
