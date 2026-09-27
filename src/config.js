@@ -3,7 +3,7 @@ export const config = {
     name: 'Togi Bot',
     shortName: 'Togi',
     prefix: '.',
-    version: '1.0.0'
+    version: '2.3.0'
   },
   credits: {
     owner: 'LZ',
