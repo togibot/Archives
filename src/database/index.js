@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS groups (
   profanity_words TEXT NOT NULL DEFAULT '[]',
   warn_limit INTEGER NOT NULL DEFAULT 3,
   warn_timeout_ms INTEGER NOT NULL DEFAULT 0,
-  soadm_only INTEGER NOT NULL DEFAULT 0
+  soadm_only INTEGER NOT NULL DEFAULT 0,
+  rules_text TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS inventory (jid TEXT NOT NULL,item_id TEXT NOT NULL,quantity INTEGER NOT NULL DEFAULT 0,PRIMARY KEY (jid,item_id));
 CREATE TABLE IF NOT EXISTS pets (id INTEGER PRIMARY KEY AUTOINCREMENT,owner_jid TEXT NOT NULL,name TEXT NOT NULL,species TEXT NOT NULL,health INTEGER NOT NULL DEFAULT 100,hunger INTEGER NOT NULL DEFAULT 100,thirst INTEGER NOT NULL DEFAULT 100,happiness INTEGER NOT NULL DEFAULT 100,last_needs_update INTEGER NOT NULL DEFAULT 0,walk_count INTEGER NOT NULL DEFAULT 0,walk_date TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'vivo',created_at INTEGER NOT NULL);
@@ -80,6 +81,22 @@ CREATE TABLE IF NOT EXISTS user_cards (jid TEXT NOT NULL,card_id TEXT NOT NULL,q
 CREATE TABLE IF NOT EXISTS game_stats (jid TEXT PRIMARY KEY,played INTEGER NOT NULL DEFAULT 0,wins INTEGER NOT NULL DEFAULT 0,best_score INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS togi_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,actor_jid TEXT NOT NULL,actor_name TEXT NOT NULL,target_jid TEXT NOT NULL,target_name TEXT NOT NULL,group_jid TEXT,group_name TEXT NOT NULL,action TEXT NOT NULL,amount INTEGER NOT NULL,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS group_mutes (group_jid TEXT NOT NULL,user_jid TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(group_jid,user_jid));
+CREATE TABLE IF NOT EXISTS community_settings (
+  community_jid TEXT PRIMARY KEY,
+  welcome_group_jid TEXT,
+  goodbye_group_jid TEXT,
+  welcome_message TEXT NOT NULL DEFAULT '👋 Bem-vindo(a) à nossa comunidade!',
+  goodbye_message TEXT NOT NULL DEFAULT '👋 Até mais! Esperamos ver você novamente.',
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS group_command_blocks (
+  group_jid TEXT NOT NULL,
+  block_type TEXT NOT NULL,
+  target TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY(group_jid, block_type, target)
+);
+CREATE INDEX IF NOT EXISTS idx_group_command_blocks_group ON group_command_blocks(group_jid);
 `);
 
 for (const sql of ['ALTER TABLE users ADD COLUMN job TEXT','ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1',"ALTER TABLE users ADD COLUMN sticker_nick TEXT NOT NULL DEFAULT ''","ALTER TABLE users ADD COLUMN steal_count INTEGER NOT NULL DEFAULT 0","ALTER TABLE users ADD COLUMN steal_window_start INTEGER NOT NULL DEFAULT 0",'ALTER TABLE groups ADD COLUMN anti_profanity INTEGER NOT NULL DEFAULT 0',"ALTER TABLE groups ADD COLUMN profanity_words TEXT NOT NULL DEFAULT '[]'","ALTER TABLE groups ADD COLUMN warn_limit INTEGER NOT NULL DEFAULT 3","ALTER TABLE groups ADD COLUMN warn_timeout_ms INTEGER NOT NULL DEFAULT 0","ALTER TABLE groups ADD COLUMN soadm_only INTEGER NOT NULL DEFAULT 0",'ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100','ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0','ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0',"ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''","ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'","ALTER TABLE pets ADD COLUMN level INTEGER NOT NULL DEFAULT 1","ALTER TABLE pets ADD COLUMN xp INTEGER NOT NULL DEFAULT 0","ALTER TABLE pets ADD COLUMN last_ability_at INTEGER NOT NULL DEFAULT 0"]) {
@@ -178,7 +195,7 @@ export function addTokens(jid,amount){db.prepare('UPDATE users SET tokens=MAX(0,
 export function spendTokens(jid,amount){const cost=Math.max(0,Math.trunc(amount));const result=db.prepare('UPDATE users SET tokens=tokens-? WHERE jid=? AND tokens>=?').run(cost,jid,cost);return result.changes>0;}
 export function getGroup(jid){return db.prepare('SELECT * FROM groups WHERE jid=?').get(jid);}
 export function ensureGroup(jid,subject=''){db.prepare('INSERT INTO groups (jid,subject) VALUES (?,?) ON CONFLICT(jid) DO UPDATE SET subject=excluded.subject').run(jid,subject);return getGroup(jid);}
-export function updateGroup(jid,patch){const allowed=new Set(['subject','antilink','antiflood','anti_profanity','profanity_words','warn_limit','warn_timeout_ms','soadm_only']);const keys=Object.keys(patch).filter(k=>allowed.has(k));if(!keys.length)return getGroup(jid);const set=keys.map(k=>`${k}=@${k}`).join(', ');db.prepare(`UPDATE groups SET ${set} WHERE jid=@jid`).run({...patch,jid});return getGroup(jid);}
+export function updateGroup(jid,patch){const allowed=new Set(['subject','antilink','antiflood','anti_profanity','profanity_words','warn_limit','warn_timeout_ms','soadm_only','rules_text']);const keys=Object.keys(patch).filter(k=>allowed.has(k));if(!keys.length)return getGroup(jid);const set=keys.map(k=>`${k}=@${k}`).join(', ');db.prepare(`UPDATE groups SET ${set} WHERE jid=@jid`).run({...patch,jid});return getGroup(jid);}
 export function getWarningConfig(groupJid){const group=ensureGroup(groupJid);return{limit:Math.max(1,Number(group.warn_limit||3)),timeoutMs:Math.max(0,Number(group.warn_timeout_ms||0))};}
 export function setWarningConfig(groupJid,limit){const value=Math.max(1,Math.min(20,Math.trunc(Number(limit))));ensureGroup(groupJid);updateGroup(groupJid,{warn_limit:value});return getWarningConfig(groupJid);}
 export function setWarningTimeout(groupJid,timeoutMs){const value=Math.max(0,Math.min(365*24*60*60*1000,Math.trunc(Number(timeoutMs))));ensureGroup(groupJid);updateGroup(groupJid,{warn_timeout_ms:value});return getWarningConfig(groupJid);}
@@ -187,6 +204,48 @@ export function setSoAdm(groupJid,enabled){ensureGroup(groupJid);updateGroup(gro
 export function setGroupMute(groupJid,userJid){db.prepare('INSERT OR IGNORE INTO group_mutes(group_jid,user_jid,created_at) VALUES(?,?,?)').run(groupJid,userJid,Date.now());return true;}
 export function isGroupMuted(groupJid,userJid){return Boolean(db.prepare('SELECT 1 FROM group_mutes WHERE group_jid=? AND user_jid=?').get(groupJid,userJid));}
 export function removeGroupMute(groupJid,userJid){return db.prepare('DELETE FROM group_mutes WHERE group_jid=? AND user_jid=?').run(groupJid,userJid).changes>0;}
+export function getGroupRules(groupJid){ return String(ensureGroup(groupJid)?.rules_text || '').trim(); }
+export function setGroupRules(groupJid,text){ ensureGroup(groupJid); updateGroup(groupJid,{rules_text:String(text || '').trim()}); return getGroupRules(groupJid); }
+
+export function ensureCommunitySettings(communityJid){
+  const jid=String(communityJid || '').trim();
+  if(!jid) return null;
+  const now=Date.now();
+  db.prepare(`INSERT INTO community_settings(community_jid,updated_at) VALUES(?,?) ON CONFLICT(community_jid) DO NOTHING`).run(jid,now);
+  return db.prepare('SELECT * FROM community_settings WHERE community_jid=?').get(jid);
+}
+export function getCommunitySettings(communityJid){ return ensureCommunitySettings(communityJid); }
+export function updateCommunitySettings(communityJid,patch){
+  const jid=String(communityJid || '').trim();
+  if(!jid) return null;
+  ensureCommunitySettings(jid);
+  const allowed=new Set(['welcome_group_jid','goodbye_group_jid','welcome_message','goodbye_message']);
+  const keys=Object.keys(patch || {}).filter(k=>allowed.has(k));
+  if(keys.length){
+    const set=keys.map(k=>`${k}=@${k}`).join(', ');
+    db.prepare(`UPDATE community_settings SET ${set},updated_at=@updated_at WHERE community_jid=@community_jid`).run({...patch,community_jid:jid,updated_at:Date.now()});
+  }
+  return getCommunitySettings(jid);
+}
+export function addGroupBlock(groupJid,blockType,target){
+  ensureGroup(groupJid);
+  const type=String(blockType || '').trim();
+  const value=String(target || '').trim().toLowerCase();
+  if(!type || !value) return false;
+  db.prepare('INSERT OR IGNORE INTO group_command_blocks(group_jid,block_type,target,created_at) VALUES(?,?,?,?)').run(groupJid,type,value,Date.now());
+  return true;
+}
+export function removeGroupBlock(groupJid,blockType,target){
+  const value=String(target || '').trim().toLowerCase();
+  return db.prepare('DELETE FROM group_command_blocks WHERE group_jid=? AND block_type=? AND target=?').run(groupJid,String(blockType || ''),value).changes>0;
+}
+export function getGroupBlocks(groupJid){
+  return db.prepare('SELECT block_type,target,created_at FROM group_command_blocks WHERE group_jid=? ORDER BY block_type,target').all(groupJid);
+}
+export function isGroupBlock(groupJid,blockType,target){
+  return Boolean(db.prepare('SELECT 1 FROM group_command_blocks WHERE group_jid=? AND block_type=? AND target=?').get(groupJid,String(blockType || ''),String(target || '').trim().toLowerCase()));
+}
+
 export function getInventory(jid){return db.prepare('SELECT * FROM inventory WHERE jid=? AND quantity>0').all(jid);}
 export function getItemQuantity(jid,itemId){return db.prepare('SELECT quantity FROM inventory WHERE jid=? AND item_id=?').get(jid,itemId)?.quantity||0;}
 export function addItem(jid,itemId,quantity){db.prepare('INSERT INTO inventory (jid,item_id,quantity) VALUES (?,?,?) ON CONFLICT(jid,item_id) DO UPDATE SET quantity=quantity+excluded.quantity').run(jid,itemId,quantity);db.prepare('DELETE FROM inventory WHERE jid=? AND quantity<=0').run(jid);return getItemQuantity(jid,itemId);}
