@@ -42,10 +42,12 @@ const MENU = `╭━━━〔 💜🤖 𝐓𝐎𝐆𝐈 𝐁𝐎𝐓 𝐕𝟐.�
 ┃ 💸 .pagar • .rank • .perfil
 ┃ 🏆 Ranks e recompensas do Arcade
 
-🐾 *PETS*
-┃ 🐶 .pet • .petshop • .meuspets
-┃ 🐱 .petinfo • .petstats
-┃ ✨ Novos pets e mais estatísticas
+🐾 *PETS ALIVE*
+┃ 🐶 .pets • .petshop • .comprarpet
+┃ 🐱 .petinfo • .petstats • .upgradepetshop
+┃ 🍖 .alimentar • 💧 .beber • 🎾 .brincar
+┃ 😴 .dormir • 💚 .curar
+┃ ✨ Pets Alive V2.3
 
 🤖 *TOGI AI*
 ┃ 🧠 .TogiAi — ativar/desativar conversa
