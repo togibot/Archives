@@ -38,7 +38,7 @@ export default {
     if (victim.tokens <= 0) return reply(`🥷 @${victim.name || 'Usuário'} não tem Tokens para roubar.`, { mentions: [target] });
 
     if (Math.random() < 0.40) {
-      return reply(`🥷 *ROUBO FALHOU!*\n\n@${victim.name || 'Usuário'} escapou da tentativa.\n🎯 Tentativas restantes: *${attempt.remaining}/3*${lossReduction > 0 ? `\n🛡️ Pets reduziram a perda em *${Math.floor(lossReduction * 100)}%*.` : ''}`, { mentions: [target] });
+      return reply(`🥷 *ROUBO FALHOU!*\n\n@${victim.name || 'Usuário'} escapou da tentativa.\n🎯 Tentativas restantes: *${attempt.remaining}/3*`, { mentions: [target] });
     }
 
     const percentage = 0.20 + Math.random() * 0.30;
@@ -58,6 +58,6 @@ export default {
 
     addTogiLog({ actorJid: sender, actorName: thief?.name || 'Usuário', targetJid: target, targetName: victim?.name || 'Usuário', groupJid: isGroup ? chat : null, groupName, action: 'roubo', amount });
 
-    return reply(`🥷 *ROUBO BEM-SUCEDIDO!*\n\n💰 Você roubou *🪙 ${formatTokens(amount)} Tokens* de @${victim.name || 'Usuário'}!\n🎯 Tentativas restantes: *${attempt.remaining}/3*`, { mentions: [target] });
+    return reply(`🥷 *ROUBO BEM-SUCEDIDO!*\n\n💰 Você roubou *🪙 ${formatTokens(amount)} Tokens* de @${victim.name || 'Usuário'}!\n🎯 Tentativas restantes: *${attempt.remaining}/3*${lossReduction > 0 ? `\n🛡️ Pets reduziram a perda original em *${Math.floor(lossReduction * 100)}%*.` : ''}`, { mentions: [target] });
   }
 };
