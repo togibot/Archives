@@ -181,7 +181,7 @@ export function resetUserAccount(jid, mode = 'tokens') {
   if (mode === 'tokens') { updateUser(id, { tokens: 0 }); return getUser(id); }
   if (mode !== 'tudo') throw new Error('Modo de reset inválido.');
   const tx = db.transaction(() => {
-    updateUser(id, { tokens: config.economy.startingBalance,last_daily:0,last_weekly:0,last_steal:0,xp:0,level:1,afk_since:null,afk_reason:null,job:null,pet_shop_level:1,sticker_nick:'',steal_count:0,steal_window_start:0 });
+    updateUser(id, { tokens: config.economy.startingBalance,last_daily:0,last_weekly:0,last_steal:0,xp:0,level:1,afk_since:null,afk_reason:null,job:null,pet_shop_level:1,sticker_nick:'',steal_count:0,steal_window_start:0,work_count:0,work_window_start:0,last_extra_work:0 });
     db.prepare('DELETE FROM inventory WHERE jid=?').run(id);
     db.prepare('DELETE FROM user_cards WHERE jid=?').run(id);
     db.prepare('DELETE FROM quiz_stats WHERE jid=?').run(id);
