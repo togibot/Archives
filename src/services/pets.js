@@ -1,4 +1,5 @@
-import { getAllLivingPets, getPet, updatePet } from '../database/index.js';
+import { getAllLivingPets, getEquippedPets, getPet, updatePet } from '../database/index.js';
+import { getPetPassiveModifiers } from './pet-abilities.js';
 
 const NEED_TICK_MS = 20 * 60 * 1000;
 const HUNGER_DECAY = 5;
@@ -29,10 +30,13 @@ export function refreshPet(pet) {
   const startHunger = clamp(pet.hunger);
   const startThirst = clamp(pet.thirst);
   const startHappiness = clamp(pet.happiness);
+  const passives = getPetPassiveModifiers(getEquippedPets(pet.owner_jid));
+  const needReduction = Math.min(0.50, Math.max(0, passives.needsConsumptionReduction));
+  const happinessDecayReduction = Math.min(0.50, Math.max(0, passives.happinessDecayReduction));
 
-  const hunger = clamp(startHunger - HUNGER_DECAY * ticks);
-  const thirst = clamp(startThirst - THIRST_DECAY * ticks);
-  const happiness = clamp(startHappiness - HAPPINESS_DECAY * ticks);
+  const hunger = clamp(startHunger - HUNGER_DECAY * (1 - needReduction) * ticks);
+  const thirst = clamp(startThirst - THIRST_DECAY * (1 - needReduction) * ticks);
+  const happiness = clamp(startHappiness - HAPPINESS_DECAY * (1 - happinessDecayReduction) * ticks);
 
   // Dano de vida começa somente depois que Fome ou Sede já chegou a zero.
   const hungerZeroTick = startHunger === 0 ? 0 : Math.ceil(startHunger / HUNGER_DECAY);
