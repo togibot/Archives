@@ -1,4 +1,3 @@
-import { getGroupRules } from '../database/index.js';
 import { getPermissionLevel } from '../core/permissions.js';
 import {
   COMMUNITY_MENU_DEFS,
