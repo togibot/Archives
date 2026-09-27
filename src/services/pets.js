@@ -3,6 +3,7 @@ import { getAllLivingPets, getPet, updatePet } from '../database/index.js';
 const NEED_TICK_MS = 20 * 60 * 1000;
 const HUNGER_DECAY = 5;
 const THIRST_DECAY = 7;
+const HAPPINESS_DECAY = 2;
 const HEALTH_DAMAGE_WHEN_NEGLECTED = 5;
 
 function todayKey(date = new Date()) {
@@ -12,27 +13,43 @@ function todayKey(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+function clamp(value) {
+  return Math.max(0, Math.min(100, Math.trunc(Number(value) || 0)));
+}
+
 export function refreshPet(pet) {
   if (!pet || pet.status === 'morto') return pet;
+
   const now = Date.now();
   const last = Number(pet.last_needs_update || pet.created_at || now);
-  const ticks = Math.floor(Math.max(0, now - last) / NEED_TICK_MS);
+  const elapsed = Math.max(0, now - last);
+  const ticks = Math.floor(elapsed / NEED_TICK_MS);
   if (ticks < 1) return pet;
 
-  const hunger = Math.max(0, pet.hunger - (HUNGER_DECAY * ticks));
-  const thirst = Math.max(0, pet.thirst - (THIRST_DECAY * ticks));
-  let health = pet.health;
+  const startHunger = clamp(pet.hunger);
+  const startThirst = clamp(pet.thirst);
+  const startHappiness = clamp(pet.happiness);
 
-  const neglectedTicks = Math.max(0, ticks - Math.min(Math.floor(pet.hunger / HUNGER_DECAY), Math.floor(pet.thirst / THIRST_DECAY)));
-  if (hunger === 0 || thirst === 0) health = Math.max(0, health - (HEALTH_DAMAGE_WHEN_NEGLECTED * neglectedTicks));
+  const hunger = clamp(startHunger - HUNGER_DECAY * ticks);
+  const thirst = clamp(startThirst - THIRST_DECAY * ticks);
+  const happiness = clamp(startHappiness - HAPPINESS_DECAY * ticks);
 
+  // Dano de vida começa somente depois que Fome ou Sede já chegou a zero.
+  const hungerZeroTick = startHunger === 0 ? 0 : Math.ceil(startHunger / HUNGER_DECAY);
+  const thirstZeroTick = startThirst === 0 ? 0 : Math.ceil(startThirst / THIRST_DECAY);
+  const firstNeglectedTick = Math.min(hungerZeroTick, thirstZeroTick);
+  const neglectedTicks = Math.max(0, ticks - firstNeglectedTick);
+
+  const health = clamp(Number(pet.health) - HEALTH_DAMAGE_WHEN_NEGLECTED * neglectedTicks);
   const status = health <= 0 ? 'morto' : 'vivo';
+
   return updatePet(pet.id, {
     hunger,
     thirst,
+    happiness,
     health,
     status,
-    last_needs_update: last + (ticks * NEED_TICK_MS)
+    last_needs_update: last + ticks * NEED_TICK_MS
   });
 }
 
@@ -60,10 +77,13 @@ export function getTodayKey() {
   return todayKey();
 }
 
-export const PET_RULES = {
+export const PET_RULES = Object.freeze({
   maxWalksPerDay: 4,
   needTickMs: NEED_TICK_MS,
   hungerDecayPerTick: HUNGER_DECAY,
   thirstDecayPerTick: THIRST_DECAY,
-  healthDamageWhenNeglectedPerTick: HEALTH_DAMAGE_WHEN_NEGLECTED
-};
+  happinessDecayPerTick: HAPPINESS_DECAY,
+  healthDamageWhenNeglectedPerTick: HEALTH_DAMAGE_WHEN_NEGLECTED,
+  maxStat: 100,
+  minStat: 0
+});
