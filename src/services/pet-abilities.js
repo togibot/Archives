@@ -126,6 +126,18 @@ export function getPetPassiveModifiers(pets = []) {
   return modifiers;
 }
 
+export function getPetLossReduction(ownerJid, activity = 'generic') {
+  const equipped = getEquippedPets(ownerJid);
+  const modifiers = getPetPassiveModifiers(equipped);
+  if (activity === 'risk') return Math.min(0.75, Math.max(0, modifiers.lossReduction + modifiers.riskLossReduction));
+  return Math.min(0.75, Math.max(0, modifiers.lossReduction));
+}
+
+export function getPetCooldownReduction(ownerJid) {
+  const equipped = getEquippedPets(ownerJid);
+  return Math.min(0.50, Math.max(0, getPetPassiveModifiers(equipped).cooldownReduction));
+}
+
 export function applyPetReward(ownerJid, baseAmount, activity = 'generic', random = Math.random()) {
   const base = Math.max(0, Math.trunc(Number(baseAmount) || 0));
   if (!base) return { amount: 0, base, bonuses: [], pets: [] };
