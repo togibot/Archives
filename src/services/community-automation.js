@@ -1,7 +1,6 @@
 import {
   getCommunitySettings,
   getGroupSchedule,
-  getGroup,
   setGroupSchedule,
   updateCommunitySettings
 } from '../database/index.js';
@@ -169,6 +168,7 @@ export async function handleCommunityParticipantUpdate(sock, event, logger = con
   if (!settingsCommunity) return { sent:0, skipped:true, reason:'no_community_config' };
 
   const { communityJid, settings } = settingsCommunity;
+  const selfJid = normalizeJid(sock?.user?.id || sock?.user?.jid);
   const destinationJid = action === 'add' ? settings.welcome_group_jid : settings.goodbye_group_jid;
   if (!destinationJid) return { sent:0, skipped:true, reason:'no_destination' };
 
@@ -179,7 +179,7 @@ export async function handleCommunityParticipantUpdate(sock, event, logger = con
   let sent = 0;
   for (const participant of event.participants || []) {
     const jid = normalizeJid(participant);
-    if (!jid) continue;
+    if (!jid || jid === selfJid) continue;
     const body = '╭━━━〔 ' + (action === 'add' ? '👋 𝐁𝐄𝐌-𝐕𝐈𝐍𝐃𝐎' : '👋 𝐃𝐄𝐒𝐏𝐄𝐃𝐈𝐃𝐀') + ' 〕━━━╮\n' +
       substituteTemplate(template, { participant:jid, groupName:destinationMeta.subject || '', action }) +
       '\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯';
