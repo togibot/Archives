@@ -1,6 +1,6 @@
 {
   "name": "togi-bot",
-  "version": "1.0.0",
+  "version": "2.3.0",
   "description": "Togi Bot - bot modular para WhatsApp",
   "type": "module",
   "main": "src/index.js",
