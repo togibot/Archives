@@ -11,6 +11,6 @@ export default {
 • ${p}menuEquip
 • ${p}equip <id>
 • ${p}unequip <id>
-• ${p}upgradeequip\n\n❤️ *CUIDADOS*\n• ${p}alimentar <id>\n• ${p}daragua <id>\n• ${p}brincar <id>\n• ${p}passear <id> — 4x por dia\n• ${p}treinar <id>\n• ${p}dormir <id>\n• ${p}curar <id>\n\n🎁 *SOCIAL*\n• ${p}doarpet <id> @pessoa\n• ${p}doarcomida\n\n⚠️ *ATENÇÃO*\n🍖 Fome e 💧 sede diminuem com o tempo.\n🪦 Se o pet for negligenciado, a saúde cai até ele morrer.\n\n🏆 *RANKING*\n• ${p}petstats`);
+• ${p}upgradeequip\n• ${p}petnotify [on/off]\n\n❤️ *CUIDADOS*\n• ${p}alimentar <id>\n• ${p}daragua <id>\n• ${p}brincar <id>\n• ${p}passear <id> — 4x por dia\n• ${p}treinar <id>\n• ${p}dormir <id>\n• ${p}curar <id>\n\n🎁 *SOCIAL*\n• ${p}doarpet <id> @pessoa\n• ${p}doarcomida\n\n⚠️ *ATENÇÃO*\n🍖 Fome e 💧 sede diminuem com o tempo.\n🪦 Se o pet for negligenciado, a saúde cai até ele morrer.\n\n🏆 *RANKING*\n• ${p}petstats`);
   }
 };
