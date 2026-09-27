@@ -11,6 +11,7 @@ import { getAfk, clearAfk } from './services/afk-store.js';
 import { moderateProfanity, isAntiProfanityEnabled } from './services/anti-palavrao.js';
 import { getCommandReaction } from './config/reactions.js';
 import { getPermissionLevel } from './core/permissions.js';
+import { startPetEventLoop } from './services/pet-events.js';
 
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
@@ -113,13 +114,32 @@ async function startBot() {
   sock.ev.on('creds.update', saveCreds);
   const pairingPhone = normalizePhone(config.connection.pairingPhone);
   let pairingRequested = false;
+  let stopPetEventLoop = null;
 
   logInfo(`🚀 ${config.bot.name} iniciando`, [`📦 ${commands.size} comandos carregados`, `🗃️ Banco: ${process.env.DATABASE_PATH || './data/togi.sqlite'}`, '🛡️ Anti-palavrão: DESATIVADO']);
 
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (!state.creds.registered && pairingPhone && !pairingRequested && qr) { pairingRequested = true; try { const code = await sock.requestPairingCode(pairingPhone); logInfo('🔐 TOGI BOT — PAIRING CODE', [`📱 Número: +${pairingPhone}`, `🔑 Código: ${code}`, '💡 No WhatsApp, abra Dispositivos conectados e use a opção de conectar por código.']); } catch (error) { pairingRequested = false; logError('❌ FALHA AO GERAR PAIRING CODE', [`💥 ${error?.message || 'Erro desconhecido'}`]); } }
-    if (connection === 'open') { restarting = false; logInfo('🟢 TOGI CONECTADO', [`🤖 ${config.bot.name}`, `📦 ${commands.size} comandos disponíveis`]); }
-    if (connection === 'close') { const statusCode = lastDisconnect?.error?.output?.statusCode; const shouldReconnect = statusCode !== DisconnectReason.loggedOut; logError('🔌 CONEXÃO ENCERRADA', [`📡 Código: ${statusCode ?? 'desconhecido'}`, `🔁 Reconectar: ${shouldReconnect ? 'SIM' : 'NÃO'}`]); if (shouldReconnect && !restarting) { restarting = true; setTimeout(() => startBot().catch(error => { restarting = false; logError('❌ FALHA AO REINICIAR O TOGI', [`💥 ${error?.message || 'Erro desconhecido'}`]); }), 3000); } }
+    if (connection === 'open') {
+      restarting = false;
+      logInfo('🟢 TOGI CONECTADO', [`🤖 ${config.bot.name}`, `📦 ${commands.size} comandos disponíveis`]);
+      if (!stopPetEventLoop) {
+        stopPetEventLoop = startPetEventLoop({
+          logger,
+          onEvent: async event => {
+            logger.info({
+              ownerJid: event.ownerJid,
+              petId: event.pet?.id,
+              petName: event.pet?.name,
+              effect: event.result?.effect,
+              amount: event.result?.amount,
+              targetJid: event.result?.targetJid
+            }, '🐾 Evento automático de Pet processado');
+          }
+        });
+      }
+    }
+    if (connection === 'close') { const statusCode = lastDisconnect?.error?.output?.statusCode; const shouldReconnect = statusCode !== DisconnectReason.loggedOut; if (stopPetEventLoop) { stopPetEventLoop(); stopPetEventLoop = null; } logError('🔌 CONEXÃO ENCERRADA', [`📡 Código: ${statusCode ?? 'desconhecido'}`, `🔁 Reconectar: ${shouldReconnect ? 'SIM' : 'NÃO'}`]); if (shouldReconnect && !restarting) { restarting = true; setTimeout(() => startBot().catch(error => { restarting = false; logError('❌ FALHA AO REINICIAR O TOGI', [`💥 ${error?.message || 'Erro desconhecido'}`]); }), 3000); } }
   });
 
   if (!state.creds.registered && !pairingPhone) console.log('⚠️ PAIRING_PHONE não configurado.');
