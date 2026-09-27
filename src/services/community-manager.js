@@ -1,6 +1,5 @@
 import {
   addGroupBlock,
-  getCommunitySettings,
   getGroupBlocks,
   isGroupBlock,
   removeGroupBlock,
