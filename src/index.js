@@ -12,6 +12,19 @@ import { moderateProfanity, isAntiProfanityEnabled } from './services/anti-palav
 import { getCommandReaction } from './config/reactions.js';
 import { getPermissionLevel } from './core/permissions.js';
 
+/*
+ * O terminal pode falhar ao escrever (por exemplo EPIPE/EDQUOT).
+ * Esses erros não podem derrubar o processo inteiro do Togi.
+ */
+function handleStdIOError(stream, error) {
+  const code = String(error?.code || '');
+  const errno = Number(error?.errno);
+  if (code === 'EPIPE' || code === 'EDQUOT' || errno === -32 || errno === -122) return;
+  try { process.stderr.write('[STDIO] ' + (error?.message || 'erro de escrita') + '\n'); } catch {}
+}
+process.stdout?.on?.('error', error => handleStdIOError(process.stdout, error));
+process.stderr?.on?.('error', error => handleStdIOError(process.stderr, error));
+
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
 let restarting = false;
