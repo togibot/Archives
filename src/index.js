@@ -12,18 +12,29 @@ import { moderateProfanity, isAntiProfanityEnabled } from './services/anti-palav
 import { getCommandReaction } from './config/reactions.js';
 import { getPermissionLevel } from './core/permissions.js';
 
-/*
- * O terminal pode falhar ao escrever (por exemplo EPIPE/EDQUOT).
- * Esses erros não podem derrubar o processo inteiro do Togi.
- */
-function handleStdIOError(stream, error) {
-  const code = String(error?.code || '');
+/* Never let a terminal/stdio write failure kill the bot. */
+function isTerminalWriteError(error) {
+  const code = String(error?.code || '').toUpperCase();
   const errno = Number(error?.errno);
-  if (code === 'EPIPE' || code === 'EDQUOT' || errno === -32 || errno === -122) return;
-  try { process.stderr.write('[STDIO] ' + (error?.message || 'erro de escrita') + '\n'); } catch {}
+  return code === 'EPIPE' || code === 'EDQUOT' || errno === -32 || errno === -122;
 }
-process.stdout?.on?.('error', error => handleStdIOError(process.stdout, error));
-process.stderr?.on?.('error', error => handleStdIOError(process.stderr, error));
+function handleStdIOError(error) {
+  if (isTerminalWriteError(error)) return;
+  try { process.stderr.write(`[STDIO] ${error?.message || 'erro de escrita'}\n`); } catch {}
+}
+process.stdout?.on?.('error', handleStdIOError);
+process.stderr?.on?.('error', handleStdIOError);
+
+/* Some Node streams can surface the same failure as uncaughtException. */
+process.on('uncaughtException', error => {
+  if (isTerminalWriteError(error)) return;
+  try { process.stderr.write(`[FATAL] ${error?.stack || error?.message || error}\n`); } catch {}
+  process.exitCode = 1;
+});
+process.on('unhandledRejection', error => {
+  if (isTerminalWriteError(error)) return;
+  try { process.stderr.write(`[UNHANDLED] ${error?.stack || error?.message || error}\n`); } catch {}
+});
 
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
@@ -42,73 +53,16 @@ function logError(title, details = []) {
   for (const detail of details) console.error(detail);
   console.error(separator);
 }
-function displayJid(jid) {
-  return String(jid || '').split('@')[0] || 'desconhecido';
-}
-function displayChat(chat, isGroup) {
-  return isGroup ? chat : 'Conversa privada';
-}
+function displayJid(jid) { return String(jid || '').split('@')[0] || 'desconhecido'; }
+function displayChat(chat, isGroup) { return isGroup ? chat : 'Conversa privada'; }
 function normalizePhone(value) { return String(value || '').replace(/\D/g, ''); }
-function normalizeJid(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  if (raw.includes('@')) return raw.split(':')[0];
-  return raw.split(':')[0] + '@s.whatsapp.net';
-}
-function jidNumber(value) {
-  return normalizePhone(String(value || '').split('@')[0].split(':')[0]);
-}
-function getSelfJids(sock, pairingPhone) {
-  const values = [
-    sock?.user?.id,
-    sock?.user?.jid,
-    pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''
-  ];
-  return [...new Set(values.map(normalizeJid).filter(Boolean))];
-}
-function isSelfMessage(message, sock, pairingPhone) {
-  if (message?.key?.fromMe) return true;
-  const selfNumbers = new Set(getSelfJids(sock, pairingPhone).map(jidNumber).filter(Boolean));
-  if (!selfNumbers.size) return false;
-  const candidates = [
-    message?.key?.participantPn,
-    message?.key?.senderPn,
-    message?.key?.participant,
-    message?.key?.remoteJidAlt,
-    message?.key?.remoteJid
-  ].map(jidNumber).filter(Boolean);
-  return candidates.some(number => selfNumbers.has(number));
-}
+function normalizeJid(value) { const raw = String(value || '').trim(); if (!raw) return ''; if (raw.includes('@')) return raw.split(':')[0]; return raw.split(':')[0] + '@s.whatsapp.net'; }
+function jidNumber(value) { return normalizePhone(String(value || '').split('@')[0].split(':')[0]); }
+function getSelfJids(sock, pairingPhone) { const values = [sock?.user?.id, sock?.user?.jid, pairingPhone ? `${pairingPhone}@s.whatsapp.net` : '']; return [...new Set(values.map(normalizeJid).filter(Boolean))]; }
+function isSelfMessage(message, sock, pairingPhone) { if (message?.key?.fromMe) return true; const selfNumbers = new Set(getSelfJids(sock, pairingPhone).map(jidNumber).filter(Boolean)); if (!selfNumbers.size) return false; const candidates = [message?.key?.participantPn, message?.key?.senderPn, message?.key?.participant, message?.key?.remoteJidAlt, message?.key?.remoteJid].map(jidNumber).filter(Boolean); return candidates.some(number => selfNumbers.has(number)); }
 
-async function withTimeout(promise, timeoutMs, label) {
-  let timer;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${label} excedeu ${timeoutMs}ms`)), timeoutMs);
-        timer.unref?.();
-      })
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function reactToCommand(sock, message, command) {
-  const emoji = getCommandReaction(command);
-  if (!emoji) return;
-  try {
-    await withTimeout(
-      sock.sendMessage(message.key.remoteJid, { react: { text: emoji, key: message.key } }),
-      10000,
-      'Reação'
-    );
-  } catch (error) {
-    logger.debug({ err: error }, 'Não foi possível reagir ao comando.');
-  }
-}
-
+async function withTimeout(promise, timeoutMs, label) { let timer; try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} excedeu ${timeoutMs}ms`)), timeoutMs); timer.unref?.(); })]); } finally { clearTimeout(timer); } }
+async function reactToCommand(sock, message, command) { const emoji = getCommandReaction(command); if (!emoji) return; try { await withTimeout(sock.sendMessage(message.key.remoteJid, { react: { text: emoji, key: message.key } }), 10000, 'Reação'); } catch (error) { logger.debug({ err: error }, 'Não foi possível reagir ao comando.'); } }
 function getMentionedJids(message) { const context = message?.message?.extendedTextMessage?.contextInfo || message?.message?.imageMessage?.contextInfo || message?.message?.videoMessage?.contextInfo || message?.message?.documentMessage?.contextInfo; return Array.isArray(context?.mentionedJid) ? context.mentionedJid : []; }
 function formatAfkDuration(since) { const elapsedMs = Math.max(0, Date.now() - since); const minutes = Math.floor(elapsedMs / 60000); if (minutes < 1) return 'menos de 1 minuto'; if (minutes === 1) return '1 minuto'; if (minutes < 60) return `${minutes} minutos`; const hours = Math.floor(minutes / 60), remaining = minutes % 60; if (remaining === 0) return hours === 1 ? '1 hora' : `${hours} horas`; return `${hours}h ${remaining}min`; }
 function getAfkKeys({ effectiveSender, sender, pairingPhone, sock }) { const keys = [effectiveSender, sender, sock?.user?.id, pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''].filter(Boolean); return [...new Set(keys)]; }
@@ -128,111 +82,39 @@ async function startBot() {
   let pairingRequested = false;
 
   logInfo(`🚀 ${config.bot.name} iniciando`, [`📦 ${commands.size} comandos carregados`, `🗃️ Banco: ${process.env.DATABASE_PATH || './data/togi.sqlite'}`, '🛡️ Anti-palavrão: DESATIVADO']);
-
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (!state.creds.registered && pairingPhone && !pairingRequested && qr) { pairingRequested = true; try { const code = await sock.requestPairingCode(pairingPhone); logInfo('🔐 TOGI BOT — PAIRING CODE', [`📱 Número: +${pairingPhone}`, `🔑 Código: ${code}`, '💡 No WhatsApp, abra Dispositivos conectados e use a opção de conectar por código.']); } catch (error) { pairingRequested = false; logError('❌ FALHA AO GERAR PAIRING CODE', [`💥 ${error?.message || 'Erro desconhecido'}`]); } }
     if (connection === 'open') { restarting = false; logInfo('🟢 TOGI CONECTADO', [`🤖 ${config.bot.name}`, `📦 ${commands.size} comandos disponíveis`]); }
     if (connection === 'close') { const statusCode = lastDisconnect?.error?.output?.statusCode; const shouldReconnect = statusCode !== DisconnectReason.loggedOut; logError('🔌 CONEXÃO ENCERRADA', [`📡 Código: ${statusCode ?? 'desconhecido'}`, `🔁 Reconectar: ${shouldReconnect ? 'SIM' : 'NÃO'}`]); if (shouldReconnect && !restarting) { restarting = true; setTimeout(() => startBot().catch(error => { restarting = false; logError('❌ FALHA AO REINICIAR O TOGI', [`💥 ${error?.message || 'Erro desconhecido'}`]); }), 3000); } }
   });
-
-  if (!state.creds.registered && !pairingPhone) console.log('⚠️ PAIRING_PHONE não configurado.');
-  else if (state.creds.registered) console.log('🔑 Sessão existente encontrada.');
-
+  if (!state.creds.registered && !pairingPhone) console.log('⚠️ PAIRING_PHONE não configurado.'); else if (state.creds.registered) console.log('🔑 Sessão existente encontrada.');
   sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const message of messages || []) {
       if (!message?.message) continue;
       messageCache.set(message.key.id, message);
       if (messageCache.size > 200) messageCache.delete(messageCache.keys().next().value);
       const text = getText(message).trim(), sender = getSender(message), chat = message.key.remoteJid, isGroup = chat?.endsWith('@g.us'), userName = getName(message), selfJids = getSelfJids(sock, pairingPhone), effectiveSender = isSelfMessage(message, sock, pairingPhone) ? (selfJids[0] || normalizeJid(sender)) : normalizeJid(sender);
-      // Nunca procesar mensagens do próprio Togi. Isso evita loops de AFK, IA e comandos.
       if (isSelfMessage(message, sock, pairingPhone)) continue;
-
-      ensureUser(effectiveSender, userName);
-      if (isGroup) ensureGroup(chat);
-
+      ensureUser(effectiveSender, userName); if (isGroup) ensureGroup(chat);
       logInfo('💬 NOVA MENSAGEM', [`👤 Usuário: ${userName || 'desconhecido'} (${displayJid(effectiveSender)})`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `📝 Mensagem: ${text || '[sem texto]'}`]);
-
-      const reply = async (content, options = {}) => {
-        const payload = { text: String(content), ...options };
-        try {
-          if (message.key.fromMe) return await withTimeout(sock.sendMessage(chat, payload), 30000, 'Envio da mensagem');
-          return await withTimeout(sock.sendMessage(chat, payload, { quoted: message }), 30000, 'Envio da mensagem');
-        } catch (error) {
-          logError('❌ FALHA AO ENVIAR RESPOSTA', [`👥 Grupo: ${displayChat(chat, isGroup)}`, `💥 ${error?.message || 'Erro desconhecido'}`]);
-          return null;
-        }
-      };
-      let parsedCommandName = '';
-      if (text.startsWith(config.bot.prefix)) { const body = text.slice(config.bot.prefix.length).trim(); parsedCommandName = body.split(/\s+/)[0]?.toLowerCase() || ''; }
+      const reply = async (content, options = {}) => { const payload = { text: String(content), ...options }; try { if (message.key.fromMe) return await withTimeout(sock.sendMessage(chat, payload), 30000, 'Envio da mensagem'); return await withTimeout(sock.sendMessage(chat, payload, { quoted: message }), 30000, 'Envio da mensagem'); } catch (error) { logError('❌ FALHA AO ENVIAR RESPOSTA', [`👥 Grupo: ${displayChat(chat, isGroup)}`, `💥 ${error?.message || 'Erro desconhecido'}`]); return null; } };
+      let parsedCommandName = ''; if (text.startsWith(config.bot.prefix)) { const body = text.slice(config.bot.prefix.length).trim(); parsedCommandName = body.split(/\s+/)[0]?.toLowerCase() || ''; }
       const isAfkToggle = parsedCommandName === 'afk' || parsedCommandName === 'ausente';
-
-      if (isGroup && isGroupMuted(chat, effectiveSender)) {
-        try {
-          await sock.sendMessage(chat, { delete: message.key });
-        } catch (error) {
-          logger.debug({ err: error }, 'Não foi possível apagar mensagem de usuário mutado.');
-        }
-        continue;
-      }
-
-      if (isGroup && isSoAdmEnabled(chat) && parsedCommandName && parsedCommandName !== 'soadm') {
-        try {
-          const permission = await getPermissionLevel({ sock, chat, jid: effectiveSender, message });
-          if (permission < 3) continue;
-        } catch (error) {
-          logger.debug({ err: error }, 'Não foi possível verificar o modo SOADM.');
-          continue;
-        }
-      }
+      if (isGroup && isGroupMuted(chat, effectiveSender)) { try { await sock.sendMessage(chat, { delete: message.key }); } catch (error) { logger.debug({ err: error }, 'Não foi possível apagar mensagem de usuário mutado.'); } continue; }
+      if (isGroup && isSoAdmEnabled(chat) && parsedCommandName && parsedCommandName !== 'soadm') { try { const permission = await getPermissionLevel({ sock, chat, jid: effectiveSender, message }); if (permission < 3) continue; } catch (error) { logger.debug({ err: error }, 'Não foi possível verificar o modo SOADM.'); continue; } }
       try { await handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, !isAfkToggle); } catch (error) { logger.debug({ err: error }, 'Falha ao processar AFK.'); }
-
-      // Anti-palavrão desativado temporariamente. O código original permanece intacto.
-      if (false && isGroup && !message.key.fromMe && !isAfkToggle && isAntiProfanityEnabled(chat)) {
-        try { const moderated = await moderateProfanity({ sock, chat, message, sender: effectiveSender }); if (moderated?.moderated) continue; } catch (error) { logError('❌ ERRO NO ANTI-PALAVRÃO', [`👥 Grupo: ${chat}`, `👤 Usuário: ${displayJid(effectiveSender)}`, `💥 ${error?.message || 'Erro desconhecido'}`]); }
-      }
-
+      if (false && isGroup && !message.key.fromMe && !isAfkToggle && isAntiProfanityEnabled(chat)) { try { const moderated = await moderateProfanity({ sock, chat, message, sender: effectiveSender }); if (moderated?.moderated) continue; } catch (error) { logError('❌ ERRO NO ANTI-PALAVRÃO', [`👥 Grupo: ${chat}`, `👤 Usuário: ${displayJid(effectiveSender)}`, `💥 ${error?.message || 'Erro desconhecido'}`]); } }
       if (!text.startsWith(config.bot.prefix) && isTogiActive(chat, effectiveSender)) { try { const answer = await askTogi(chat, effectiveSender, text, userName); if (answer) await reply(answer); } catch (error) { logError('❌ ERRO NA TOGI AI', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `💥 ${error?.message || 'Erro desconhecido'}`]); if (error?.name !== 'AbortError') await reply('❌ A Togi AI está indisponível no momento. Tente novamente em instantes.'); } continue; }
       if (!text.startsWith(config.bot.prefix)) continue;
-      const body = text.slice(config.bot.prefix.length).trim();
-      if (!body) continue;
-      const words = body.split(/\s+/);
-      let name = words[0]?.toLowerCase() || '';
-      let args = words.slice(1);
-      let command = commands.get(name);
-
+      const body = text.slice(config.bot.prefix.length).trim(); if (!body) continue;
+      const words = body.split(/\s+/); let name = words[0]?.toLowerCase() || ''; let args = words.slice(1); let command = commands.get(name);
       const maxParts = Math.min(5, words.length);
-      if (!command) {
-        for (let size = maxParts; size >= 2; size--) {
-          const candidate = words.slice(0, size).join(' ').toLowerCase();
-          const found = commands.get(candidate);
-          if (!found) continue;
-          name = candidate;
-          args = words.slice(size);
-          command = found;
-          break;
-        }
-      }
-
+      if (!command) for (let size = maxParts; size >= 2; size--) { const candidate = words.slice(0, size).join(' ').toLowerCase(); const found = commands.get(candidate); if (!found) continue; name = candidate; args = words.slice(size); command = found; break; }
       if (!command) { console.log(`⚠️ Comando não encontrado: .${name}`); continue; }
-
       logInfo('⚙️ COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `▶️ Executando: .${name}${args.length ? ` ${args.join(' ')}` : ''}`]);
-
-      // A reação é secundária: nunca pode bloquear a execução do comando.
       void reactToCommand(sock, message, command);
-
-      try {
-        await withTimeout(
-          command.execute({ sock, message, sender: effectiveSender, chat, args, text: args.join(' '), rawText: text, commandName: name.toLowerCase(), isGroup, reply, commands, react: async emoji => { try { await withTimeout(sock.sendMessage(chat, { react: { text: emoji, key: message.key } }), 10000, 'Reação'); } catch {} } }),
-          90000,
-          `Comando .${name}`
-        );
-        console.log(`✅ Comando concluído: .${name}`);
-      } catch (error) {
-        logError('❌ ERRO NO COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `⚙️ Comando: .${name}`, `💥 ${error?.message || 'Erro desconhecido'}`]);
-        await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`);
-      }
+      try { await withTimeout(command.execute({ sock, message, sender: effectiveSender, chat, args, text: args.join(' '), rawText: text, commandName: name.toLowerCase(), isGroup, reply, commands, react: async emoji => { try { await withTimeout(sock.sendMessage(chat, { react: { text: emoji, key: message.key } }), 10000, 'Reação'); } catch {} } }), 90000, `Comando .${name}`); console.log(`✅ Comando concluído: .${name}`); } catch (error) { logError('❌ ERRO NO COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `⚙️ Comando: .${name}`, `💥 ${error?.message || 'Erro desconhecido'}`]); await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`); }
     }
   });
 }
-
 startBot().catch(error => logError('❌ FALHA FATAL AO INICIAR O TOGI BOT', [`💥 ${error?.message || 'Erro desconhecido'}`]));
