@@ -12,47 +12,19 @@ import { moderateProfanity, isAntiProfanityEnabled } from './services/anti-palav
 import { getCommandReaction } from './config/reactions.js';
 import { getPermissionLevel } from './core/permissions.js';
 
-/* Never let a terminal/stdio write failure kill the bot. */
-function isTerminalWriteError(error) {
-  const code = String(error?.code || '').toUpperCase();
-  const errno = Number(error?.errno);
-  return code === 'EPIPE' || code === 'EDQUOT' || errno === -32 || errno === -122;
-}
-function handleStdIOError(error) {
-  if (isTerminalWriteError(error)) return;
-  try { process.stderr.write(`[STDIO] ${error?.message || 'erro de escrita'}\n`); } catch {}
-}
+function isTerminalWriteError(error) { const code = String(error?.code || '').toUpperCase(); const errno = Number(error?.errno); return code === 'EPIPE' || code === 'EDQUOT' || errno === -32 || errno === -122; }
+function handleStdIOError(error) { if (isTerminalWriteError(error)) return; try { process.stderr.write(`[STDIO] ${error?.message || 'erro de escrita'}\n`); } catch {} }
 process.stdout?.on?.('error', handleStdIOError);
 process.stderr?.on?.('error', handleStdIOError);
-
-/* Some Node streams can surface the same failure as uncaughtException. */
-process.on('uncaughtException', error => {
-  if (isTerminalWriteError(error)) return;
-  try { process.stderr.write(`[FATAL] ${error?.stack || error?.message || error}\n`); } catch {}
-  process.exitCode = 1;
-});
-process.on('unhandledRejection', error => {
-  if (isTerminalWriteError(error)) return;
-  try { process.stderr.write(`[UNHANDLED] ${error?.stack || error?.message || error}\n`); } catch {}
-});
+process.on('uncaughtException', error => { if (isTerminalWriteError(error)) return; try { process.stderr.write(`[FATAL] ${error?.stack || error?.message || error}\n`); } catch {} process.exitCode = 1; });
+process.on('unhandledRejection', error => { if (isTerminalWriteError(error)) return; try { process.stderr.write(`[UNHANDLED] ${error?.stack || error?.message || error}\n`); } catch {} });
 
 const logger = P({ level: process.env.LOG_LEVEL || 'info' });
 let commands = new Map();
 let restarting = false;
-
 const separator = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
-function logInfo(title, details = []) {
-  console.log(`\n${separator}`);
-  console.log(title);
-  for (const detail of details) console.log(detail);
-  console.log(separator);
-}
-function logError(title, details = []) {
-  console.error(`\n${separator}`);
-  console.error(title);
-  for (const detail of details) console.error(detail);
-  console.error(separator);
-}
+function logInfo(title, details = []) { console.log(`\n${separator}`); console.log(title); for (const detail of details) console.log(detail); console.log(separator); }
+function logError(title, details = []) { console.error(`\n${separator}`); console.error(title); for (const detail of details) console.error(detail); console.error(separator); }
 function displayJid(jid) { return String(jid || '').split('@')[0] || 'desconhecido'; }
 function displayChat(chat, isGroup) { return isGroup ? chat : 'Conversa privada'; }
 function normalizePhone(value) { return String(value || '').replace(/\D/g, ''); }
@@ -60,7 +32,6 @@ function normalizeJid(value) { const raw = String(value || '').trim(); if (!raw)
 function jidNumber(value) { return normalizePhone(String(value || '').split('@')[0].split(':')[0]); }
 function getSelfJids(sock, pairingPhone) { const values = [sock?.user?.id, sock?.user?.jid, pairingPhone ? `${pairingPhone}@s.whatsapp.net` : '']; return [...new Set(values.map(normalizeJid).filter(Boolean))]; }
 function isSelfMessage(message, sock, pairingPhone) { if (message?.key?.fromMe) return true; const selfNumbers = new Set(getSelfJids(sock, pairingPhone).map(jidNumber).filter(Boolean)); if (!selfNumbers.size) return false; const candidates = [message?.key?.participantPn, message?.key?.senderPn, message?.key?.participant, message?.key?.remoteJidAlt, message?.key?.remoteJid].map(jidNumber).filter(Boolean); return candidates.some(number => selfNumbers.has(number)); }
-
 async function withTimeout(promise, timeoutMs, label) { let timer; try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} excedeu ${timeoutMs}ms`)), timeoutMs); timer.unref?.(); })]); } finally { clearTimeout(timer); } }
 async function reactToCommand(sock, message, command) { const emoji = getCommandReaction(command); if (!emoji) return; try { await withTimeout(sock.sendMessage(message.key.remoteJid, { react: { text: emoji, key: message.key } }), 10000, 'Reação'); } catch (error) { logger.debug({ err: error }, 'Não foi possível reagir ao comando.'); } }
 function getMentionedJids(message) { const context = message?.message?.extendedTextMessage?.contextInfo || message?.message?.imageMessage?.contextInfo || message?.message?.videoMessage?.contextInfo || message?.message?.documentMessage?.contextInfo; return Array.isArray(context?.mentionedJid) ? context.mentionedJid : []; }
@@ -76,11 +47,10 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(config.connection.authDir);
   const { version } = await fetchLatestBaileysVersion();
   const messageCache = new Map();
-  const sock = makeWASocket({ version, auth: state, logger, printQRInTerminal: false, browser: Browsers.ubuntu('Chrome'), markOnlineOnConnect: false, emitOwnEvents: true, syncFullHistory: false, shouldSyncHistoryMessage: () => false, getMessage: async key => messageCache.get(key.id)?.message || undefined });
+  const sock = makeWASocket({ version, auth: state, logger, printQRInTerminal: false, browser: Browsers.ubuntu('Chrome'), markOnlineOnConnect: false, emitOwnEvents: false, syncFullHistory: false, shouldSyncHistoryMessage: () => false, getMessage: async key => messageCache.get(key.id)?.message || undefined });
   sock.ev.on('creds.update', saveCreds);
   const pairingPhone = normalizePhone(config.connection.pairingPhone);
   let pairingRequested = false;
-
   logInfo(`🚀 ${config.bot.name} iniciando`, [`📦 ${commands.size} comandos carregados`, `🗃️ Banco: ${process.env.DATABASE_PATH || './data/togi.sqlite'}`, '🛡️ Anti-palavrão: DESATIVADO']);
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (!state.creds.registered && pairingPhone && !pairingRequested && qr) { pairingRequested = true; try { const code = await sock.requestPairingCode(pairingPhone); logInfo('🔐 TOGI BOT — PAIRING CODE', [`📱 Número: +${pairingPhone}`, `🔑 Código: ${code}`, '💡 No WhatsApp, abra Dispositivos conectados e use a opção de conectar por código.']); } catch (error) { pairingRequested = false; logError('❌ FALHA AO GERAR PAIRING CODE', [`💥 ${error?.message || 'Erro desconhecido'}`]); } }
