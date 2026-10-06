@@ -42,9 +42,8 @@ function extractImageUrls(html) {
   const urls = [];
   const seen = new Set();
   const cleanHtml = decodeHtml(html);
-  const pattern = /"murl":"(https?:\\/\\/[^"]+)"/g;
-
-  let match;
+  const marker = '"murl":"';
+  let cursor = 0;
   while ((match = pattern.exec(cleanHtml)) !== null) {
     let url = match[1].replace(/\\\//g, '/');
     try {
