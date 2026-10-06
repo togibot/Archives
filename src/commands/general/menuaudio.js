@@ -25,6 +25,7 @@ export default {
 ┃ ⚡ ${p}speedup — Acelerar o áudio
 ┃ 🎵 ${p}speedmusic — Acelerar preservando o pitch
 ┃ 🐌 ${p}slowmusic — Deixar lento preservando o pitch
+┃ 🌌 ${p}reverb <1-10> — Aplicar reverb com intensidade
 ┃
 ┣━━〔 🎚️ PITCH 〕
 ┃
