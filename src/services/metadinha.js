@@ -105,9 +105,9 @@ export function buildMetadinhaQueries(theme = 'anime', type = 'random') {
   const base = STYLE_QUERIES[type] || STYLE_QUERIES.random;
 
   return [
-    `${cleanTheme} ${base}`,
-    `${cleanTheme} matching profile pictures`,
-    `${cleanTheme} matching pfp pair`
+    `${cleanTheme} ${base} complete two image set`,
+    `${cleanTheme} matching profile pictures complete pair`,
+    `${cleanTheme} matching pfp pair set`
   ];
 }
 
