@@ -9,24 +9,24 @@ const SEARCH_SOURCES = [
 
 const STYLE_QUERIES = {
   mm: [
-    'two boys matching pfp pair',
-    'boys matching profile pictures pair',
-    'male matching pfp pair'
+    'two boys matching pfp',
+    'boys matching profile pictures',
+    'male matching pfp'
   ],
   ff: [
-    'two girls matching pfp pair',
-    'girls matching profile pictures pair',
-    'female matching pfp pair'
+    'two girls matching pfp',
+    'girls matching profile pictures',
+    'female matching pfp'
   ],
   mf: [
-    'boy girl matching pfp pair',
-    'boy and girl matching profile pictures pair',
-    'male female matching pfp pair'
+    'boy girl matching pfp',
+    'boy and girl matching profile pictures',
+    'male female matching pfp'
   ],
   random: [
-    'matching pfp pair friends',
-    'matching profile pictures pair',
-    'matching pfp two halves'
+    'matching pfp friends',
+    'matching profile pictures',
+    'matching pfp pair'
   ]
 };
 
@@ -86,10 +86,7 @@ async function fetchText(url) {
     redirect: 'follow'
   });
 
-  if (!response.ok) {
-    throw new Error(`Fonte respondeu HTTP ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`Fonte respondeu HTTP ${response.status}`);
   return response.text();
 }
 
@@ -102,20 +99,13 @@ async function downloadImage(url) {
     redirect: 'follow'
   });
 
-  if (!response.ok) {
-    throw new Error(`Imagem respondeu HTTP ${response.status}`);
-  }
+  if (!response.ok) throw new Error(`Imagem respondeu HTTP ${response.status}`);
 
   const contentType = response.headers.get('content-type') || '';
   const buffer = Buffer.from(await response.arrayBuffer());
 
-  if (buffer.length > 8 * 1024 * 1024) {
-    throw new Error('Imagem muito grande.');
-  }
-
-  if (!contentType.startsWith('image/')) {
-    throw new Error('Resultado não é uma imagem.');
-  }
+  if (buffer.length > 8 * 1024 * 1024) throw new Error('Imagem muito grande.');
+  if (!contentType.startsWith('image/')) throw new Error('Resultado não é uma imagem.');
 
   return { buffer, mimeType: contentType.split(';')[0] || 'image/jpeg', url };
 }
@@ -129,14 +119,14 @@ async function splitMatchingPair(image) {
     const width = Number(metadata.width || 0);
     const height = Number(metadata.height || 0);
 
-    if (width < 300 || height < 300) return null;
+    if (width < 500 || height < 250) return null;
 
-    const horizontalRatio = width / height;
-    const verticalRatio = height / width;
+    const ratio = width / height;
 
-    // Matching PFPs podem vir com bordas, molduras ou espaços,
-    // então não exigimos mais um formato exatamente 2:1.
-    if (horizontalRatio >= 1.20) {
+    // IMPORTANTE: só cortamos imagens que realmente parecem um painel
+    // com DUAS imagens iguais lado a lado ou uma sobre a outra.
+    // Não cortamos fotos normais de pessoas.
+    if (ratio >= 1.65 && ratio <= 2.60) {
       const halfWidth = Math.floor(width / 2);
 
       const left = await sharp(image.buffer)
@@ -155,7 +145,7 @@ async function splitMatchingPair(image) {
       ];
     }
 
-    if (verticalRatio >= 1.20) {
+    if (ratio >= 0.38 && ratio <= 0.61) {
       const halfHeight = Math.floor(height / 2);
 
       const top = await sharp(image.buffer)
@@ -184,10 +174,13 @@ export function buildMetadinhaQueries(theme = 'anime', type = 'random') {
   const cleanTheme = normalize(theme) || 'anime';
   const bases = STYLE_QUERIES[type] || STYLE_QUERIES.random;
 
+  // O tema fica presente em TODA consulta.
+  // Também pedimos explicitamente um painel de duas imagens.
   return bases.flatMap(base => [
-    `${cleanTheme} ${base}`,
-    `${cleanTheme} ${base} complete set`,
-    `${cleanTheme} ${base} split pfp`
+    `"${cleanTheme}" ${base} 2 panel split`,
+    `"${cleanTheme}" ${base} side by side`,
+    `"${cleanTheme}" ${base} two square pfp`,
+    `"${cleanTheme}" ${base} matching pair collage`
   ]);
 }
 
@@ -221,17 +214,17 @@ export async function searchMetadinhaImages(theme = 'anime', type = 'random') {
             candidateSeen.add(url);
             candidates.push({ url, source: source.name, query });
 
-            if (candidates.length >= 140) break;
+            if (candidates.length >= 180) break;
           }
         } catch {}
 
-        if (candidates.length >= 140) break;
+        if (candidates.length >= 180) break;
       }
 
-      if (candidates.length >= 140) break;
+      if (candidates.length >= 180) break;
     }
 
-    if (candidates.length >= 140) break;
+    if (candidates.length >= 180) break;
   }
 
   for (const candidate of candidates) {
@@ -243,5 +236,5 @@ export async function searchMetadinhaImages(theme = 'anime', type = 'random') {
     } catch {}
   }
 
-  throw new Error('Não encontrei um par completo nos resultados. Tente novamente.');
+  throw new Error('Não encontrei um par de metadinhas compatível com esse tema. Tente novamente.');
 }
