@@ -11,12 +11,12 @@ const STYLE_QUERIES = {
   mm: [
     'two boys matching pfp pair',
     'boys matching profile pictures pair',
-    'male matching pfp couple pair'
+    'male matching pfp pair'
   ],
   ff: [
     'two girls matching pfp pair',
     'girls matching profile pictures pair',
-    'female matching pfp couple pair'
+    'female matching pfp pair'
   ],
   mf: [
     'boy girl matching pfp pair',
@@ -122,20 +122,21 @@ async function downloadImage(url) {
 
 async function splitMatchingPair(image) {
   try {
-    const { default: sharp } = await import('sharp');
+    const sharpModule = await import('sharp');
+    const sharp = sharpModule.default || sharpModule;
     const metadata = await sharp(image.buffer).metadata();
 
     const width = Number(metadata.width || 0);
     const height = Number(metadata.height || 0);
 
-    if (!width || !height) return null;
+    if (width < 300 || height < 300) return null;
 
-    // A fonte precisa entregar UMA imagem que contenha os dois lados.
-    // Isso evita misturar uma metade de um resultado com outra metade.
     const horizontalRatio = width / height;
     const verticalRatio = height / width;
 
-    if (horizontalRatio >= 1.55) {
+    // Matching PFPs podem vir com bordas, molduras ou espaços,
+    // então não exigimos mais um formato exatamente 2:1.
+    if (horizontalRatio >= 1.20) {
       const halfWidth = Math.floor(width / 2);
 
       const left = await sharp(image.buffer)
@@ -154,7 +155,7 @@ async function splitMatchingPair(image) {
       ];
     }
 
-    if (verticalRatio >= 1.55) {
+    if (verticalRatio >= 1.20) {
       const halfHeight = Math.floor(height / 2);
 
       const top = await sharp(image.buffer)
@@ -208,10 +209,9 @@ export async function searchMetadinhaImages(theme = 'anime', type = 'random') {
   const candidates = [];
   const candidateSeen = new Set();
 
-  // Pesquisa várias páginas do buscador, em vez de manter uma biblioteca fixa.
   for (const source of SEARCH_SOURCES) {
     for (const query of queries) {
-      for (let page = 0; page < 3; page += 1) {
+      for (let page = 0; page < 4; page += 1) {
         try {
           const html = await fetchText(source.buildUrl(query, page));
           const urls = extractMarkedUrls(decodeHtml(html), source.marker);
@@ -219,38 +219,29 @@ export async function searchMetadinhaImages(theme = 'anime', type = 'random') {
           for (const url of urls) {
             if (candidateSeen.has(url)) continue;
             candidateSeen.add(url);
+            candidates.push({ url, source: source.name, query });
 
-            candidates.push({
-              url,
-              source: source.name,
-              query
-            });
-
-            if (candidates.length >= 90) break;
+            if (candidates.length >= 140) break;
           }
         } catch {}
 
-        if (candidates.length >= 90) break;
+        if (candidates.length >= 140) break;
       }
 
-      if (candidates.length >= 90) break;
+      if (candidates.length >= 140) break;
     }
 
-    if (candidates.length >= 90) break;
+    if (candidates.length >= 140) break;
   }
 
-  // Só aceitamos um resultado que contenha os DOIS lados.
-  // Nunca pegamos images[0] e images[1] de resultados diferentes.
   for (const candidate of candidates) {
     try {
       const image = await downloadImage(candidate.url);
       const pair = await splitMatchingPair(image);
 
-      if (pair) {
-        return pair;
-      }
+      if (pair) return pair;
     } catch {}
   }
 
-  throw new Error('Não encontrei um par completo agora. Tente outro tema.');
+  throw new Error('Não encontrei um par completo nos resultados. Tente novamente.');
 }
