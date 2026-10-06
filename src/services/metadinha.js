@@ -4,30 +4,20 @@ const SEARCH_SOURCES = [
     buildUrl: (query, page = 0) =>
       `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2&adlt=strict&first=${page * 35 + 1}`,
     marker: '"murl":"'
+  },
+  {
+    name: 'Google Images',
+    buildUrl: (query, page = 0) =>
+      `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}&start=${page * 20}`,
+    marker: '"ou":"'
   }
 ];
 
 const STYLE_QUERIES = {
-  mm: [
-    'two boys matching pfp',
-    'boys matching profile pictures',
-    'male matching pfp'
-  ],
-  ff: [
-    'two girls matching pfp',
-    'girls matching profile pictures',
-    'female matching pfp'
-  ],
-  mf: [
-    'boy girl matching pfp',
-    'boy and girl matching profile pictures',
-    'male female matching pfp'
-  ],
-  random: [
-    'matching pfp friends',
-    'matching profile pictures',
-    'matching pfp pair'
-  ]
+  mm: ['two boys matching pfp', 'boys matching profile pictures', 'male matching pfp'],
+  ff: ['two girls matching pfp', 'girls matching profile pictures', 'female matching pfp'],
+  mf: ['boy girl matching pfp', 'boy and girl matching profile pictures', 'male female matching pfp'],
+  random: ['matching pfp friends', 'matching profile pictures', 'matching pfp pair']
 };
 
 function normalize(value) {
@@ -77,6 +67,30 @@ function extractMarkedUrls(html, marker) {
   return urls;
 }
 
+function themeTokens(theme) {
+  return normalize(theme)
+    .toLowerCase()
+    .split(' ')
+    .filter(token => token.length >= 3);
+}
+
+function candidateMatchesTheme(candidate, theme) {
+  const tokens = themeTokens(theme);
+  if (!tokens.length) return true;
+
+  const haystack = [
+    candidate.url,
+    candidate.pageUrl,
+    candidate.title,
+    candidate.query
+  ].join(' ').toLowerCase();
+
+  // Para temas com várias palavras, exigimos que pelo menos a maioria
+  // apareça no contexto do resultado. Isso reduz muito resultados aleatórios.
+  const matches = tokens.filter(token => haystack.includes(token)).length;
+  return matches >= Math.max(1, Math.ceil(tokens.length * 0.6));
+}
+
 async function fetchText(url) {
   const response = await fetch(url, {
     headers: {
@@ -118,53 +132,33 @@ async function splitMatchingPair(image) {
 
     const width = Number(metadata.width || 0);
     const height = Number(metadata.height || 0);
-
-    if (width < 500 || height < 250) return null;
+    if (width < 500 || height < 500) return null;
 
     const ratio = width / height;
 
-    // IMPORTANTE: só cortamos imagens que realmente parecem um painel
-    // com DUAS imagens iguais lado a lado ou uma sobre a outra.
-    // Não cortamos fotos normais de pessoas.
-    if (ratio >= 1.65 && ratio <= 2.60) {
-      const halfWidth = Math.floor(width / 2);
+    // Cada metade precisa ser aproximadamente QUADRADA.
+    // Isso impede pegar uma foto de duas pessoas e cortar na cintura.
+    if (ratio < 1.78 || ratio > 2.22) return null;
 
-      const left = await sharp(image.buffer)
-        .extract({ left: 0, top: 0, width: halfWidth, height })
-        .jpeg({ quality: 92 })
-        .toBuffer();
+    const halfWidth = Math.floor(width / 2);
+    const halfRatio = halfWidth / height;
 
-      const right = await sharp(image.buffer)
-        .extract({ left: halfWidth, top: 0, width: width - halfWidth, height })
-        .jpeg({ quality: 92 })
-        .toBuffer();
+    if (halfRatio < 0.82 || halfRatio > 1.18) return null;
 
-      return [
-        { buffer: left, mimeType: 'image/jpeg', sourceUrl: image.url },
-        { buffer: right, mimeType: 'image/jpeg', sourceUrl: image.url }
-      ];
-    }
+    const left = await sharp(image.buffer)
+      .extract({ left: 0, top: 0, width: halfWidth, height })
+      .jpeg({ quality: 92 })
+      .toBuffer();
 
-    if (ratio >= 0.38 && ratio <= 0.61) {
-      const halfHeight = Math.floor(height / 2);
+    const right = await sharp(image.buffer)
+      .extract({ left: halfWidth, top: 0, width: width - halfWidth, height })
+      .jpeg({ quality: 92 })
+      .toBuffer();
 
-      const top = await sharp(image.buffer)
-        .extract({ left: 0, top: 0, width, height: halfHeight })
-        .jpeg({ quality: 92 })
-        .toBuffer();
-
-      const bottom = await sharp(image.buffer)
-        .extract({ left: 0, top: halfHeight, width, height: height - halfHeight })
-        .jpeg({ quality: 92 })
-        .toBuffer();
-
-      return [
-        { buffer: top, mimeType: 'image/jpeg', sourceUrl: image.url },
-        { buffer: bottom, mimeType: 'image/jpeg', sourceUrl: image.url }
-      ];
-    }
-
-    return null;
+    return [
+      { buffer: left, mimeType: 'image/jpeg', sourceUrl: image.url },
+      { buffer: right, mimeType: 'image/jpeg', sourceUrl: image.url }
+    ];
   } catch {
     return null;
   }
@@ -174,13 +168,11 @@ export function buildMetadinhaQueries(theme = 'anime', type = 'random') {
   const cleanTheme = normalize(theme) || 'anime';
   const bases = STYLE_QUERIES[type] || STYLE_QUERIES.random;
 
-  // O tema fica presente em TODA consulta.
-  // Também pedimos explicitamente um painel de duas imagens.
   return bases.flatMap(base => [
-    `"${cleanTheme}" ${base} 2 panel split`,
-    `"${cleanTheme}" ${base} side by side`,
-    `"${cleanTheme}" ${base} two square pfp`,
-    `"${cleanTheme}" ${base} matching pair collage`
+    `"${cleanTheme}" ${base} side by side square pfp`,
+    `"${cleanTheme}" ${base} two square profile pictures`,
+    `"${cleanTheme}" ${base} matching pfp collage`,
+    `"${cleanTheme}" ${base} matching pfp pair`
   ]);
 }
 
@@ -212,29 +204,41 @@ export async function searchMetadinhaImages(theme = 'anime', type = 'random') {
           for (const url of urls) {
             if (candidateSeen.has(url)) continue;
             candidateSeen.add(url);
-            candidates.push({ url, source: source.name, query });
 
-            if (candidates.length >= 180) break;
+            const candidate = {
+              url,
+              pageUrl: '',
+              title: '',
+              source: source.name,
+              query
+            };
+
+            if (candidateMatchesTheme(candidate, theme)) {
+              candidates.push(candidate);
+            }
+
+            if (candidates.length >= 220) break;
           }
         } catch {}
 
-        if (candidates.length >= 180) break;
+        if (candidates.length >= 220) break;
       }
 
-      if (candidates.length >= 180) break;
+      if (candidates.length >= 220) break;
     }
 
-    if (candidates.length >= 180) break;
+    if (candidates.length >= 220) break;
   }
 
+  // Primeiro tentamos somente resultados fortemente relacionados ao tema.
+  // Só aceitamos uma imagem cujo próprio arquivo contenha os dois PFPs.
   for (const candidate of candidates) {
     try {
       const image = await downloadImage(candidate.url);
       const pair = await splitMatchingPair(image);
-
       if (pair) return pair;
     } catch {}
   }
 
-  throw new Error('Não encontrei um par de metadinhas compatível com esse tema. Tente novamente.');
+  throw new Error('Não encontrei um par de metadinhas compatível com esse tema. Tente outro tema.');
 }
