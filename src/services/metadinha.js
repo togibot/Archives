@@ -1,18 +1,8 @@
 const SEARCH_SOURCES = [
   {
     name: 'Bing Images',
-    buildUrl: (query) => `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2&adlt=strict&first=1`,
-    parse: (html) => extractMarkedUrls(decodeHtml(html), '"murl":"')
-  },
-  {
-    name: 'Bing Images — página 2',
-    buildUrl: (query) => `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2&adlt=strict&first=36`,
-    parse: (html) => extractMarkedUrls(decodeHtml(html), '"murl":"')
-  },
-  {
-    name: 'Bing Images — página 3',
-    buildUrl: (query) => `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2&adlt=strict&first=72`,
-    parse: (html) => extractMarkedUrls(decodeHtml(html), '"murl":"')
+    buildUrl: (query) => `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2&adlt=strict`,
+    marker: '"murl":"'
   }
 ];
 
@@ -341,7 +331,7 @@ export async function searchMetadinhaImages(theme = 'anime', type = 'random') {
     for (const query of queries) {
       try {
         const html = await fetchText(source.buildUrl(query));
-        const urls = source.parse ? source.parse(html) : extractImageUrls(html);
+        const urls = extractMarkedUrls(decodeHtml(html), source.marker);
         for (const url of urls) {
           candidates.push({ url, source: source.name, query });
         }
