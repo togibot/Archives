@@ -1,82 +1,37 @@
-const DEFAULT_PAGE_SIZE = 40;
-const CACHE_TTL = 24 * 60 * 60 * 1000;
-const cache = new Map();
+const SOURCES = [
+  'https://www.pexels.com/search/{query}/',
+  'https://unsplash.com/s/photos/{query}'
+];
 
-function normalizeQuery(query) {
-  return String(query || 'anime').trim().replace(/\s+/g, ' ').slice(0, 80) || 'anime';
+function normalize(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 60);
 }
 
-function buildQueries(query) {
-  const q = normalizeQuery(query);
+const STYLE_QUERIES = {
+  mm: ['two boys matching pfp', 'male friends matching profile pictures'],
+  ff: ['two girls matching pfp', 'female friends matching profile pictures'],
+  mf: ['boy girl matching pfp', 'boy and girl matching profile pictures']
+};
+
+export function buildMetadinhaQueries(theme = 'anime', type = 'random') {
+  const cleanTheme = normalize(theme) || 'anime';
+  const queries = STYLE_QUERIES[type] || [
+    'matching profile pictures'
+  ];
+
+  return queries.map(q => `${cleanTheme} ${q}`);
+}
+
+export function getMetadinhaOptions() {
   return [
-    `matching profile pictures ${q}`,
-    `matching pfp ${q}`,
-    `best friends profile pictures ${q}`
+    { key: 'mm', label: '👦 + 👦 Menino + Menino' },
+    { key: 'ff', label: '👧 + 👧 Menina + Menina' },
+    { key: 'mf', label: '👦 + 👧 Menino + Menina' },
+    { key: 'random', label: '🎲 Aleatório' }
   ];
 }
 
-async function pexelsSearch(query, apiKey) {
-  const url = new URL('https://api.pexels.com/v1/search');
-  url.searchParams.set('query', query);
-  url.searchParams.set('per_page', String(DEFAULT_PAGE_SIZE));
-  url.searchParams.set('orientation', 'square');
-  url.searchParams.set('locale', 'pt-BR');
-
-  const response = await fetch(url, {
-    headers: { Authorization: apiKey }
-  });
-
-  if (!response.ok) {
-    if (response.status === 401) throw new Error('A chave da Pexels é inválida.');
-    if (response.status === 429) throw new Error('A API de imagens atingiu o limite de requisições.');
-    throw new Error(`Pexels respondeu com HTTP ${response.status}.`);
-  }
-
-  return response.json();
-}
-
-function pickPair(photos) {
-  if (!Array.isArray(photos) || photos.length < 2) return null;
-
-  const usable = photos.filter(photo =>
-    photo?.src?.medium &&
-    photo?.src?.small &&
-    photo?.photographer &&
-    photo?.url
-  );
-
-  if (usable.length < 2) return null;
-
-  const first = usable[Math.floor(Math.random() * usable.length)];
-  const rest = usable.filter(photo => photo.id !== first.id);
-  const second = rest[Math.floor(Math.random() * rest.length)];
-
-  return { first, second };
-}
-
-export async function searchMatchingPair(query, apiKey = process.env.PEXELS_API_KEY) {
-  if (!apiKey) {
-    throw new Error('PEXELS_API_KEY não configurada no .env.');
-  }
-
-  const key = normalizeQuery(query).toLowerCase();
-  const cached = cache.get(key);
-
-  if (cached && cached.expiresAt > Date.now()) {
-    return pickPair(cached.photos);
-  }
-
-  const queries = buildQueries(query);
-  let photos = [];
-
-  for (const searchQuery of queries) {
-    const data = await pexelsSearch(searchQuery, apiKey);
-    photos.push(...(data.photos || []));
-    if (photos.length >= 12) break;
-  }
-
-  const unique = [...new Map(photos.map(photo => [photo.id, photo])).values()];
-  cache.set(key, { photos: unique, expiresAt: Date.now() + CACHE_TTL });
-
-  return pickPair(unique);
+// A busca externa fica isolada aqui para podermos trocar a fonte sem alterar o comando.
+export function getPublicSearchSources() {
+  return SOURCES;
 }
