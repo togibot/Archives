@@ -1,11 +1,11 @@
-import { buildMetadinhaQueries, getMetadinhaOptions } from '../services/metadinha.js';
+import { getMetadinhaOptions, searchMetadinhaImages } from '../services/metadinha.js';
 
 export default {
   name: 'metadinha',
   aliases: ['matchingpfp'],
   category: 'fun',
-  description: 'Pesquisa metadinhas por tema e combinação.',
-  async execute({ reply, args }) {
+  description: 'Pesquisa e envia duas metadinhas por tema e combinação.',
+  async execute({ sock, chat, message, reply, args }) {
     const input = args?.join(' ').trim() || 'anime';
 
     if (['ajuda', 'help', 'opcoes', 'opções'].includes(input.toLowerCase())) {
@@ -26,7 +26,7 @@ Exemplos:
 *.metadinha mf cute*
 *.metadinha random friends*
 
-💜 O sistema vai pesquisar pares de fotos de perfil combinando.`);
+💜 O Togi baixa e envia as duas imagens automaticamente.`);
     }
 
     const [rawType, ...themeParts] = input.split(' ');
@@ -34,17 +34,31 @@ Exemplos:
       ? rawType.toLowerCase()
       : 'random';
 
-    const theme = type === 'random' && rawType === input ? input : (themeParts.join(' ') || (type === 'random' ? input : 'anime'));
-    const queries = buildMetadinhaQueries(theme, type);
+    const theme = type === 'random' && rawType === input
+      ? input
+      : (themeParts.join(' ') || (type === 'random' ? input : 'anime'));
 
-    return reply(`🖼️ *METADINHA*
+    try {
+      await reply('🖼️ *Procurando uma metadinha...*\n🔎 Buscando duas imagens compatíveis...');
 
-🎯 Tipo: *${getMetadinhaOptions().find(x => x.key === type)?.label || 'Aleatório'}*
-🎨 Tema: *${theme}*
+      const images = await searchMetadinhaImages(theme, type);
+      const option = getMetadinhaOptions().find(x => x.key === type)?.label || '🎲 Aleatório';
 
-🔎 Vou pesquisar por:
-• ${queries.join('\n• ')}
+      await sock.sendMessage(chat, {
+        image: images[0].buffer,
+        mimetype: images[0].mimeType,
+        caption: `🖼️ *METADINHA — 1/2*\n🎯 ${option}\n🎨 ${theme}`
+      }, { quoted: message });
 
-⚠️ O sistema de busca automática está sendo preparado para usar apenas fontes públicas compatíveis.`);
+      await sock.sendMessage(chat, {
+        image: images[1].buffer,
+        mimetype: images[1].mimeType,
+        caption: `🖼️ *METADINHA — 2/2*\n💜 Use as duas para combinar!`
+      }, { quoted: message });
+
+      return;
+    } catch (error) {
+      return reply(`❌ Não consegui buscar as duas metadinhas.\n${error?.message || 'Tente outro tema.'}`);
+    }
   }
 };
