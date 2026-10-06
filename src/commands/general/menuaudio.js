@@ -2,7 +2,7 @@ import config from '../../config.js';
 
 export default {
   name: 'menuaudio',
-  aliases: ['audio', 'menuaudio'],
+  aliases: ['audio'],
   category: 'music',
   description: 'Mostra o menu de música e efeitos de áudio.',
   async execute({ reply }) {
