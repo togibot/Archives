@@ -141,11 +141,12 @@ export async function processAudio(buffer, operation, amount = 5) {
   const config = OPERATIONS[operation];
   if (!config) throw new Error('Efeito de áudio inválido.');
 
+  let audioFilter = config.filter;
   if (operation === 'reverb') {
     const level = Math.max(1, Math.min(10, Number(amount) || 5));
     const delay = Math.round(60 + level * 32);
     const decay = (0.10 + level * 0.065).toFixed(3);
-    config.filter = `aecho=0.82:0.90:${delay}:${decay}`;
+    audioFilter = `aecho=0.82:0.90:${delay}:${decay}`;
   }
 
   const dir = await mkdtemp(join(tmpdir(), 'togi-audio-'));
@@ -156,7 +157,7 @@ export async function processAudio(buffer, operation, amount = 5) {
     await writeFile(inputPath, buffer);
 
     const args = ['-y', '-i', inputPath, '-vn'];
-    if (config.filter) args.push('-filter:a', config.filter);
+    if (audioFilter) args.push('-filter:a', audioFilter);
     args.push(
       '-ar', '44100',
       '-ac', '2',
