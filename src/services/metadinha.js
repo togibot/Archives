@@ -44,16 +44,29 @@ function extractImageUrls(html) {
   const cleanHtml = decodeHtml(html);
   const marker = '"murl":"';
   let cursor = 0;
-  while ((match = pattern.exec(cleanHtml)) !== null) {
-    let url = match[1].replace(/\\\//g, '/');
+
+  while (true) {
+    const start = cleanHtml.indexOf(marker, cursor);
+    if (start === -1) break;
+
+    const valueStart = start + marker.length;
+    const valueEnd = cleanHtml.indexOf('"', valueStart);
+    if (valueEnd === -1) break;
+
+    let url = cleanHtml.slice(valueStart, valueEnd).replaceAll('\\/', '/');
+
     try {
       url = decodeURIComponent(url);
     } catch {}
 
-    if (!/^https?:\\/\\//i.test(url)) continue;
-    if (seen.has(url)) continue;
-    seen.add(url);
-    urls.push(url);
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      if (!seen.has(url)) {
+        seen.add(url);
+        urls.push(url);
+      }
+    }
+
+    cursor = valueEnd + 1;
   }
 
   return urls;
