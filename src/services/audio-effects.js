@@ -130,12 +130,23 @@ const OPERATIONS = {
   tomp3: {
     label: 'MP3',
     filter: null
+  },
+  reverb: {
+    label: 'Reverb',
+    filter: null
   }
 };
 
-export async function processAudio(buffer, operation) {
+export async function processAudio(buffer, operation, amount = 5) {
   const config = OPERATIONS[operation];
   if (!config) throw new Error('Efeito de áudio inválido.');
+
+  if (operation === 'reverb') {
+    const level = Math.max(1, Math.min(10, Number(amount) || 5));
+    const delay = Math.round(60 + level * 32);
+    const decay = (0.10 + level * 0.065).toFixed(3);
+    config.filter = `aecho=0.82:0.90:${delay}:${decay}`;
+  }
 
   const dir = await mkdtemp(join(tmpdir(), 'togi-audio-'));
   const inputPath = join(dir, 'input');
