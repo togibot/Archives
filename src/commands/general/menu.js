@@ -26,7 +26,7 @@ export default {
 ┃ ⚔️ ${p}menubm — Battle Mode
 ┃ 👥 ${p}menugrupo — Grupos
 ┃ 🎨 ${p}menufig — Figurinhas
-┃ 🖼️ ${p}metadinha <tema> — Metadinhas
+┃ 🖼️ ${p}menuimagem — Imagens & Metadinhas
 ┃ 🎲 ${p}menudiversao — Diversão
 ┃ 🎵 ${p}menuaudio — Áudios & Música
 ┃
