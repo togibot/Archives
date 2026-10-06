@@ -1,7 +1,13 @@
 const SEARCH_SOURCES = [
   {
     name: 'Bing Images',
-    buildUrl: (query) => `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2&adlt=strict`
+    buildUrl: (query) => `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2&adlt=strict`,
+    parse: (html) => extractMarkedUrls(html, '"murl":"')
+  },
+  {
+    name: 'Google Images',
+    buildUrl: (query) => `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}&safe=active`,
+    parse: (html) => extractGoogleImageUrls(html)
   }
 ];
 
@@ -11,6 +17,49 @@ const STYLE_QUERIES = {
   mf: 'boy girl matching pfp',
   random: 'matching pfp friends'
 };
+
+function extractMarkedUrls(html, marker) {
+  const urls = [];
+  const seen = new Set();
+  let cursor = 0;
+
+  while (true) {
+    const start = html.indexOf(marker, cursor);
+    if (start === -1) break;
+    const valueStart = start + marker.length;
+    const valueEnd = html.indexOf('"', valueStart);
+    if (valueEnd === -1) break;
+
+    const url = html.slice(valueStart, valueEnd).replaceAll('\\/', '/');
+    if ((url.startsWith('http://') || url.startsWith('https://')) && !seen.has(url)) {
+      seen.add(url);
+      urls.push(url);
+    }
+    cursor = valueEnd + 1;
+  }
+  return urls;
+}
+
+function extractGoogleImageUrls(html) {
+  const urls = [];
+  const seen = new Set();
+  let cursor = 0;
+
+  while (true) {
+    const start = html.indexOf('https://', cursor);
+    if (start === -1) break;
+    const end = html.indexOf('"', start);
+    if (end === -1) break;
+
+    const url = html.slice(start, end).replaceAll('\\u003d', '=').replaceAll('\\u0026', '&');
+    if ((url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.webp')) && !seen.has(url)) {
+      seen.add(url);
+      urls.push(url);
+    }
+    cursor = end + 1;
+  }
+  return urls;
+}
 
 function normalize(value) {
   return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 60);
@@ -126,7 +175,8 @@ export async function searchMetadinhaImages(theme = 'anime', type = 'random') {
     for (const query of queries) {
       try {
         const html = await fetchText(source.buildUrl(query));
-        for (const url of extractImageUrls(html)) {
+        const urls = source.parse ? source.parse(html) : extractImageUrls(html);
+        for (const url of urls) {
           candidates.push({ url, source: source.name, query });
         }
       } catch {}
