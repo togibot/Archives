@@ -1,5 +1,3 @@
-import sharp from 'sharp';
-
 const SEARCH_SOURCES = [
   {
     name: 'Bing Images',
@@ -79,14 +77,9 @@ async function downloadImage(url) {
   if (buffer.length > 8 * 1024 * 1024) throw new Error('Imagem muito grande.');
   if (!contentType.startsWith('image/')) throw new Error('Resultado não é uma imagem.');
 
-  const metadata = await sharp(buffer).metadata();
-  if (!metadata.width || !metadata.height) throw new Error('Imagem inválida.');
-
   return {
     buffer,
     mimeType: contentType.split(';')[0] || 'image/jpeg',
-    width: metadata.width,
-    height: metadata.height,
     url
   };
 }
