@@ -134,6 +134,14 @@ const OPERATIONS = {
   reverb: {
     label: 'Reverb',
     filter: null
+  },
+  liquid: {
+    label: 'Digital Liquid',
+    filter: null
+  },
+  '8d': {
+    label: '8D Audio',
+    filter: 'apulsator=mode=sine:amount=0.9:offset_l=0:offset_r=0.5:width=1.8:timing=hz:hz=0.12'
   }
 };
 
@@ -147,6 +155,15 @@ export async function processAudio(buffer, operation, amount = 5) {
     const delay = Math.round(60 + level * 32);
     const decay = (0.10 + level * 0.065).toFixed(3);
     audioFilter = `aecho=0.82:0.90:${delay}:${decay}`;
+  }
+
+  if (operation === 'liquid') {
+    const level = Math.max(1, Math.min(10, Number(amount) || 5));
+    const chorusDepth = (0.14 + level * 0.035).toFixed(3);
+    const flangerDepth = (1.5 + level * 0.45).toFixed(2);
+    const flangerWidth = Math.round(30 + level * 5);
+    const flangerSpeed = (0.12 + level * 0.045).toFixed(3);
+    audioFilter = `chorus=0.72:0.9:55:${chorusDepth}:0.25:2,flanger=delay=8:depth=${flangerDepth}:regen=18:width=${flangerWidth}:speed=${flangerSpeed}:shape=sinusoidal:phase=55:interp=linear`;
   }
 
   const dir = await mkdtemp(join(tmpdir(), 'togi-audio-'));
