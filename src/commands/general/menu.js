@@ -1,7 +1,5 @@
 import config from '../../config.js';
 
-const line = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
-
 export default {
   name: 'menu',
   aliases: ['help', 'ajuda', 'm'],
@@ -10,46 +8,44 @@ export default {
   async execute({ reply }) {
     const p = config.bot.prefix;
 
-    return reply(`╭━━━〔 🤖 𝐓𝐎𝐆𝐈 𝐁𝐎𝐓 〕━━━╮
-┃ ✨ *MENU PRINCIPAL*
-┃ Bem-vindo ao centro de comandos!
-╰━━━━━━━━━━━━━━━━━━━━━━━━╯
+    return reply(`╭━━━〔 💜 TOGI BOT 〕━━━╮
+┃
+┃ Oii, <@USER>! :D
+┃ Seja bem-vindo(a) ao Togi!
+┃
+┃ Eu tô aqui pra deixar seu grupo
+┃ mais divertido, com jogos, economia,
+┃ eventos, música e muito mais. 💜
+┃
+┣━━〔 💜 MENU PRINCIPAL 〕
+┃
+┃ 💰 ${p}menueconomia — Economia
+┃ 🐾 ${p}menupets — Pets
+┃ 🧠 ${p}menuquiz — Quiz
+┃ 🎭 ${p}menurpg — RP & Relações
+┃ ⚔️ ${p}menubm — Battle Mode
+┃ 👥 ${p}menugrupo — Grupos
+┃ 🎨 ${p}menufig — Figurinhas
+┃ 🎲 ${p}menudiversao — Diversão
+┃ 🎵 ${p}menuaudio — Áudios & Música
+┃
+┣━━〔 ✦ OUTROS 〕
+┃
+┃ 🏆 ${p}menuranking — Rankings
+┃ 🎁 ${p}menueventos — Eventos
+┃ 🧠 ${p}menuia — Inteligência
+┃ 👑 ${p}menuvip — VIP
+┃ ⚙️ ${p}menubot — Informações
+┃
+╰━━━━━━━━━━━━━━━━━━━━╯
 
-📂 *CATEGORIAS*
+💜 *Use um dos menus acima pra começar!*
 
-🪙 ${p}menueconomia  • Economia
-🐾 ${p}menupets      • Pets
-🧠 ${p}menuquiz      • Quiz
-💞 ${p}menurpg       • RP & Relações
-⚔️ ${p}menubm        • Battle Mode
-👥 ${p}menugrupo     • Grupos
-🛡️ ${p}menuadm       • Administração
-🎨 ${p}menufig       • Figurinhas
-🎲 ${p}menudiversao  • Diversão
-🏆 ${p}menuranking   • Rankings
-🎁 ${p}menueventos   • Eventos
-🤖 ${p}menuia        • Inteligência
-👑 ${p}menuvip       • VIP
-⚙️ ${p}menubot       • Informações
-
-🆕 *NOVOS SISTEMAS*
-🎮 ${p}jogos          • Jogos e desafios
-🏠 ${p}casa           • Casa coletiva do grupo
-🎴 ${p}album          • Seu álbum de cartas
-📦 ${p}pack           • Pack com 4 cartas
-💰 ${p}vendercarta    • Vender carta repetida
-🎁 ${p}doarcarta      • Doar carta repetida
-
-💼 *ECONOMIA EXTRA*
-${p}vagas          • Ver empregos
-${p}trabalhar      • Trabalhar
-${p}afk            • Ativar AFK
-
-${line}
-🪙 Moeda: *Token*
-🔥 Togi Bot v${config.bot.version}
-👑 Criador: *LZ*
-⭐ SubDonos: *Lkz • Unc.*
-${line}`);
+╭━━〔 TOGI BOT 〕━━╮
+┃ 🪙 Moeda: *Token*
+┃ ✦ Versão: *${config.bot.version}*
+┃ 👑 Criador: *LZ*
+┃ ⭐ SubDonos: *Lkz • Unc.*
+╰━━━━━━━━━━━━━━━╯`);
   }
 };
