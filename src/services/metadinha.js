@@ -15,7 +15,7 @@ const STYLE_QUERIES = {
 };
 
 function normalize(value) {
-  return String(value || '').trim().replace(/\\s+/g, ' ').slice(0, 60);
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 60);
 }
 
 function decodeHtml(value) {
@@ -43,25 +43,20 @@ async function fetchText(url) {
 function extractImageUrls(html) {
   const urls = [];
   const seen = new Set();
+  const cleanHtml = decodeHtml(html);
+  const pattern = /"murl":"(https?:\\/\\/[^"]+)"/g;
 
-  const patterns = [
-    /&quot;murl&quot;:&quot;(https?:\\/\\/[^&]+?)&quot;/g,
-    /"murl":"(https?:\\/\\/[^"]+?)"/g
-  ];
+  let match;
+  while ((match = pattern.exec(cleanHtml)) !== null) {
+    let url = match[1].replace(/\\\//g, '/');
+    try {
+      url = decodeURIComponent(url);
+    } catch {}
 
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(html)) !== null) {
-      let url = decodeHtml(match[1]).replace(/\\\\\\//g, '/').replace(/\\\//g, '/');
-      try {
-        url = decodeURIComponent(url);
-      } catch {}
-
-      if (!/^https?:\\/\\//i.test(url)) continue;
-      if (seen.has(url)) continue;
-      seen.add(url);
-      urls.push(url);
-    }
+    if (!/^https?:\\/\\//i.test(url)) continue;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
   }
 
   return urls;
