@@ -1,34 +1,50 @@
-import { searchMatchingPair } from '../services/metadinha.js';
+import { buildMetadinhaQueries, getMetadinhaOptions } from '../services/metadinha.js';
 
 export default {
   name: 'metadinha',
-  aliases: ['metadinhaa', 'matchingpfp'],
+  aliases: ['matchingpfp'],
   category: 'fun',
-  description: 'Pesquisa duas fotos de perfil combinando.',
-  async execute({ sock, chat, message, reply, args }) {
-    const query = args?.join(' ').trim() || 'anime';
+  description: 'Pesquisa metadinhas por tema e combinação.',
+  async execute({ reply, args }) {
+    const input = args?.join(' ').trim() || 'anime';
 
-    try {
-      await reply(`🖼️ Procurando uma metadinha de *${query}*...`);
+    if (['ajuda', 'help', 'opcoes', 'opções'].includes(input.toLowerCase())) {
+      return reply(`🖼️ *METADINHAS*
 
-      const pair = await searchMatchingPair(query);
-      if (!pair) {
-        return reply('❌ Não encontrei uma dupla de imagens para esse tema.');
-      }
+Use:
+*.metadinha <tipo> <tema>*
 
-      await sock.sendMessage(chat, {
-        image: { url: pair.first.src.medium },
-        caption: `💜 *METADINHA 1/2*\nTema: *${query}*\n\n📸 ${pair.first.photographer} — Pexels\n🔗 ${pair.first.url}`
-      }, { quoted: message });
+Tipos:
+👦👦 *mm* — Menino + Menino
+👧👧 *ff* — Menina + Menina
+👦👧 *mf* — Menino + Menina
+🎲 *random* — Aleatório
 
-      await sock.sendMessage(chat, {
-        image: { url: pair.second.src.medium },
-        caption: `💜 *METADINHA 2/2*\nTema: *${query}*\n\n📸 ${pair.second.photographer} — Pexels\n🔗 ${pair.second.url}`
-      }, { quoted: message });
+Exemplos:
+*.metadinha mm anime*
+*.metadinha ff dark*
+*.metadinha mf cute*
+*.metadinha random friends*
 
-      return reply('✨ Pronto! Agora é só usar as duas como foto de perfil.');
-    } catch (error) {
-      return reply(`❌ Não consegui pesquisar metadinhas.\n${error?.message || 'Erro desconhecido'}`);
+💜 O sistema vai pesquisar pares de fotos de perfil combinando.`);
     }
+
+    const [rawType, ...themeParts] = input.split(' ');
+    const type = ['mm', 'ff', 'mf', 'random'].includes(rawType.toLowerCase())
+      ? rawType.toLowerCase()
+      : 'random';
+
+    const theme = type === 'random' && rawType === input ? input : (themeParts.join(' ') || (type === 'random' ? input : 'anime'));
+    const queries = buildMetadinhaQueries(theme, type);
+
+    return reply(`🖼️ *METADINHA*
+
+🎯 Tipo: *${getMetadinhaOptions().find(x => x.key === type)?.label || 'Aleatório'}*
+🎨 Tema: *${theme}*
+
+🔎 Vou pesquisar por:
+• ${queries.join('\n• ')}
+
+⚠️ O sistema de busca automática está sendo preparado para usar apenas fontes públicas compatíveis.`);
   }
 };
