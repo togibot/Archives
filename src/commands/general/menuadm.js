@@ -19,7 +19,8 @@ export default {
       '👥 *COMMUNITY MANAGER*\n' +
       '┃ 👋 .setbv <mensagem> — mensagem de boas-vindas\n' +
       '┃ 👋 .setd <mensagem> — mensagem de despedida\n' +
-      '┃ 📜 .regras — regras do grupo\n' +
+      '┃ 📜 .setregras <texto> — configura as regras\n' +
+      '┃ 📜 .regras — mostra as regras do grupo\n' +
       '┃ ⏰ .horariogp 22:00 07:00 — fecha/abre diariamente\n' +
       '┃ 🔒 .fechar — fecha o grupo\n' +
       '┃ 🔓 .abrir — abre o grupo\n\n' +
