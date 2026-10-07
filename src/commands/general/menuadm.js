@@ -34,7 +34,7 @@ export default {
       '┃ ⏰ .horariogp 22:00 07:00 — fecha/abre diariamente\n' +
       '┃ 🔒 .fechar — fecha o grupo\n' +
       '┃ 🔓 .abrir — abre o grupo\n\n' +
-            '🛡️ *PROTEÇÕES*\n' +
+      '🛡️ *PROTEÇÕES*\n' +
       '┃ 🚫 .antipalavrao — liga/desliga\n' +
       '┃ 📝 .antipalavras palavra1, palavra2 — filtro personalizado\n' +
       '┃ 🛡️ .sds — Sistema de Defesa e Segurança\n
