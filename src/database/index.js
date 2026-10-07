@@ -36,7 +36,15 @@ CREATE TABLE IF NOT EXISTS groups (
   profanity_words TEXT NOT NULL DEFAULT '[]',
   warn_limit INTEGER NOT NULL DEFAULT 3,
   warn_timeout_ms INTEGER NOT NULL DEFAULT 0,
-  soadm_only INTEGER NOT NULL DEFAULT 0
+  soadm_only INTEGER NOT NULL DEFAULT 0,
+  welcome_enabled INTEGER NOT NULL DEFAULT 1,
+  welcome_message TEXT NOT NULL DEFAULT '',
+  goodbye_enabled INTEGER NOT NULL DEFAULT 1,
+  goodbye_message TEXT NOT NULL DEFAULT '',
+  schedule_enabled INTEGER NOT NULL DEFAULT 0,
+  close_time TEXT NOT NULL DEFAULT '22:00',
+  open_time TEXT NOT NULL DEFAULT '07:00',
+  schedule_last_action TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS inventory (jid TEXT NOT NULL,item_id TEXT NOT NULL,quantity INTEGER NOT NULL DEFAULT 0,PRIMARY KEY (jid,item_id));
 CREATE TABLE IF NOT EXISTS pets (id INTEGER PRIMARY KEY AUTOINCREMENT,owner_jid TEXT NOT NULL,name TEXT NOT NULL,species TEXT NOT NULL,health INTEGER NOT NULL DEFAULT 100,hunger INTEGER NOT NULL DEFAULT 100,thirst INTEGER NOT NULL DEFAULT 100,happiness INTEGER NOT NULL DEFAULT 100,last_needs_update INTEGER NOT NULL DEFAULT 0,walk_count INTEGER NOT NULL DEFAULT 0,walk_date TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'vivo',created_at INTEGER NOT NULL);
@@ -51,7 +59,7 @@ CREATE TABLE IF NOT EXISTS togi_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,actor
 CREATE TABLE IF NOT EXISTS group_mutes (group_jid TEXT NOT NULL,user_jid TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(group_jid,user_jid));
 `);
 
-for (const sql of ['ALTER TABLE users ADD COLUMN job TEXT','ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1',"ALTER TABLE users ADD COLUMN sticker_nick TEXT NOT NULL DEFAULT ''","ALTER TABLE users ADD COLUMN steal_count INTEGER NOT NULL DEFAULT 0","ALTER TABLE users ADD COLUMN steal_window_start INTEGER NOT NULL DEFAULT 0",'ALTER TABLE groups ADD COLUMN anti_profanity INTEGER NOT NULL DEFAULT 0',"ALTER TABLE groups ADD COLUMN profanity_words TEXT NOT NULL DEFAULT '[]'","ALTER TABLE groups ADD COLUMN warn_limit INTEGER NOT NULL DEFAULT 3","ALTER TABLE groups ADD COLUMN warn_timeout_ms INTEGER NOT NULL DEFAULT 0","ALTER TABLE groups ADD COLUMN soadm_only INTEGER NOT NULL DEFAULT 0",'ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100','ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0','ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0',"ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''","ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'"]) {
+for (const sql of ['ALTER TABLE users ADD COLUMN job TEXT','ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1',"ALTER TABLE users ADD COLUMN sticker_nick TEXT NOT NULL DEFAULT ''","ALTER TABLE users ADD COLUMN steal_count INTEGER NOT NULL DEFAULT 0","ALTER TABLE users ADD COLUMN steal_window_start INTEGER NOT NULL DEFAULT 0",'ALTER TABLE groups ADD COLUMN anti_profanity INTEGER NOT NULL DEFAULT 0',"ALTER TABLE groups ADD COLUMN profanity_words TEXT NOT NULL DEFAULT '[]'","ALTER TABLE groups ADD COLUMN warn_limit INTEGER NOT NULL DEFAULT 3","ALTER TABLE groups ADD COLUMN warn_timeout_ms INTEGER NOT NULL DEFAULT 0","ALTER TABLE groups ADD COLUMN soadm_only INTEGER NOT NULL DEFAULT 0",'ALTER TABLE groups ADD COLUMN welcome_enabled INTEGER NOT NULL DEFAULT 1','ALTER TABLE groups ADD COLUMN welcome_message TEXT NOT NULL DEFAULT \'\'','ALTER TABLE groups ADD COLUMN goodbye_enabled INTEGER NOT NULL DEFAULT 1','ALTER TABLE groups ADD COLUMN goodbye_message TEXT NOT NULL DEFAULT \'\'','ALTER TABLE groups ADD COLUMN schedule_enabled INTEGER NOT NULL DEFAULT 0','ALTER TABLE groups ADD COLUMN close_time TEXT NOT NULL DEFAULT \'22:00\'','ALTER TABLE groups ADD COLUMN open_time TEXT NOT NULL DEFAULT \'07:00\'','ALTER TABLE groups ADD COLUMN schedule_last_action TEXT NOT NULL DEFAULT \'\'','ALTER TABLE group_mutes ADD COLUMN expires_at INTEGER NOT NULL DEFAULT 0','ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100','ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0','ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0',"ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''","ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'"]) {
   try { db.exec(sql); } catch (error) { if (!String(error?.message || '').includes('duplicate column name')) throw error; }
 }
 
@@ -142,15 +150,17 @@ export function addTokens(jid,amount){db.prepare('UPDATE users SET tokens=MAX(0,
 export function spendTokens(jid,amount){const cost=Math.max(0,Math.trunc(amount));const result=db.prepare('UPDATE users SET tokens=tokens-? WHERE jid=? AND tokens>=?').run(cost,jid,cost);return result.changes>0;}
 export function getGroup(jid){return db.prepare('SELECT * FROM groups WHERE jid=?').get(jid);}
 export function ensureGroup(jid,subject=''){db.prepare('INSERT INTO groups (jid,subject) VALUES (?,?) ON CONFLICT(jid) DO UPDATE SET subject=excluded.subject').run(jid,subject);return getGroup(jid);}
-export function updateGroup(jid,patch){const allowed=new Set(['subject','antilink','antiflood','anti_profanity','profanity_words','warn_limit','warn_timeout_ms','soadm_only']);const keys=Object.keys(patch).filter(k=>allowed.has(k));if(!keys.length)return getGroup(jid);const set=keys.map(k=>`${k}=@${k}`).join(', ');db.prepare(`UPDATE groups SET ${set} WHERE jid=@jid`).run({...patch,jid});return getGroup(jid);}
+export function updateGroup(jid,patch){const allowed=new Set(['subject','antilink','antiflood','anti_profanity','profanity_words','warn_limit','warn_timeout_ms','soadm_only','welcome_enabled','welcome_message','goodbye_enabled','goodbye_message','schedule_enabled','close_time','open_time','schedule_last_action']);const keys=Object.keys(patch).filter(k=>allowed.has(k));if(!keys.length)return getGroup(jid);const set=keys.map(k=>`${k}=@${k}`).join(', ');db.prepare(`UPDATE groups SET ${set} WHERE jid=@jid`).run({...patch,jid});return getGroup(jid);}
 export function getWarningConfig(groupJid){const group=ensureGroup(groupJid);return{limit:Math.max(1,Number(group.warn_limit||3)),timeoutMs:Math.max(0,Number(group.warn_timeout_ms||0))};}
 export function setWarningConfig(groupJid,limit){const value=Math.max(1,Math.min(20,Math.trunc(Number(limit))));ensureGroup(groupJid);updateGroup(groupJid,{warn_limit:value});return getWarningConfig(groupJid);}
 export function setWarningTimeout(groupJid,timeoutMs){const value=Math.max(0,Math.min(365*24*60*60*1000,Math.trunc(Number(timeoutMs))));ensureGroup(groupJid);updateGroup(groupJid,{warn_timeout_ms:value});return getWarningConfig(groupJid);}
 export function isSoAdmEnabled(groupJid){return Boolean(Number(ensureGroup(groupJid).soadm_only||0));}
 export function setSoAdm(groupJid,enabled){ensureGroup(groupJid);updateGroup(groupJid,{soadm_only:enabled?1:0});return isSoAdmEnabled(groupJid);}
-export function setGroupMute(groupJid,userJid){db.prepare('INSERT OR IGNORE INTO group_mutes(group_jid,user_jid,created_at) VALUES(?,?,?)').run(groupJid,userJid,Date.now());return true;}
-export function isGroupMuted(groupJid,userJid){return Boolean(db.prepare('SELECT 1 FROM group_mutes WHERE group_jid=? AND user_jid=?').get(groupJid,userJid));}
+export function setGroupMute(groupJid,userJid,expiresAt=0){const value=Math.max(0,Math.trunc(Number(expiresAt)||0));db.prepare('INSERT INTO group_mutes(group_jid,user_jid,created_at,expires_at) VALUES(?,?,?,?) ON CONFLICT(group_jid,user_jid) DO UPDATE SET created_at=excluded.created_at,expires_at=excluded.expires_at').run(groupJid,userJid,Date.now(),value);return true;}
+export function getGroupMute(groupJid,userJid){const row=db.prepare('SELECT * FROM group_mutes WHERE group_jid=? AND user_jid=?').get(groupJid,userJid);if(!row)return null;if(Number(row.expires_at||0)>0&&Number(row.expires_at)<=Date.now()){db.prepare('DELETE FROM group_mutes WHERE group_jid=? AND user_jid=?').run(groupJid,userJid);return null;}return row;}
+export function isGroupMuted(groupJid,userJid){return Boolean(getGroupMute(groupJid,userJid));}
 export function removeGroupMute(groupJid,userJid){return db.prepare('DELETE FROM group_mutes WHERE group_jid=? AND user_jid=?').run(groupJid,userJid).changes>0;}
+export function clearExpiredMutes(){return db.prepare('DELETE FROM group_mutes WHERE expires_at>0 AND expires_at<=?').run(Date.now()).changes;}
 export function getInventory(jid){return db.prepare('SELECT * FROM inventory WHERE jid=? AND quantity>0').all(jid);}
 export function getItemQuantity(jid,itemId){return db.prepare('SELECT quantity FROM inventory WHERE jid=? AND item_id=?').get(jid,itemId)?.quantity||0;}
 export function addItem(jid,itemId,quantity){db.prepare('INSERT INTO inventory (jid,item_id,quantity) VALUES (?,?,?) ON CONFLICT(jid,item_id) DO UPDATE SET quantity=quantity+excluded.quantity').run(jid,itemId,quantity);db.prepare('DELETE FROM inventory WHERE jid=? AND quantity<=0').run(jid);return getItemQuantity(jid,itemId);}
