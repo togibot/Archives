@@ -26,6 +26,7 @@ export default {
 ┃ 🎵 ${p}speedmusic — Acelerar preservando o pitch
 ┃ 🐌 ${p}slowmusic — Deixar lento preservando o pitch
 ┃ 🌌 ${p}reverb <1-10> — Aplicar reverb com intensidade
+┃ ✨ ${p}ultrareverb — Ultra Reverb inteligente
 ┃ 💧 ${p}liquid <1-10> — Efeito Digital Liquid
 ┃ 🎧 ${p}8d — Efeito de áudio 8D
 ┃
