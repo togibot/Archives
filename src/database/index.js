@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS house_contributions (group_jid TEXT NOT NULL,user_jid
 CREATE TABLE IF NOT EXISTS user_cards (jid TEXT NOT NULL,card_id TEXT NOT NULL,quantity INTEGER NOT NULL DEFAULT 0,PRIMARY KEY (jid,card_id));
 CREATE TABLE IF NOT EXISTS game_stats (jid TEXT PRIMARY KEY,played INTEGER NOT NULL DEFAULT 0,wins INTEGER NOT NULL DEFAULT 0,best_score INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS togi_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,actor_jid TEXT NOT NULL,actor_name TEXT NOT NULL,target_jid TEXT NOT NULL,target_name TEXT NOT NULL,group_jid TEXT,group_name TEXT NOT NULL,action TEXT NOT NULL,amount INTEGER NOT NULL,created_at INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS group_mutes (group_jid TEXT NOT NULL,user_jid TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(group_jid,user_jid));
+CREATE TABLE IF NOT EXISTS group_mutes (group_jid TEXT NOT NULL,user_jid TEXT NOT NULL,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(group_jid,user_jid));
 CREATE TABLE IF NOT EXISTS security_strikes (group_jid TEXT NOT NULL,user_jid TEXT NOT NULL,kind TEXT NOT NULL,count INTEGER NOT NULL DEFAULT 0,updated_at INTEGER NOT NULL,PRIMARY KEY(group_jid,user_jid,kind));
 `);
 
