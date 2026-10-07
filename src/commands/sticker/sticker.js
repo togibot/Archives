@@ -6,8 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import ffmpegPath from 'ffmpeg-static';
-import { applyStickerMetadata, getDefaultStickerName } from '../../services/stickers.js';
-import { getUser } from '../../database/index.js';
+import { applyStickerMetadata } from '../../services/stickers.js';
 
 const execFileAsync = promisify(execFile);
 const MAX_VIDEO_SECONDS = 10;
@@ -46,8 +45,14 @@ function requesterName(message) {
   return message?.pushName || message?.key?.participant?.split('@')[0] || 'Usuário';
 }
 
-function groupName(chat, message) {
-  return chat?.endsWith?.('@g.us') ? (message?.groupMetadata?.subject || 'Grupo') : 'Privado';
+async function groupName(sock, chat) {
+  if (!chat?.endsWith?.('@g.us')) return 'Privado';
+  try {
+    const metadata = await sock.groupMetadata(chat);
+    return metadata?.subject || 'Grupo';
+  } catch {
+    return 'Grupo';
+  }
 }
 
 async function videoToAnimatedWebp(input) {
@@ -129,13 +134,12 @@ export default {
       }
 
       const requester = requesterName(message);
-      const userJid = message?.key?.participant || message?.key?.remoteJid || '';
-      const name = getUser(userJid)?.sticker_nick?.trim() || getDefaultStickerName();
       const finalWebp = await applyStickerMetadata(
         webp,
-        name,
+        '',
         requester,
-        groupName(chat, message)
+        await groupName(sock, chat),
+        { mode: 'normal' }
       );
 
       await sock.sendMessage(chat, { sticker: finalWebp }, { quoted: message });
