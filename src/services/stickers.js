@@ -17,9 +17,9 @@ function buildExif(packName, requester, groupName = 'Privado', mode = 'normal') 
 
   const payload = JSON.stringify({
     'sticker-pack-id': 'com.togi.sticker',
-    'sticker-pack-name': isTake ? String(packName || '').trim() || DEFAULT_NAME : '💜 𝚃𝙾𝙶𝙸 𝙱𝙾𝚃 💜',
-    'sticker-pack-publisher': isTake ? String(packName || '').trim() || DEFAULT_NAME : normalLabel,
-    'sticker-pack-description': isTake ? '『 ' + String(packName || '').trim() + ' 』' : normalLabel,
+    'sticker-pack-name': isTake ? '『' + (String(packName || '').trim() || 'Usuário') + '』' : '💜 𝚃𝙾𝙶𝙸 𝙱𝙾𝚃 💜',
+    'sticker-pack-publisher': isTake ? '『' + (String(packName || '').trim() || 'Usuário') + '』' : normalLabel,
+    'sticker-pack-description': isTake ? '『' + (String(packName || '').trim() || 'Usuário') + '』' : normalLabel,
     'togi-exif-version': '3.0',
     emojis: ['💜', '✨']
   });
