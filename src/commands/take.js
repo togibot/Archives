@@ -44,7 +44,7 @@ export default {
       const input = await toBuffer(stream);
       const requester = message?.pushName || sender?.split('@')[0] || 'Usuário';
       const group = chat?.endsWith?.('@g.us') ? 'Grupo' : 'Privado';
-      const finalSticker = await applyStickerMetadata(input, name, requester, group);
+      const finalSticker = await applyStickerMetadata(input, name, requester, group, { mode: 'take' });
       await sock.sendMessage(chat, { sticker: finalSticker }, { quoted: message });
       // Keep the Nick persisted; this also makes the command safe if the user was created just now.
       updateUser(sender, { sticker_nick: name });
