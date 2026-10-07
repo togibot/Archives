@@ -75,7 +75,7 @@ export async function downloadAudioTarget(target) {
   return streamToBuffer(stream);
 }
 
-function runFfmpeg(args) {
+function runFfmpeg(args, capture = false) {
   if (!ffmpegPath) throw new Error('FFmpeg não está disponível no servidor.');
 
   return new Promise((resolve, reject) => {
@@ -85,11 +85,37 @@ function runFfmpeg(args) {
     child.stderr.on('data', chunk => errors.push(chunk));
     child.once('error', reject);
     child.once('close', code => {
-      if (code === 0) return resolve();
-      const detail = Buffer.concat(errors).toString().trim().slice(0, 700);
-      reject(new Error(`FFmpeg falhou (${code}).${detail ? ` ${detail}` : ''}`));
+      const detail = Buffer.concat(errors).toString().trim();
+      if (code === 0) return resolve(capture ? detail : undefined);
+      reject(new Error(`FFmpeg falhou (${code}).${detail ? ` ${detail.slice(0, 700)}` : ''}`));
     });
   });
+}
+
+async function analyzeAudio(buffer) {
+  const dir = await mkdtemp(join(tmpdir(), 'togi-analyze-'));
+  const inputPath = join(dir, 'input');
+
+  try {
+    await writeFile(inputPath, buffer);
+    const output = await runFfmpeg(
+      ['-i', inputPath, '-af', 'volumedetect', '-f', 'null', '-'],
+      true
+    );
+
+    const meanMatch = output.match(/mean_volume:\s*(-?\d+(?:\.\d+)?)\s*dB/i);
+    const maxMatch = output.match(/max_volume:\s*(-?\d+(?:\.\d+)?)\s*dB/i);
+
+    const meanDb = meanMatch ? Number(meanMatch[1]) : -18;
+    const maxDb = maxMatch ? Number(maxMatch[1]) : -3;
+
+    return {
+      meanDb: Number.isFinite(meanDb) ? meanDb : -18,
+      maxDb: Number.isFinite(maxDb) ? maxDb : -3
+    };
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 function pitchFactor(semitones) {
@@ -135,6 +161,10 @@ const OPERATIONS = {
     label: 'Reverb',
     filter: null
   },
+  ultrareverb: {
+    label: 'Ultra Reverb',
+    filter: null
+  },
   liquid: {
     label: 'Digital Liquid',
     filter: null
@@ -155,6 +185,24 @@ export async function processAudio(buffer, operation, amount = 5) {
     const delay = Math.round(60 + level * 32);
     const decay = (0.10 + level * 0.065).toFixed(3);
     audioFilter = `aecho=0.82:0.90:${delay}:${decay}`;
+  }
+
+  if (operation === 'ultrareverb') {
+    const state = await analyzeAudio(buffer);
+    const quiet = state.meanDb < -27;
+    const hot = state.maxDb > -1.2;
+
+    const inputGain = quiet ? 0.92 : 0.80;
+    const outputGain = hot ? 0.80 : 0.94;
+    const delays = quiet ? '78|156|300' : hot ? '105|210|390' : '92|184|345';
+    const decays = quiet ? '0.34|0.22|0.12' : hot ? '0.26|0.17|0.09' : '0.31|0.20|0.11';
+    const makeup = quiet ? 2 : 1;
+
+    audioFilter =
+      `highpass=28,lowpass=18500,` +
+      `acompressor=threshold=-18dB:ratio=2.4:attack=20:release=240:makeup=${makeup},` +
+      `aecho=${inputGain}:${outputGain}:${delays}:${decays},` +
+      `alimiter=limit=0.95`;
   }
 
   if (operation === 'liquid') {
