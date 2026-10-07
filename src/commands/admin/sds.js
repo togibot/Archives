@@ -35,7 +35,7 @@ export default {
       return reply('🛡️ SDS: *' + (sub === 'on' ? 'ATIVADO ✅' : 'DESATIVADO ❌') + '*');
     }
 
-    if (sub === 'palavras' || sub === 'palavras') {
+    if (sub === 'palavras') {
       const value=args.slice(1).join(' ').trim();
       if (!value) return reply('📝 Use *.sds palavras palavra1, palavra2*');
       const words=setSdsWords(chat,value.split(','));
