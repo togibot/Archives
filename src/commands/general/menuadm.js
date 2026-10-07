@@ -15,6 +15,15 @@ export default {
       '╭━━━〔 🛡️💜 𝐌𝐄𝐍𝐔 𝐀𝐃𝐌 〕━━━╮\n' +
       '┃ ⚙️ Controle e proteção do grupo\n' +
       '╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n' +
+
+      '👥 *COMMUNITY MANAGER*\n' +
+      '┃ 👋 .setbv <mensagem> — mensagem de boas-vindas\n' +
+      '┃ 👋 .setd <mensagem> — mensagem de despedida\n' +
+      '┃ 📜 .regras — regras do grupo\n' +
+      '┃ ⏰ .horariogp 22:00 07:00 — fecha/abre diariamente\n' +
+      '┃ 🔒 .fechar — fecha o grupo\n' +
+      '┃ 🔓 .abrir — abre o grupo\n\n' +
+
       '🚨 *MODERAÇÃO*\n' +
       '┃ 👢 .kick @user — remove membro\n' +
       '┃ ⚠️ .warn @user [motivo] — aplica aviso\n' +
@@ -23,24 +32,20 @@ export default {
       '┃ 🧹 .warn limpar @user — zera avisos\n' +
       '┃ 🔢 .warnconfig <quantia> — define limite de avisos\n' +
       '┃ ⏳ .warntempo <tempo> — define validade dos avisos\n' +
-      '┃ 🔇 .mute @user — apaga mensagens do membro\n' +
-      '┃ ⏱️ .castigo 10:00 — mute temporário\n
+      '┃ 🔇 .mute @user — mute permanente\n' +
+      '┃ ⏱️ .castigo 10:00 — mute temporário\n' +
       '┃ 🔊 .desmute @user — libera o membro\n' +
       '┃ 🗑️ .d — apaga mensagem respondida\n\n' +
-      '👥 *COMMUNITY MANAGER*\n' +
-      '┃ 👋 .setbv <mensagem> — mensagem de boas-vindas\n' +
-      '┃ 👋 .setd <mensagem> — mensagem de despedida\n' +
-      '┃ 📜 .regras — regras do grupo\n' +
-      '┃ ⏰ .horariogp 22:00 07:00 — fecha/abre diariamente\n' +
-      '┃ 🔒 .fechar — fecha o grupo\n' +
-      '┃ 🔓 .abrir — abre o grupo\n\n' +
+
       '🛡️ *PROTEÇÕES*\n' +
       '┃ 🚫 .antipalavrao — liga/desliga\n' +
       '┃ 📝 .antipalavras palavra1, palavra2 — filtro personalizado\n' +
-      '┃ 🛡️ .sds — Sistema de Defesa e Segurança\n
+      '┃ 🛡️ .sds — Sistema de Defesa e Segurança\n' +
       '┃ 🔗 .antilink on/off — anti-link\n\n' +
+
       '🔐 *RESTRIÇÃO DO BOT*\n' +
       '┃ 👑 .soadm — somente ADMs podem usar comandos\n\n' +
+
       '💡 Padrões: 3 avisos e sem expiração.\n' +
       '💜 As configurações valem somente para este grupo.'
     );
