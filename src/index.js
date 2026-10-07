@@ -4,7 +4,7 @@ import P from 'pino';
 import fs from 'node:fs/promises';
 import config from './config.js';
 import { loadCommands } from './core/command-loader.js';
-import { ensureUser, ensureGroup, isGroupMuted, isSoAdmEnabled } from './database/index.js';
+import { ensureUser, ensureGroup, isGroupMuted, isSoAdmEnabled, updateGroup, clearExpiredMutes } from './database/index.js';
 import { getText, getSender, getName } from './utils/message.js';
 import { askTogi, isTogiActive } from './services/togi-ai.js';
 import { getAfk, clearAfk } from './services/afk-store.js';
@@ -37,7 +37,143 @@ async function reactToCommand(sock, message, command) { const emoji = getCommand
 function getMentionedJids(message) { const context = message?.message?.extendedTextMessage?.contextInfo || message?.message?.imageMessage?.contextInfo || message?.message?.videoMessage?.contextInfo || message?.message?.documentMessage?.contextInfo; return Array.isArray(context?.mentionedJid) ? context.mentionedJid : []; }
 function formatAfkDuration(since) { const elapsedMs = Math.max(0, Date.now() - since); const minutes = Math.floor(elapsedMs / 60000); if (minutes < 1) return 'menos de 1 minuto'; if (minutes === 1) return '1 minuto'; if (minutes < 60) return `${minutes} minutos`; const hours = Math.floor(minutes / 60), remaining = minutes % 60; if (remaining === 0) return hours === 1 ? '1 hora' : `${hours} horas`; return `${hours}h ${remaining}min`; }
 function getAfkKeys({ effectiveSender, sender, pairingPhone, sock }) { const keys = [effectiveSender, sender, sock?.user?.id, pairingPhone ? `${pairingPhone}@s.whatsapp.net` : ''].filter(Boolean); return [...new Set(keys)]; }
+
 function findAfkEntry(keys) { for (const key of keys) { const entry = getAfk(key); if (entry) return { key, entry }; } return null; }
+
+function saoPauloClock() {
+  const now = new Date();
+  const date = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
+  return { date, time };
+}
+
+function replaceCommunityVariables(template, name, subject) {
+  return String(template || '')
+    .replaceAll('{nome}', name || 'Usuário')
+    .replaceAll('{grupo}', subject || 'este grupo');
+}
+
+async function fetchProfileImage(sock, jid) {
+  try {
+    if (typeof sock.profilePictureUrl !== 'function') return null;
+    const url = await sock.profilePictureUrl(jid, 'image');
+    const response = await fetch(url, {
+      headers: { 'user-agent': 'Mozilla/5.0 WhatsApp Togi Bot' },
+      redirect: 'follow'
+    });
+    if (!response.ok) return null;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return buffer.length && buffer.length <= 8 * 1024 * 1024 ? buffer : null;
+  } catch {
+    return null;
+  }
+}
+
+function defaultCommunityMessage(action, name, subject) {
+  const group = subject || 'este grupo';
+  if (action === 'add') {
+    return [
+      '╭━━━━━━〔 👋 𝙱𝙴𝙼-𝚅𝙸𝙽𝙳𝙾 〕━━━━━━╮',
+      '',
+      '💜 Olá, @' + String(name || 'Usuário').replace(/^@/, '') + '!',
+      '',
+      'Você entrou no',
+      '『 ' + group + ' 』',
+      '',
+      'É um prazer ter você aqui! 💜',
+      '',
+      '╰━━━━━━━━━━━━━━━━━━━━━━━━╯'
+    ].join('\n');
+  }
+
+  return [
+    '╭━━━━━━〔 👋 𝙰𝚃É 𝙼𝙰𝙸𝚂 〕━━━━━━╮',
+    '',
+    '👋 Até mais, @' + String(name || 'Usuário').replace(/^@/, '') + '!',
+    '',
+    'Você saiu do',
+    '『 ' + group + ' 』',
+    '',
+    'Obrigado por participar do grupo. 💜',
+    '',
+    '╰━━━━━━━━━━━━━━━━━━━━━━━━╯'
+  ].join('\n');
+}
+
+async function sendCommunityEvent(sock, update) {
+  const chat = update?.id;
+  if (!chat?.endsWith('@g.us')) return;
+  if (!['add', 'remove'].includes(update?.action)) return;
+
+  const metadata = await sock.groupMetadata(chat).catch(() => null);
+  const subject = metadata?.subject || chat;
+  const group = ensureGroup(chat, subject);
+
+  const enabledKey = update.action === 'add' ? 'welcome_enabled' : 'goodbye_enabled';
+  const messageKey = update.action === 'add' ? 'welcome_message' : 'goodbye_message';
+  if (Number(group?.[enabledKey] ?? 1) === 0) return;
+
+  for (const jid of update.participants || []) {
+    const display = String(jid || '').split('@')[0].split(':')[0];
+    const custom = String(group?.[messageKey] || '').trim();
+    const base = defaultCommunityMessage(update.action, display, subject);
+    const extra = custom
+      ? '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n📝 *Mensagem do ADM:*\n' +
+        replaceCommunityVariables(custom, display, subject)
+      : '';
+
+    const text = base + extra;
+    const image = await fetchProfileImage(sock, jid);
+
+    try {
+      const payload = image
+        ? { image, mimetype: 'image/jpeg', caption: text, mentions: [jid] }
+        : { text, mentions: [jid] };
+      await sock.sendMessage(chat, payload);
+    } catch (error) {
+      console.log('⚠️ Falha no Community Manager:', error?.message || 'erro desconhecido');
+    }
+  }
+}
+
+async function processGroupSchedules(sock) {
+  try {
+    const groups = await sock.groupFetchAllParticipating();
+    const clock = saoPauloClock();
+
+    for (const group of Object.values(groups || {})) {
+      const chat = group?.id || group?.jid;
+      if (!String(chat).endsWith('@g.us')) continue;
+
+      const settings = ensureGroup(chat, group?.subject || '');
+      if (Number(settings?.schedule_enabled || 0) !== 1) continue;
+
+      const last = String(settings?.schedule_last_action || '');
+      if (clock.time === settings.close_time && last !== clock.date + '|close') {
+        try {
+          await sock.groupSettingUpdate(chat, 'announcement');
+          updateGroup(chat, { schedule_last_action: clock.date + '|close' });
+          console.log('🔒 Horário automático: grupo fechado', chat);
+        } catch (error) {
+          console.log('⚠️ Não consegui fechar automaticamente ' + chat + ':', error?.message || 'erro desconhecido');
+        }
+      } else if (clock.time === settings.open_time && last !== clock.date + '|open') {
+        try {
+          await sock.groupSettingUpdate(chat, 'not_announcement');
+          updateGroup(chat, { schedule_last_action: clock.date + '|open' });
+          console.log('🔓 Horário automático: grupo aberto', chat);
+        } catch (error) {
+          console.log('⚠️ Não consegui abrir automaticamente ' + chat + ':', error?.message || 'erro desconhecido');
+        }
+      }
+    }
+  } catch (error) {
+    console.log('⚠️ Falha no agendador de grupos:', error?.message || 'erro desconhecido');
+  } finally {
+    try { clearExpiredMutes(); } catch {}
+  }
+}
+
 async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, autoDisable = true) { if (autoDisable && !isSelfMessage(message, sock, pairingPhone)) { const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock })); if (ownAfk) { clearAfk(ownAfk.key); await reply(`👋 @${effectiveSender.split('@')[0]} saiu do AFK!\n⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.entry.since)}\n📝 Motivo: ${ownAfk.entry.reason}`, { mentions: [effectiveSender] }); } } if (!isGroup) return; const mentioned = [...new Set(getMentionedJids(message))]; if (!mentioned.length) return; const notices = [], mentions = []; for (const jid of mentioned) { const entry = getAfk(jid); if (!entry) continue; notices.push(`💤 @${jid.split('@')[0]} está AFK.\n📝 Motivo: ${entry.reason}\n⏱️ Ausente há ${formatAfkDuration(entry.since)}`); mentions.push(jid); } if (notices.length) await reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n${notices.join('\n\n')}\n╰━━━━━━━━━━━━━━━━━━╯`, { mentions }); }
 
 async function startBot() {
@@ -47,6 +183,8 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(config.connection.authDir);
   const { version } = await fetchLatestBaileysVersion();
   const messageCache = new Map();
+  const mutedFloodState = new Map();
+  let scheduleTimer = null;
   const sock = makeWASocket({ version, auth: state, logger, printQRInTerminal: false, browser: Browsers.ubuntu('Chrome'), markOnlineOnConnect: false, emitOwnEvents: false, syncFullHistory: false, shouldSyncHistoryMessage: () => false, getMessage: async key => messageCache.get(key.id)?.message || undefined });
   sock.ev.on('creds.update', saveCreds);
   const pairingPhone = normalizePhone(config.connection.pairingPhone);
@@ -54,10 +192,12 @@ async function startBot() {
   logInfo(`🚀 ${config.bot.name} iniciando`, [`📦 ${commands.size} comandos carregados`, `🗃️ Banco: ${process.env.DATABASE_PATH || './data/togi.sqlite'}`, '🛡️ Anti-palavrão: DESATIVADO']);
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (!state.creds.registered && pairingPhone && !pairingRequested && qr) { pairingRequested = true; try { const code = await sock.requestPairingCode(pairingPhone); logInfo('🔐 TOGI BOT — PAIRING CODE', [`📱 Número: +${pairingPhone}`, `🔑 Código: ${code}`, '💡 No WhatsApp, abra Dispositivos conectados e use a opção de conectar por código.']); } catch (error) { pairingRequested = false; logError('❌ FALHA AO GERAR PAIRING CODE', [`💥 ${error?.message || 'Erro desconhecido'}`]); } }
-    if (connection === 'open') { restarting = false; logInfo('🟢 TOGI CONECTADO', [`🤖 ${config.bot.name}`, `📦 ${commands.size} comandos disponíveis`]); }
+    if (connection === 'open') { restarting = false; logInfo('🟢 TOGI CONECTADO', [`🤖 ${config.bot.name}`, `📦 ${commands.size} comandos disponíveis`]); if (!scheduleTimer) { scheduleTimer = setInterval(() => processGroupSchedules(sock), 30000); scheduleTimer.unref?.(); processGroupSchedules(sock).catch(() => {}); } }
+    if (connection === 'close') { if (scheduleTimer) { clearInterval(scheduleTimer); scheduleTimer = null; } const statusCode = lastDisconnect?.error?.output?.statusCode; const shouldReconnect = statusCode !== DisconnectReason.loggedOut; logError('🔌 CONEXÃO ENCERRADA', [`📡 Código: ${statusCode ?? 'desconhecido'}`, `🔁 Reconectar: ${shouldReconnect ? 'SIM' : 'NÃO'}`]); if (shouldReconnect && !restarting) { restarting = true; setTimeout(() => startBot().catch(error => { restarting = false; logError('❌ FALHA AO REINICIAR O TOGI', [`💥 ${error?.message || 'Erro desconhecido'}`]); }), 3000); } }
     if (connection === 'close') { const statusCode = lastDisconnect?.error?.output?.statusCode; const shouldReconnect = statusCode !== DisconnectReason.loggedOut; logError('🔌 CONEXÃO ENCERRADA', [`📡 Código: ${statusCode ?? 'desconhecido'}`, `🔁 Reconectar: ${shouldReconnect ? 'SIM' : 'NÃO'}`]); if (shouldReconnect && !restarting) { restarting = true; setTimeout(() => startBot().catch(error => { restarting = false; logError('❌ FALHA AO REINICIAR O TOGI', [`💥 ${error?.message || 'Erro desconhecido'}`]); }), 3000); } }
   });
   if (!state.creds.registered && !pairingPhone) console.log('⚠️ PAIRING_PHONE não configurado.'); else if (state.creds.registered) console.log('🔑 Sessão existente encontrada.');
+  sock.ev.on('group-participants.update', async update => { try { await sendCommunityEvent(sock, update); } catch (error) { console.log('⚠️ Erro no Community Manager:', error?.message || 'erro desconhecido'); } });
   sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const message of messages || []) {
       if (!message?.message) continue;
@@ -70,7 +210,7 @@ async function startBot() {
       const reply = async (content, options = {}) => { const payload = { text: String(content), ...options }; try { if (message.key.fromMe) return await withTimeout(sock.sendMessage(chat, payload), 30000, 'Envio da mensagem'); return await withTimeout(sock.sendMessage(chat, payload, { quoted: message }), 30000, 'Envio da mensagem'); } catch (error) { logError('❌ FALHA AO ENVIAR RESPOSTA', [`👥 Grupo: ${displayChat(chat, isGroup)}`, `💥 ${error?.message || 'Erro desconhecido'}`]); return null; } };
       let parsedCommandName = ''; if (text.startsWith(config.bot.prefix)) { const body = text.slice(config.bot.prefix.length).trim(); parsedCommandName = body.split(/\s+/)[0]?.toLowerCase() || ''; }
       const isAfkToggle = parsedCommandName === 'afk' || parsedCommandName === 'ausente';
-      if (isGroup && isGroupMuted(chat, effectiveSender)) { try { await sock.sendMessage(chat, { delete: message.key }); } catch (error) { logger.debug({ err: error }, 'Não foi possível apagar mensagem de usuário mutado.'); } continue; }
+      if (isGroup && isGroupMuted(chat, effectiveSender)) { try { await sock.sendMessage(chat, { delete: message.key }); } catch (error) { logger.debug({ err: error }, 'Não foi possível apagar mensagem de usuário mutado.'); } const now = Date.now(); const key = chat + '::' + effectiveSender; const previous = mutedFloodState.get(key) || { lastNotice: 0, attempts: 0 }; previous.attempts += 1; if (now - previous.lastNotice >= 15000) { previous.lastNotice = now; try { await sock.sendMessage(chat, { text: '🔇 @' + effectiveSender.split('@')[0] + ' está em castigo/mute e não pode enviar mensagens agora. Pare de floodar o grupo.', mentions: [effectiveSender] }); } catch {} } mutedFloodState.set(key, previous); continue; }
       if (isGroup && isSoAdmEnabled(chat) && parsedCommandName && parsedCommandName !== 'soadm') { try { const permission = await getPermissionLevel({ sock, chat, jid: effectiveSender, message }); if (permission < 3) continue; } catch (error) { logger.debug({ err: error }, 'Não foi possível verificar o modo SOADM.'); continue; } }
       try { await handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, !isAfkToggle); } catch (error) { logger.debug({ err: error }, 'Falha ao processar AFK.'); }
       if (false && isGroup && !message.key.fromMe && !isAfkToggle && isAntiProfanityEnabled(chat)) { try { const moderated = await moderateProfanity({ sock, chat, message, sender: effectiveSender }); if (moderated?.moderated) continue; } catch (error) { logError('❌ ERRO NO ANTI-PALAVRÃO', [`👥 Grupo: ${chat}`, `👤 Usuário: ${displayJid(effectiveSender)}`, `💥 ${error?.message || 'Erro desconhecido'}`]); } }
