@@ -6,24 +6,22 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/bootstrap.js",
-    "dev": "node --watch src/bootstrap.js",
-    "postinstall": "node scripts/patch-baileys-sticker-pack.js"
+    "dev": "node --watch src/bootstrap.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "6.7.23",
+    "@whiskeysockets/baileys": "git+https://github.com/jlucaso1/Baileys.git#be89465e07afa871cf3f0e19cabfec9780db6be7",
     "better-sqlite3": "file:vendor/better-sqlite3",
     "dotenv": "latest",
     "node-webpmux": "latest",
     "pino": "latest",
-    "sharp": "latest",
+    "sharp": "0.34.3",
     "yt-search": "2.13.1",
     "fluent-ffmpeg": "^2.1.2",
     "ffmpeg-static": "latest",
     "youtubei.js": "latest",
-    "@hoangquyet/ytdown": "1.0.2",
-    "fflate": "^0.8.2"
+    "@hoangquyet/ytdown": "1.0.2"
   }
 }
