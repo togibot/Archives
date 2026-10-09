@@ -6,7 +6,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/bootstrap.js",
-    "dev": "node --watch src/bootstrap.js"
+    "dev": "node --watch src/bootstrap.js",
+    "verify:runtime": "node scripts/verify-runtime.js"
   },
   "engines": {
     "node": ">=20"
@@ -23,5 +24,10 @@
     "ffmpeg-static": "latest",
     "youtubei.js": "latest",
     "@hoangquyet/ytdown": "1.0.2"
+  },
+  "overrides": {
+    "wa-sticker-formatter": {
+      "sharp": "0.34.3"
+    }
   }
 }
