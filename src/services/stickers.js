@@ -1,31 +1,58 @@
 import WebP from 'node-webpmux';
 
 const DEFAULT_NAME = '💜✨ 𝐅𝐢𝐠 𝐝𝐨 𝐓𝐨𝐠𝐢 ✨💜';
+const BOT_PACK_NAME = '💜 𝚃𝙾𝙶𝙸 𝙱𝙾𝚃 💜';
 const OWNER = '『♛ 𝙻𝚉 ♛』';
 const OWNER_NUMBER = '+5516991994982';
 
-function buildExif(packName, requester, groupName = 'Privado', mode = 'normal') {
+function clean(value, fallback = '') {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return text || fallback;
+}
+
+function buildExif(packName, requester, groupName = 'Privado', mode = 'normal', options = {}) {
+  const requestedPackName = clean(packName);
   const isTake = mode === 'take';
+  const isPack = mode === 'pack';
+
   const normalLabel = [
     'Feito pelo Togi Bot',
     'Dono: ' + OWNER,
     'Número: ' + OWNER_NUMBER,
     '——————————————',
-    'Solicitado Por: ' + (requester || 'Usuário'),
-    'Grupo: ' + (groupName || 'Privado')
+    'Solicitado Por: ' + clean(requester, 'Usuário'),
+    'Grupo: ' + clean(groupName, 'Privado')
   ].join('\n');
 
+  let finalName = BOT_PACK_NAME;
+  let publisher = normalLabel;
+  let description = normalLabel;
+  let packId = 'com.togi.sticker';
+
+  if (isTake) {
+    finalName = `『${requestedPackName || 'Usuário'}』`;
+    publisher = finalName;
+    description = finalName;
+    packId = 'com.togi.take';
+  } else if (isPack) {
+    finalName = requestedPackName || DEFAULT_NAME;
+    publisher = clean(options.publisher, 'Togi Bot');
+    description = clean(options.description, `Pack criado no Togi Bot por ${clean(requester, 'Usuário')}`);
+    packId = clean(options.packId, 'com.togi.pack');
+  } else if (requestedPackName) {
+    finalName = requestedPackName;
+  }
+
   const payload = JSON.stringify({
-    'sticker-pack-id': 'com.togi.sticker',
-    'sticker-pack-name': isTake ? '『' + (String(packName || '').trim() || 'Usuário') + '』' : '💜 𝚃𝙾𝙶𝙸 𝙱𝙾𝚃 💜',
-    'sticker-pack-publisher': isTake ? '『' + (String(packName || '').trim() || 'Usuário') + '』' : normalLabel,
-    'sticker-pack-description': isTake ? '『' + (String(packName || '').trim() || 'Usuário') + '』' : normalLabel,
-    'togi-exif-version': '3.0',
-    emojis: ['💜', '✨']
+    'sticker-pack-id': packId,
+    'sticker-pack-name': finalName,
+    'sticker-pack-publisher': publisher,
+    'sticker-pack-description': description,
+    'togi-exif-version': '4.0',
+    emojis: Array.isArray(options.emojis) && options.emojis.length ? options.emojis.slice(0, 5) : ['💜', '✨']
   });
 
   const json = Buffer.from(payload, 'utf8');
-
   const header = Buffer.from([
     0x49, 0x49, 0x2A, 0x00,
     0x08, 0x00, 0x00, 0x00,
@@ -44,10 +71,11 @@ export async function applyStickerMetadata(webpBuffer, packName, requester, grou
   const image = new WebP.Image();
   await image.load(webpBuffer);
   image.exif = buildExif(
-    packName || DEFAULT_NAME,
+    packName || '',
     requester || 'Usuário',
     groupName || 'Privado',
-    options.mode || 'normal'
+    options.mode || 'normal',
+    options
   );
   return image.save(null);
 }
