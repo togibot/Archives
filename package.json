@@ -13,7 +13,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "npm:@nexustechpro/baileys@2.2.9",
+    "@whiskeysockets/baileys": "npm:@queenanya/baileys@9.10.1",
     "better-sqlite3": "file:vendor/better-sqlite3",
     "dotenv": "latest",
     "node-webpmux": "latest",
@@ -24,10 +24,5 @@
     "ffmpeg-static": "latest",
     "youtubei.js": "latest",
     "@hoangquyet/ytdown": "1.0.2"
-  },
-  "overrides": {
-    "wa-sticker-formatter": {
-      "sharp": "0.34.3"
-    }
   }
 }
