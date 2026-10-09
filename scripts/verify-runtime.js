@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import sharp from 'sharp';
 
 await sharp({
@@ -8,6 +9,14 @@ await sharp({
     background: { r: 0, g: 0, b: 0, alpha: 0 }
   }
 }).webp().toBuffer();
+
+const baileysPackage = JSON.parse(
+  await fs.readFile(new URL('../node_modules/@whiskeysockets/baileys/package.json', import.meta.url), 'utf8')
+);
+
+if (baileysPackage.name !== '@queenanya/baileys') {
+  throw new Error(`Baileys inesperado instalado: ${baileysPackage.name}@${baileysPackage.version}`);
+}
 
 const baileys = await import('@whiskeysockets/baileys');
 
@@ -22,4 +31,4 @@ if (!baileys.proto?.Message?.StickerPackMessage) {
 await import('../src/services/sticker-pack-native.js');
 await import('../src/commands/packs.js');
 
-console.log('✅ Runtime do Togi OK: Sharp + Baileys + StickerPack carregaram.');
+console.log(`✅ Runtime do Togi OK: Sharp + ${baileysPackage.name}@${baileysPackage.version} + StickerPack.`);
