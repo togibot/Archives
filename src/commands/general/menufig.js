@@ -2,31 +2,35 @@ export default {
   name: 'menufig',
   aliases: ['figmenu'],
   category: 'geral',
-  description: 'Menu de figurinhas V2',
+  description: 'Menu de figurinhas V3',
   async execute({ reply }) {
-    return reply(`╭━━━〔 🎨💜 𝐓𝐎𝐆𝐈 𝐅𝐈𝐆 𝐕𝟐 〕━━━╮
+    return reply(`╭━━━〔 🎨💜 TOGI FIG V3 〕━━━╮
 ┃
 ┃ 🖼️ *CRIAR*
-┃ • .s / .sticker — imagem ou vídeo curto
+┃ • .s — imagem, vídeo, GIF ou FIG
 ┃ • .brat — texto estilo Brat
 ┃
 ┃ 🏷️ *PERSONALIZAR*
-┃ • .nick <nome> — nome padrão das suas figs
-┃ • .take <nome> — usa exatamente o nome enviado
-┃ • .perfilfig — seu perfil de figs
+┃ • .nick <nome> — nome das suas FIGs
+┃ • .take — renomeia uma FIG com seu .nick
+┃ • .perfilfig — seu perfil
 ┃
-┃ 📦 *PACKS PERSONALIZADOS*
-┃ • .packs — lista e central de packs
-┃ • .packs criar <nome> — criar pack
-┃ • .packs add <nome> — adicionar FIG respondida
-┃ • .packs ver <nome> — ver conteúdo
-┃ • .packs enviar <nome> — enviar pack completo
-┃ • .packs remover <nome> <n> — remover FIG
+┃ 📦 *PACKS*
+┃ • .packs — central de packs
+┃ • .packs criar <nome>
+┃ • .packs usar <nome>
+┃ • .packs add — adiciona ao pack ativo
+┃ • .packs capa — define a capa
+┃ • .packs autor <nome>
+┃ • .packs descricao <texto>
+┃ • .packs ver
+┃ • .packs enviar — pack nativo
+┃ • .packs sequencia — fallback
+┃ • .packs remover <n>
 ┃ • .packs renomear <antigo> | <novo>
-┃ • .packs apagar <nome> — excluir pack
+┃ • .packs apagar <nome>
 ┃
-┃ 💜 Sem .take: nome padrão do Togi ou seu .nick
-┃ ✨ Com .take LZ: o nome fica *LZ*, exatamente assim
+┃ 💡 Depois de ativar um pack, não precisa repetir o nome.
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯`);
   }
 };
