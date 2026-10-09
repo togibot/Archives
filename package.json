@@ -6,7 +6,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/bootstrap.js",
-    "dev": "node --watch src/bootstrap.js"
+    "dev": "node --watch src/bootstrap.js",
+    "postinstall": "node scripts/patch-baileys-sticker-pack.js"
   },
   "engines": {
     "node": ">=20"
