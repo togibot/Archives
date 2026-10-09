@@ -6,19 +6,18 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/bootstrap.js",
-    "dev": "node --watch src/bootstrap.js",
-    "verify:runtime": "node scripts/verify-runtime.js"
+    "dev": "node --watch src/bootstrap.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "npm:@queenanya/baileys@9.10.1",
+    "@whiskeysockets/baileys": "6.7.23",
     "better-sqlite3": "file:vendor/better-sqlite3",
     "dotenv": "latest",
     "node-webpmux": "latest",
     "pino": "latest",
-    "sharp": "0.34.3",
+    "sharp": "latest",
     "yt-search": "2.13.1",
     "fluent-ffmpeg": "^2.1.2",
     "ffmpeg-static": "latest",
