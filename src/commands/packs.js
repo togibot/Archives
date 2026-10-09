@@ -205,7 +205,8 @@ ${preview || '┃ 📭 Pack vazio'}${remaining}
       await reply(`📦 Preparando *${pack.name}* como pack nativo…`);
       try {
         const sent = await sendNativeStickerPack(sock, chat, pack, items);
-        return reply(`✅ *${pack.name}* enviado como pack nativo${sent.parts > 1 ? ` em ${sent.parts} partes` : ''}.`);
+        console.log(`[TOGI STICKER PACK] ${pack.name} encaminhado em ${sent.parts} parte(s): ${sent.messageIds.join(', ')}`);
+        return;
       } catch (error) {
         console.error('[TOGI STICKER PACK NATIVE]', error);
         return reply(`⚠️ O WhatsApp recusou o pack nativo agora. Suas FIGs continuam salvas.\n\nUse *.packs sequencia${rest.length ? ` ${rest.join(' ')}` : ''}* como fallback.\n${error?.message || ''}`.trim());
