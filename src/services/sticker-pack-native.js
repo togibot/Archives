@@ -1,10 +1,14 @@
 import { createCipheriv, createHash, createHmac, hkdfSync, randomBytes } from 'node:crypto';
-import { proto, generateMessageIDV2 } from '@whiskeysockets/baileys';
+import {
+  generateWAMessageFromContent,
+  proto
+} from '@whiskeysockets/baileys';
 import { zipSync } from 'fflate';
 import sharp from 'sharp';
 
-const MAX_NATIVE_STICKERS = Math.max(3, Math.min(30, Number(process.env.STICKER_PACK_NATIVE_BATCH || 30)));
+const MAX_NATIVE_STICKERS = Math.max(3, Math.min(60, Number(process.env.STICKER_PACK_NATIVE_BATCH || 60)));
 const MAX_NATIVE_PACK_BYTES = Number(process.env.STICKER_PACK_NATIVE_MAX_BYTES || 25 * 1024 * 1024);
+const MAX_STICKER_BYTES = 1024 * 1024;
 const ORIGIN = 'https://web.whatsapp.com';
 
 function clean(value, fallback = '') {
@@ -24,10 +28,68 @@ function isAnimatedWebP(buffer) {
   while (offset + 8 <= buffer.length) {
     const type = buffer.toString('ascii', offset, offset + 4);
     const size = buffer.readUInt32LE(offset + 4);
-    if (type === 'VP8X' && offset + 9 <= buffer.length) return (buffer[offset + 8] & 0x02) !== 0;
+    if (type === 'VP8X' && offset + 9 <= buffer.length && (buffer[offset + 8] & 0x02) !== 0) return true;
+    if (type === 'ANIM' || type === 'ANMF') return true;
     offset += 8 + size + (size % 2);
   }
   return false;
+}
+
+async function normalizeSticker(buffer) {
+  let current = Buffer.from(buffer);
+  const animated = isAnimatedWebP(current);
+
+  let metadata = null;
+  try {
+    metadata = await sharp(current, animated ? { animated: true } : undefined).metadata();
+  } catch {}
+
+  const width = Number(metadata?.width || 0);
+  const pageHeight = Number(metadata?.pageHeight || metadata?.height || 0);
+  const needsResize = width !== 512 || pageHeight !== 512;
+
+  if (needsResize || current.length > MAX_STICKER_BYTES) {
+    const qualities = current.length > MAX_STICKER_BYTES ? [78, 65, 50] : [82];
+    for (const quality of qualities) {
+      current = await sharp(current, animated ? { animated: true } : undefined)
+        .resize(512, 512, {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        })
+        .webp({ quality })
+        .toBuffer();
+
+      if (current.length <= MAX_STICKER_BYTES) break;
+    }
+  }
+
+  if (current.length > MAX_STICKER_BYTES) {
+    throw new Error('Uma FIG do pack ultrapassa 1 MB mesmo após otimização.');
+  }
+
+  return {
+    buffer: current,
+    isAnimated: isAnimatedWebP(current)
+  };
+}
+
+async function makeTrayIcon(buffer) {
+  // O cliente oficial usa um tray icon PNG 96x96 dentro do ZIP.
+  return sharp(buffer, { animated: false })
+    .resize(96, 96, {
+      fit: 'contain',
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    })
+    .png()
+    .toBuffer();
+}
+
+async function makeThumbnail(buffer) {
+  // O thumbnail da mensagem é separado do tray icon: JPEG 252x252.
+  return sharp(buffer, { animated: false })
+    .resize(252, 252, { fit: 'cover' })
+    .jpeg({ quality: 82 })
+    .toBuffer();
 }
 
 function deriveMediaKeys(mediaKey, label) {
@@ -99,7 +161,8 @@ async function uploadEncrypted(sock, encrypted, fileEncSha256, mediaType) {
             Origin: ORIGIN
           },
           body: encrypted,
-          redirect: 'manual'
+          redirect: 'manual',
+          signal: AbortSignal.timeout(30000)
         });
 
         const raw = await response.text();
@@ -108,7 +171,7 @@ async function uploadEncrypted(sock, encrypted, fileEncSha256, mediaType) {
 
         const directPath = data?.direct_path || data?.directPath;
         if (response.ok && directPath) return { directPath, url: data?.url || '' };
-        lastError = new Error(`Upload ${mediaType} recusado (HTTP ${response.status}).`);
+        lastError = new Error(`Upload ${mediaType} recusado (HTTP ${response.status}): ${raw.slice(0, 180)}`);
       } catch (error) {
         lastError = error;
       }
@@ -118,16 +181,6 @@ async function uploadEncrypted(sock, encrypted, fileEncSha256, mediaType) {
   throw new Error(`Falha no upload do pack nativo: ${lastError?.message || 'nenhum host aceitou a mídia'}`);
 }
 
-async function makeStaticCover(buffer) {
-  return sharp(buffer, { animated: false })
-    .resize(512, 512, {
-      fit: 'contain',
-      background: { r: 0, g: 0, b: 0, alpha: 0 }
-    })
-    .webp({ quality: 88 })
-    .toBuffer();
-}
-
 async function buildNativePack(sock, pack, items, part, totalParts) {
   if (!items.length) throw new Error('O pack está vazio.');
 
@@ -135,32 +188,39 @@ async function buildNativePack(sock, pack, items, part, totalParts) {
   const name = totalParts > 1 ? `${baseName} • ${part}/${totalParts}` : baseName;
   const publisher = clean(pack?.publisher, 'Togi Bot');
   const description = clean(pack?.description, `Pack ${baseName} criado no Togi Bot`);
-  const stickerPackId = `togi.${pack?.id || 'pack'}.${part}.${Date.now().toString(36)}`;
-  const entries = {};
+  const stickerPackId = `togi.${pack?.id || 'pack'}.${part}`;
+
+  const zipEntries = {};
   const stickers = [];
 
   for (const item of items) {
-    const buffer = Buffer.from(item.sticker);
-    const fileName = `${sha256(buffer).toString('base64url')}.webp`;
-    if (!entries[fileName]) entries[fileName] = new Uint8Array(buffer);
+    const normalized = await normalizeSticker(Buffer.from(item.sticker));
+    // Mantém o esquema usado pela implementação funcional do StickerPack:
+    // base64 normal, trocando somente "/" por "-".
+    const fileName = `${sha256(normalized.buffer).toString('base64').replace(/\//g, '-')}.webp`;
+
+    if (!zipEntries[fileName]) {
+      zipEntries[fileName] = [new Uint8Array(normalized.buffer), { level: 0 }];
+    }
+
     stickers.push({
       fileName,
-      isAnimated: isAnimatedWebP(buffer),
-      emojis: ['✨'],
-      accessibilityLabel: `${baseName} #${item.position}`,
+      mimetype: 'image/webp',
+      isAnimated: normalized.isAnimated,
       isLottie: false,
-      mimetype: 'image/webp'
+      emojis: ['✨'],
+      accessibilityLabel: '‎'
     });
   }
 
   const rawCover = pack?.cover ? Buffer.from(pack.cover) : Buffer.from(items[0].sticker);
-  const cover = await makeStaticCover(rawCover);
-  const trayIconFileName = `${stickerPackId}.webp`;
-  entries[trayIconFileName] = new Uint8Array(cover);
+  const trayIcon = await makeTrayIcon(rawCover);
+  const trayIconFileName = `${stickerPackId}.png`;
+  zipEntries[trayIconFileName] = [new Uint8Array(trayIcon), { level: 0 }];
 
-  const zipBuffer = Buffer.from(zipSync(entries, { level: 0 }));
+  const zipBuffer = Buffer.from(zipSync(zipEntries));
   if (zipBuffer.length > MAX_NATIVE_PACK_BYTES) {
-    throw new Error('Este bloco do pack ficou grande demais para envio nativo. Reduza a quantidade de FIGs.');
+    throw new Error('Este bloco do pack ficou grande demais para envio nativo.');
   }
 
   const packEncrypted = encryptMedia(zipBuffer, 'Sticker Pack');
@@ -171,10 +231,7 @@ async function buildNativePack(sock, pack, items, part, totalParts) {
     'sticker-pack'
   );
 
-  const thumbnail = await sharp(cover)
-    .resize(252, 252, { fit: 'cover' })
-    .jpeg({ quality: 82 })
-    .toBuffer();
+  const thumbnail = await makeThumbnail(rawCover);
   const thumbEncrypted = encryptMedia(thumbnail, 'Sticker Pack Thumbnail', packEncrypted.mediaKey);
   const thumbUpload = await uploadEncrypted(
     sock,
@@ -184,17 +241,18 @@ async function buildNativePack(sock, pack, items, part, totalParts) {
   );
 
   return proto.Message.StickerPackMessage.fromObject({
-    stickerPackId,
     name,
     publisher,
+    stickerPackId,
+    packDescription: description,
+    stickerPackOrigin: proto.Message.StickerPackMessage.StickerPackOrigin.USER_CREATED,
+    stickerPackSize: zipBuffer.length,
     stickers,
-    fileLength: packEncrypted.fileLength,
     fileSha256: packEncrypted.fileSha256,
     fileEncSha256: packEncrypted.fileEncSha256,
     mediaKey: packEncrypted.mediaKey,
     directPath: packUpload.directPath,
-    caption: `${name} • ${stickers.length} figurinha${stickers.length === 1 ? '' : 's'}`,
-    packDescription: description,
+    fileLength: packEncrypted.fileLength,
     mediaKeyTimestamp: Math.floor(Date.now() / 1000),
     trayIconFileName,
     thumbnailDirectPath: thumbUpload.directPath,
@@ -202,9 +260,7 @@ async function buildNativePack(sock, pack, items, part, totalParts) {
     thumbnailEncSha256: thumbEncrypted.fileEncSha256,
     thumbnailHeight: 252,
     thumbnailWidth: 252,
-    imageDataHash: sha256(thumbnail).toString('base64'),
-    stickerPackSize: zipBuffer.length,
-    stickerPackOrigin: proto.Message.StickerPackMessage.StickerPackOrigin.USER_CREATED
+    imageDataHash: sha256(thumbnail).toString('base64')
   });
 }
 
@@ -220,20 +276,28 @@ export async function sendNativeStickerPack(sock, chat, pack, items) {
   const ids = [];
   for (let i = 0; i < chunks.length; i++) {
     const stickerPackMessage = await buildNativePack(sock, pack, chunks[i], i + 1, chunks.length);
-    const messageId = generateMessageIDV2(sock.user?.id);
+
+    // Alinha o envio com o caminho normal do Baileys: gera um WAMessage
+    // completo antes de repassar ao relayMessage.
+    const outgoing = generateWAMessageFromContent(
+      chat,
+      { stickerPackMessage },
+      { userJid: sock.user?.id }
+    );
 
     await sock.relayMessage(
       chat,
-      { stickerPackMessage },
+      outgoing.message,
       {
-        messageId,
+        messageId: outgoing.key.id,
         additionalAttributes: {
           type: 'media',
           mediatype: 'sticker_pack'
         }
       }
     );
-    ids.push(messageId);
+
+    ids.push(outgoing.key.id);
   }
 
   return { parts: chunks.length, messageIds: ids };
