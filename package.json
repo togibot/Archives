@@ -22,6 +22,7 @@
     "fluent-ffmpeg": "^2.1.2",
     "ffmpeg-static": "latest",
     "youtubei.js": "latest",
-    "@hoangquyet/ytdown": "1.0.2"
+    "@hoangquyet/ytdown": "1.0.2",
+    "fflate": "^0.8.2"
   }
 }
