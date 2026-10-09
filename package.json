@@ -12,7 +12,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "git+https://github.com/jlucaso1/Baileys.git#be89465e07afa871cf3f0e19cabfec9780db6be7",
+    "@whiskeysockets/baileys": "npm:@nexustechpro/baileys@2.2.9",
     "better-sqlite3": "file:vendor/better-sqlite3",
     "dotenv": "latest",
     "node-webpmux": "latest",
