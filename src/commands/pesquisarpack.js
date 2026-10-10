@@ -1,4 +1,7 @@
-import { searchStickerPacks } from '../services/sticker-search.js';
+import {
+  searchStickerPacks,
+  saveStickerPackSelection
+} from '../services/sticker-search.js';
 
 function compactNumber(value) {
   const n = Number(value || 0);
@@ -12,7 +15,7 @@ export default {
   aliases: ['pp', 'searchpack', 'packsearch'],
   category: 'sticker',
   description: 'Pesquisa packs de figurinhas por qualquer tema.',
-  async execute({ sock, chat, message, args, reply }) {
+  async execute({ sock, chat, message, sender, args, reply }) {
     const query = args.join(' ').trim();
     if (!query) {
       return reply('🔎 Use: *.pp <tema>*\nEx.: *.pp One Piece*');
@@ -26,18 +29,30 @@ export default {
         return reply(`❌ Não achei packs para *${query}*. Tenta outro termo.`);
       }
 
+      saveStickerPackSelection(chat, sender, query, packs);
+
       const text = packs.map((pack, index) => {
         const type = pack.isAnimated ? '🎞️ Animado' : '🖼️ Estático';
         return [
           `*${index + 1}. ${pack.name}*`,
           `👤 ${pack.author}`,
           `🎨 ${pack.stickerCount} FIGs • ${type}`,
-          `🔥 ${compactNumber(pack.viewCount)} views • 📥 ${compactNumber(pack.exportCount)} usos`,
-          `🔗 ${pack.url}`
+          `🔥 ${compactNumber(pack.viewCount)} views • 📥 ${compactNumber(pack.exportCount)} usos`
         ].join('\n');
       }).join('\n\n');
 
-      const caption = `╭━━━〔 🔎 *PACK SEARCH* 〕━━━╮\n┃ Tema: *${query}*\n┃ Resultados: *${packs.length}*\n╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n${text}\n\n💡 Abra o link do pack que quiser no Sticker.ly.`;
+      const caption = `╭━━━〔 🔎 *PACK SEARCH* 〕━━━╮
+┃ Tema: *${query}*
+┃ Resultados: *${packs.length}*
+╰━━━━━━━━━━━━━━━━━━━━━━╯
+
+${text}
+
+📦 Escolha um resultado com:
+*.pb <número>*
+Ex.: *.pb 2*
+
+⏳ A seleção fica salva por 10 minutos.`;
 
       const first = packs.find(pack => pack.thumbnailUrl);
       if (first) {
