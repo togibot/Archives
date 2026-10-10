@@ -1,6 +1,5 @@
 import { createCipheriv, createHash, createHmac, hkdfSync, randomBytes } from 'node:crypto';
 import { proto } from '@whiskeysockets/baileys';
-import { zipSync } from 'fflate';
 import sharp from 'sharp';
 
 const MAX_STICKERS = 60;
@@ -16,6 +15,100 @@ function clean(value, fallback = '') {
 function sha256(buffer) {
   return createHash('sha256').update(buffer).digest();
 }
+
+function crc32(buffer) {
+  let crc = 0xffffffff;
+
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function zipDosDateTime(date = new Date()) {
+  const year = Math.max(1980, date.getFullYear());
+  const time =
+    ((date.getHours() & 0x1f) << 11) |
+    ((date.getMinutes() & 0x3f) << 5) |
+    ((Math.floor(date.getSeconds() / 2)) & 0x1f);
+  const day =
+    (((year - 1980) & 0x7f) << 9) |
+    (((date.getMonth() + 1) & 0x0f) << 5) |
+    (date.getDate() & 0x1f);
+
+  return { time, day };
+}
+
+function createStoredZip(entries) {
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  const { time, day } = zipDosDateTime();
+
+  for (const [name, rawValue] of Object.entries(entries)) {
+    const raw = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+    const data = Buffer.from(raw);
+    const fileName = Buffer.from(name, 'utf8');
+    const crc = crc32(data);
+
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(0x0800, 6);
+    local.writeUInt16LE(0, 8);
+    local.writeUInt16LE(time, 10);
+    local.writeUInt16LE(day, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(fileName.length, 26);
+    local.writeUInt16LE(0, 28);
+
+    locals.push(local, fileName, data);
+
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(0x0800, 8);
+    central.writeUInt16LE(0, 10);
+    central.writeUInt16LE(time, 12);
+    central.writeUInt16LE(day, 14);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(data.length, 20);
+    central.writeUInt32LE(data.length, 24);
+    central.writeUInt16LE(fileName.length, 28);
+    central.writeUInt16LE(0, 30);
+    central.writeUInt16LE(0, 32);
+    central.writeUInt16LE(0, 34);
+    central.writeUInt16LE(0, 36);
+    central.writeUInt32LE(0, 38);
+    central.writeUInt32LE(offset, 42);
+
+    centrals.push(central, fileName);
+    offset += local.length + fileName.length + data.length;
+  }
+
+  const centralBuffer = Buffer.concat(centrals);
+  const end = Buffer.alloc(22);
+  const count = Math.floor(centrals.length / 2);
+
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(0, 4);
+  end.writeUInt16LE(0, 6);
+  end.writeUInt16LE(count, 8);
+  end.writeUInt16LE(count, 10);
+  end.writeUInt32LE(centralBuffer.length, 12);
+  end.writeUInt32LE(offset, 16);
+  end.writeUInt16LE(0, 20);
+
+  return Buffer.concat([...locals, centralBuffer, end]);
+}
+
 
 function isWebP(buffer) {
   return Buffer.isBuffer(buffer) &&
@@ -269,7 +362,7 @@ async function buildNativePack(sock, pack, items, part, totalParts) {
   const trayIconFileName = `${stickerPackId}.png`;
   zipEntries[trayIconFileName] = [new Uint8Array(trayIcon), { level: 0 }];
 
-  const zipBuffer = Buffer.from(zipSync(zipEntries));
+  const zipBuffer = createStoredZip(zipEntries);
   if (zipBuffer.length > MAX_PACK_BYTES) {
     throw new Error('O pack ficou grande demais para o envio nativo.');
   }
