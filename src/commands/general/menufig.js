@@ -18,7 +18,7 @@ export default {
 ┃ 🔎 *DESCOBRIR PACKS*
 ┃ • .pp <tema> — pesquisa packs online
 ┃ • .pesquisarpack <tema>
-┃ • .pb <número> — envia o pack escolhido
+┃ • .pb <número> — envia como pack nativo
 ┃
 ┃ 📦 *PACKS*
 ┃ • .packs — central de packs
