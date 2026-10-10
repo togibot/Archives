@@ -16,9 +16,11 @@ function normalizePack(pack) {
   const trayIndex = Number.isInteger(pack?.trayIndex) ? pack.trayIndex : 0;
   const prefix = String(pack?.resourceUrlPrefix || '');
   const trayFile = files[trayIndex] || files[0] || '';
+  const shareUrl = clean(pack?.shareUrl);
+  const shareCode = shareUrl.match(/\/s\/([^/?#]+)/i)?.[1] || '';
 
   return {
-    id: clean(pack?.packId),
+    id: clean(shareCode || pack?.packId),
     name: clean(pack?.name, 'Pack sem nome'),
     author: clean(pack?.authorName, 'Autor desconhecido'),
     stickerCount: files.length || Number(pack?.stickerCount || 0),
@@ -26,7 +28,7 @@ function normalizePack(pack) {
     exportCount: Number(pack?.exportCount || 0),
     isAnimated: Boolean(pack?.isAnimated),
     isPaid: Boolean(pack?.isPaid),
-    url: clean(pack?.shareUrl),
+    url: shareUrl,
     thumbnailUrl: prefix && trayFile ? `${prefix}${trayFile}` : ''
   };
 }
