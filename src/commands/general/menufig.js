@@ -15,6 +15,10 @@ export default {
 ┃ • .take — renomeia uma FIG com seu .nick
 ┃ • .perfilfig — seu perfil
 ┃
+┃ 🔎 *DESCOBRIR PACKS*
+┃ • .pp <tema> — pesquisa packs online
+┃ • .pesquisarpack <tema>
+┃
 ┃ 📦 *PACKS*
 ┃ • .packs — central de packs
 ┃ • .packs criar <nome>
