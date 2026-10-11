@@ -1,6 +1,6 @@
-import { getPermissionLevel } from '../core/permissions.js';
-import { ensureGroup, getGroup } from '../database/index.js';
-import { configureSecurity, getSdsWords, isSdsEnabled, setSdsEnabled, setSdsWords, parseSecurityDuration } from '../services/group-security.js';
+import { getPermissionLevel } from '../../core/permissions.js';
+import { ensureGroup, getGroup } from '../../database/index.js';
+import { configureSecurity, getSdsWords, isSdsEnabled, setSdsEnabled, setSdsWords, parseSecurityDuration } from '../../services/group-security.js';
 
 export default {
   name: 'sds',
