@@ -71,8 +71,51 @@ CREATE TABLE IF NOT EXISTS group_mutes (group_jid TEXT NOT NULL,user_jid TEXT NO
 CREATE TABLE IF NOT EXISTS security_strikes (group_jid TEXT NOT NULL,user_jid TEXT NOT NULL,kind TEXT NOT NULL,count INTEGER NOT NULL DEFAULT 0,updated_at INTEGER NOT NULL,PRIMARY KEY(group_jid,user_jid,kind));
 `);
 
-for (const sql of ['ALTER TABLE users ADD COLUMN job TEXT','ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1',"ALTER TABLE users ADD COLUMN sticker_nick TEXT NOT NULL DEFAULT ''","ALTER TABLE users ADD COLUMN steal_count INTEGER NOT NULL DEFAULT 0","ALTER TABLE users ADD COLUMN steal_window_start INTEGER NOT NULL DEFAULT 0",'ALTER TABLE groups ADD COLUMN anti_profanity INTEGER NOT NULL DEFAULT 0',"ALTER TABLE groups ADD COLUMN profanity_words TEXT NOT NULL DEFAULT '[]'","ALTER TABLE groups ADD COLUMN warn_limit INTEGER NOT NULL DEFAULT 3","ALTER TABLE groups ADD COLUMN warn_timeout_ms INTEGER NOT NULL DEFAULT 0","ALTER TABLE groups ADD COLUMN soadm_only INTEGER NOT NULL DEFAULT 0",'ALTER TABLE groups ADD COLUMN welcome_enabled INTEGER NOT NULL DEFAULT 1','ALTER TABLE groups ADD COLUMN welcome_message TEXT NOT NULL DEFAULT \'\'','ALTER TABLE groups ADD COLUMN goodbye_enabled INTEGER NOT NULL DEFAULT 1','ALTER TABLE groups ADD COLUMN goodbye_message TEXT NOT NULL DEFAULT \'\'',\'ALTER TABLE groups ADD COLUMN rules_text TEXT NOT NULL DEFAULT \'\'','ALTER TABLE groups ADD COLUMN schedule_enabled INTEGER NOT NULL DEFAULT 0','ALTER TABLE groups ADD COLUMN close_time TEXT NOT NULL DEFAULT \'22:00\'','ALTER TABLE groups ADD COLUMN open_time TEXT NOT NULL DEFAULT \'07:00\'','ALTER TABLE groups ADD COLUMN schedule_last_action TEXT NOT NULL DEFAULT \'\'','ALTER TABLE group_mutes ADD COLUMN expires_at INTEGER NOT NULL DEFAULT 0','ALTER TABLE groups ADD COLUMN sds_enabled INTEGER NOT NULL DEFAULT 0','ALTER TABLE groups ADD COLUMN sds_words TEXT NOT NULL DEFAULT \'[]\'','ALTER TABLE groups ADD COLUMN sds_action TEXT NOT NULL DEFAULT \'warn\'','ALTER TABLE groups ADD COLUMN sds_warn_after INTEGER NOT NULL DEFAULT 5','ALTER TABLE groups ADD COLUMN sds_mute_after INTEGER NOT NULL DEFAULT 3','ALTER TABLE groups ADD COLUMN sds_mute_seconds INTEGER NOT NULL DEFAULT 600','ALTER TABLE groups ADD COLUMN profanity_action TEXT NOT NULL DEFAULT \'warn\'','ALTER TABLE groups ADD COLUMN profanity_warn_after INTEGER NOT NULL DEFAULT 5','ALTER TABLE groups ADD COLUMN profanity_mute_after INTEGER NOT NULL DEFAULT 3','ALTER TABLE groups ADD COLUMN profanity_mute_seconds INTEGER NOT NULL DEFAULT 600','CREATE TABLE IF NOT EXISTS security_strikes (group_jid TEXT NOT NULL,user_jid TEXT NOT NULL,kind TEXT NOT NULL,count INTEGER NOT NULL DEFAULT 0,updated_at INTEGER NOT NULL,PRIMARY KEY(group_jid,user_jid,kind))','ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100','ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0','ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0',"ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''","ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'"]) {
-  try { db.exec(sql); } catch (error) { if (!String(error?.message || '').includes('duplicate column name')) throw error; }
+const migrations = [
+  'ALTER TABLE users ADD COLUMN job TEXT',
+  'ALTER TABLE users ADD COLUMN pet_shop_level INTEGER NOT NULL DEFAULT 1',
+  "ALTER TABLE users ADD COLUMN sticker_nick TEXT NOT NULL DEFAULT ''",
+  'ALTER TABLE users ADD COLUMN steal_count INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE users ADD COLUMN steal_window_start INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE groups ADD COLUMN anti_profanity INTEGER NOT NULL DEFAULT 0',
+  "ALTER TABLE groups ADD COLUMN profanity_words TEXT NOT NULL DEFAULT '[]'",
+  'ALTER TABLE groups ADD COLUMN warn_limit INTEGER NOT NULL DEFAULT 3',
+  'ALTER TABLE groups ADD COLUMN warn_timeout_ms INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE groups ADD COLUMN soadm_only INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE groups ADD COLUMN welcome_enabled INTEGER NOT NULL DEFAULT 1',
+  "ALTER TABLE groups ADD COLUMN welcome_message TEXT NOT NULL DEFAULT ''",
+  'ALTER TABLE groups ADD COLUMN goodbye_enabled INTEGER NOT NULL DEFAULT 1',
+  "ALTER TABLE groups ADD COLUMN goodbye_message TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE groups ADD COLUMN rules_text TEXT NOT NULL DEFAULT ''",
+  'ALTER TABLE groups ADD COLUMN schedule_enabled INTEGER NOT NULL DEFAULT 0',
+  "ALTER TABLE groups ADD COLUMN close_time TEXT NOT NULL DEFAULT '22:00'",
+  "ALTER TABLE groups ADD COLUMN open_time TEXT NOT NULL DEFAULT '07:00'",
+  "ALTER TABLE groups ADD COLUMN schedule_last_action TEXT NOT NULL DEFAULT ''",
+  'ALTER TABLE group_mutes ADD COLUMN expires_at INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE groups ADD COLUMN sds_enabled INTEGER NOT NULL DEFAULT 0',
+  "ALTER TABLE groups ADD COLUMN sds_words TEXT NOT NULL DEFAULT '[]'",
+  "ALTER TABLE groups ADD COLUMN sds_action TEXT NOT NULL DEFAULT 'warn'",
+  'ALTER TABLE groups ADD COLUMN sds_warn_after INTEGER NOT NULL DEFAULT 5',
+  'ALTER TABLE groups ADD COLUMN sds_mute_after INTEGER NOT NULL DEFAULT 3',
+  'ALTER TABLE groups ADD COLUMN sds_mute_seconds INTEGER NOT NULL DEFAULT 600',
+  "ALTER TABLE groups ADD COLUMN profanity_action TEXT NOT NULL DEFAULT 'warn'",
+  'ALTER TABLE groups ADD COLUMN profanity_warn_after INTEGER NOT NULL DEFAULT 5',
+  'ALTER TABLE groups ADD COLUMN profanity_mute_after INTEGER NOT NULL DEFAULT 3',
+  'ALTER TABLE groups ADD COLUMN profanity_mute_seconds INTEGER NOT NULL DEFAULT 600',
+  'CREATE TABLE IF NOT EXISTS security_strikes (group_jid TEXT NOT NULL,user_jid TEXT NOT NULL,kind TEXT NOT NULL,count INTEGER NOT NULL DEFAULT 0,updated_at INTEGER NOT NULL,PRIMARY KEY(group_jid,user_jid,kind))',
+  'ALTER TABLE pets ADD COLUMN thirst INTEGER NOT NULL DEFAULT 100',
+  'ALTER TABLE pets ADD COLUMN last_needs_update INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE pets ADD COLUMN walk_count INTEGER NOT NULL DEFAULT 0',
+  "ALTER TABLE pets ADD COLUMN walk_date TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE pets ADD COLUMN status TEXT NOT NULL DEFAULT 'vivo'"
+];
+
+for (const sql of migrations) {
+  try {
+    db.exec(sql);
+  } catch (error) {
+    if (!String(error?.message || '').includes('duplicate column name')) throw error;
+  }
 }
 
 export function ensureUser(jid, name = 'Usuário') { db.prepare('INSERT INTO users (jid,name) VALUES (?,?) ON CONFLICT(jid) DO UPDATE SET name=excluded.name').run(jid,name); return getUser(jid); }
