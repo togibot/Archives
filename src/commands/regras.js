@@ -1,16 +1,27 @@
 import { ensureGroup } from '../database/index.js';
 
-function defaultRules(subject) {
-  return (
-    '╭━━━━━━〔 📜 𝚁𝙴𝙶𝚁𝙰𝚂 〕━━━━━━╮\\n\\n' +
-    '『 ' + (subject || 'ESTE GRUPO') + ' 』\\n\\n' +
-    '1. Respeite os outros membros.\\n' +
-    '2. Não faça spam ou flood.\\n' +
-    '3. Respeite os administradores.\\n' +
-    '4. Não envie conteúdo proibido.\\n' +
-    '5. Divirta-se e mantenha o grupo organizado. 💜\\n\\n' +
-    '╰━━━━━━━━━━━━━━━━━━━━━━━━╯'
-  );
+function defaultRules() {
+  return [
+    '1. Respeite os outros membros.',
+    '2. Não faça spam ou flood.',
+    '3. Respeite os administradores.',
+    '4. Não envie conteúdo proibido.',
+    '5. Divirta-se e mantenha o grupo organizado. 💜'
+  ].join('\n');
+}
+
+function formatRules(subject, memberCount, rules) {
+  return [
+    '┏┉✯┉━═『アカメ』═━┉✯┉┓',
+    '║ が斬る REGRAS/GRUPO が斬る',
+    '┗┉✯┉━═『アカメ』═━┉✯┉┛',
+    '*💫NOME⧽* ' + (subject || 'ESTE GRUPO'),
+    '*👥MEMBROS⧽* ' + memberCount,
+    '',
+    '[Regras]',
+    '',
+    rules
+  ].join('\n');
 }
 
 export default {
@@ -21,14 +32,14 @@ export default {
   async execute({ sock, chat, isGroup, reply }) {
     if (!isGroup) return reply('❌ Use o .regras em um grupo.');
     const metadata=await sock.groupMetadata(chat).catch(()=>null);
-    const group=ensureGroup(chat, metadata?.subject || '');
-    const custom=String(group?.rules_text||'').trim();
-    if (!custom) return reply(defaultRules(group?.subject || metadata?.subject || 'ESTE GRUPO'));
-    return reply(
-      '╭━━━━━━〔 📜 𝚁𝙴𝙶𝚁𝙰𝚂 〕━━━━━━╮\\n\\n' +
-      '『 ' + (group?.subject || metadata?.subject || 'ESTE GRUPO') + ' 』\\n\\n' +
-      custom +
-      '\\n\\n╰━━━━━━━━━━━━━━━━━━━━━━━━╯'
-    );
+    const subject = metadata?.subject || 'ESTE GRUPO';
+    const memberCount = Array.isArray(metadata?.participants) ? metadata.participants.length : 0;
+    const group = ensureGroup(chat, subject);
+    const custom = String(group?.rules_text || '').trim();
+    return reply(formatRules(
+      group?.subject || subject,
+      memberCount,
+      custom || defaultRules()
+    ));
   }
 };
