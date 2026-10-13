@@ -220,15 +220,19 @@ async function startBot() {
       const maxParts = Math.min(5, words.length);
       if (!command) for (let size = maxParts; size >= 2; size--) { const candidate = words.slice(0, size).join(' ').toLowerCase(); const found = commands.get(candidate); if (!found) continue; name = candidate; args = words.slice(size); command = found; break; }
       if (!command) { console.log(`⚠️ Comando não encontrado: .${name}`); continue; }
-      const commandPattern = name
-        .split(/\s+/)
-        .map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\      logInfo('⚙️ COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `▶️ Executando: .${name}${args.length ? ` ${args.join(' ')}` : ''}`]);
-      void reactToCommand(sock, message, command);
-      try { await withTimeout(command.execute({ sock, message, sender: effectiveSender, chat, args, text: args.join(' '), rawText: text, commandName: name.toLowerCase(), isGroup, reply, commands, react: async emoji => { try { await withTimeout(sock.sendMessage(chat, { react: { text: emoji, key: message.key } }), 10000, 'Reação'); } catch {} } }), 90000, `Comando .${name}`); console.log(`✅ Comando concluído: .${name}`); } catch (error) { logError('❌ ERRO NO COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `⚙️ Comando: .${name}`, `💥 ${error?.message || 'Erro desconhecido'}`]); await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`); }'))
-        .join('\\s+');
-      const commandText = body
-        .replace(new RegExp('^' + commandPattern + '(?:\\s+|$)', 'i'), '')
-        .trim();
+
+      const commandWordCount = name.split(/\s+/).length;
+      let commandEnd = 0;
+      let consumedWords = 0;
+
+      while (commandEnd < body.length && consumedWords < commandWordCount) {
+        while (commandEnd < body.length && /\s/.test(body[commandEnd])) commandEnd += 1;
+        while (commandEnd < body.length && !/\s/.test(body[commandEnd])) commandEnd += 1;
+        consumedWords += 1;
+      }
+
+      const commandText = body.slice(commandEnd).replace(/^\s+/, '');
+
       logInfo('⚙️ COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `▶️ Executando: .${name}${args.length ? ` ${args.join(' ')}` : ''}`]);
       void reactToCommand(sock, message, command);
       try { await withTimeout(command.execute({ sock, message, sender: effectiveSender, chat, args, text: commandText, rawText: text, commandName: name.toLowerCase(), isGroup, reply, commands, react: async emoji => { try { await withTimeout(sock.sendMessage(chat, { react: { text: emoji, key: message.key } }), 10000, 'Reação'); } catch {} } }), 90000, `Comando .${name}`); console.log(`✅ Comando concluído: .${name}`); } catch (error) { logError('❌ ERRO NO COMANDO', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `⚙️ Comando: .${name}`, `💥 ${error?.message || 'Erro desconhecido'}`]); await reply(`❌ Erro ao executar .${name}: ${error?.message || 'erro desconhecido'}`); }
