@@ -8,9 +8,47 @@ import { spawn } from 'node:child_process';
 const MAX_AUDIO_BYTES = Number(process.env.MUSIC_MAX_BYTES || 20 * 1024 * 1024);
 const CACHE_DIR = path.resolve(process.env.MUSIC_CACHE_DIR || './data/music-cache');
 const CACHE_TTL = Number(process.env.MUSIC_CACHE_TTL || 6 * 60 * 60 * 1000);
+const CACHE_MAX_BYTES = Number(process.env.MUSIC_CACHE_MAX_BYTES || 64 * 1024 * 1024);
+const CACHE_MAX_FILES = Number(process.env.MUSIC_CACHE_MAX_FILES || 24);
 
 function cacheFile(videoId) {
   return path.join(CACHE_DIR, `${videoId}.mp3`);
+}
+
+async function pruneCache() {
+  try {
+    await fs.mkdir(CACHE_DIR, { recursive: true });
+    const names = await fs.readdir(CACHE_DIR);
+    const now = Date.now();
+    const files = [];
+
+    for (const name of names) {
+      const file = path.join(CACHE_DIR, name);
+      try {
+        const stat = await fs.stat(file);
+        if (!stat.isFile()) continue;
+        if (now - stat.mtimeMs > CACHE_TTL) {
+          await fs.rm(file, { force: true });
+          continue;
+        }
+        files.push({ file, size: stat.size, mtimeMs: stat.mtimeMs });
+      } catch {}
+    }
+
+    files.sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+    let keptBytes = 0;
+    let keptFiles = 0;
+    for (const entry of files) {
+      const fits = keptFiles < CACHE_MAX_FILES && keptBytes + entry.size <= CACHE_MAX_BYTES;
+      if (!fits) {
+        await fs.rm(entry.file, { force: true }).catch(() => {});
+        continue;
+      }
+      keptFiles += 1;
+      keptBytes += entry.size;
+    }
+  } catch {}
 }
 
 async function readCache(videoId) {
@@ -29,7 +67,9 @@ async function readCache(videoId) {
 async function writeCache(videoId, buffer) {
   try {
     await fs.mkdir(CACHE_DIR, { recursive: true });
+    await pruneCache();
     await fs.writeFile(cacheFile(videoId), buffer);
+    await pruneCache();
   } catch (error) {
     console.error('[TOGI MUSIC CACHE]', error);
   }
@@ -135,6 +175,7 @@ export async function downloadYouTubeAudio(video) {
   const videoId = String(video?.videoId || '').trim();
   if (!videoId) throw new Error('ID do vídeo do YouTube inválido.');
 
+  await pruneCache();
   const cached = await readCache(videoId);
   if (cached) {
     return {
