@@ -19,7 +19,7 @@ process.stderr?.on?.('error', handleStdIOError);
 process.on('uncaughtException', error => { if (isTerminalWriteError(error)) return; try { process.stderr.write(`[FATAL] ${error?.stack || error?.message || error}\n`); } catch {} process.exitCode = 1; });
 process.on('unhandledRejection', error => { if (isTerminalWriteError(error)) return; try { process.stderr.write(`[UNHANDLED] ${error?.stack || error?.message || error}\n`); } catch {} });
 
-const logger = P({ level: process.env.LOG_LEVEL || 'info' });
+const logger = P({ level: process.env.BAILEYS_LOG_LEVEL || 'warn' });
 const logEveryMessage = process.env.LOG_MESSAGES === '1';
 let commands = new Map();
 let restarting = false;
