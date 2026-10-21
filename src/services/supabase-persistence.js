@@ -144,6 +144,6 @@ export async function initializeSupabasePersistence() {
   else if (result.reason === 'no_remote_snapshot') console.log('☁️ Supabase: primeiro boot detectado; o estado local será enviado após o uso.');
   scheduleSupabaseSync(1000);
   clearInterval(interval);
-  interval = setInterval(() => { syncToSupabase().catch(() => {}); }, 30000);
+  interval = setInterval(() => { syncToSupabase().catch(() => {}); }, 5 * 60 * 1000);
   interval.unref?.();
 }
