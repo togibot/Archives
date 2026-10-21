@@ -5,6 +5,16 @@ const SEARCH_CACHE_TTL = 2 * 60 * 1000;
 const SELECTION_TTL = 10 * 60 * 1000;
 const cache = new Map();
 const selections = new Map();
+const MAX_CACHE_ENTRIES = 200;
+const MAX_SELECTION_ENTRIES = 500;
+
+function pruneMap(map, ttl, maxEntries) {
+  const now = Date.now();
+  for (const [key, value] of map) {
+    if (!value || now - Number(value.at || 0) > ttl) map.delete(key);
+  }
+  while (map.size > maxEntries) map.delete(map.keys().next().value);
+}
 
 function clean(value, fallback = '') {
   const text = String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -70,6 +80,7 @@ export async function searchStickerPacks(query, limit = 8) {
   const keyword = clean(query);
   if (!keyword) return [];
 
+  pruneMap(cache, SEARCH_CACHE_TTL, MAX_CACHE_ENTRIES);
   const normalizedLimit = Math.max(1, Math.min(12, Number(limit) || 8));
   const key = keyword.toLowerCase();
   const cached = cache.get(key);
@@ -113,6 +124,7 @@ export async function searchStickerPacks(query, limit = 8) {
 }
 
 export function saveStickerPackSelection(chat, sender, query, packs) {
+  pruneMap(selections, SELECTION_TTL, MAX_SELECTION_ENTRIES);
   const items = Array.isArray(packs) ? packs.map(pack => ({ ...pack })) : [];
   selections.set(selectionKey(chat, sender), {
     at: Date.now(),
@@ -122,6 +134,7 @@ export function saveStickerPackSelection(chat, sender, query, packs) {
 }
 
 export function getStickerPackSelection(chat, sender, position) {
+  pruneMap(selections, SELECTION_TTL, MAX_SELECTION_ENTRIES);
   const key = selectionKey(chat, sender);
   const entry = selections.get(key);
 
