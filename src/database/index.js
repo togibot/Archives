@@ -212,6 +212,7 @@ export function setWarningTimeout(groupJid,timeoutMs){const value=Math.max(0,Mat
 export function isSoAdmEnabled(groupJid){return Boolean(Number(ensureGroup(groupJid).soadm_only||0));}
 export function setSoAdm(groupJid,enabled){ensureGroup(groupJid);updateGroup(groupJid,{soadm_only:enabled?1:0});return isSoAdmEnabled(groupJid);}
 export function clearAllSoAdm(){return db.prepare('UPDATE groups SET soadm_only=0 WHERE soadm_only<>0').run().changes;}
+export function clearAllGroupMutes(){return db.prepare('DELETE FROM group_mutes').run().changes;}
 export function setGroupMute(groupJid,userJid,expiresAt=0){const value=Math.max(0,Math.trunc(Number(expiresAt)||0));db.prepare('INSERT INTO group_mutes(group_jid,user_jid,created_at,expires_at) VALUES(?,?,?,?) ON CONFLICT(group_jid,user_jid) DO UPDATE SET created_at=excluded.created_at,expires_at=excluded.expires_at').run(groupJid,userJid,Date.now(),value);return true;}
 export function getGroupMute(groupJid,userJid){const row=db.prepare('SELECT * FROM group_mutes WHERE group_jid=? AND user_jid=?').get(groupJid,userJid);if(!row)return null;if(Number(row.expires_at||0)>0&&Number(row.expires_at)<=Date.now()){db.prepare('DELETE FROM group_mutes WHERE group_jid=? AND user_jid=?').run(groupJid,userJid);return null;}return row;}
 export function isGroupMuted(groupJid,userJid){return Boolean(getGroupMute(groupJid,userJid));}
