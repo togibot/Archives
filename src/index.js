@@ -4,7 +4,7 @@ import P from 'pino';
 import fs from 'node:fs/promises';
 import config from './config.js';
 import { loadCommands } from './core/command-loader.js';
-import { ensureUser, ensureGroup, isGroupMuted, isSoAdmEnabled, updateGroup, clearExpiredMutes } from './database/index.js';
+import { ensureUser, ensureGroup, isGroupMuted, isSoAdmEnabled, updateGroup, clearExpiredMutes, clearAllSoAdm, clearAllGroupMutes } from './database/index.js';
 import { getText, getSender, getName } from './utils/message.js';
 import { askTogi, isTogiActive } from './services/togi-ai.js';
 import { getAfk, clearAfk } from './services/afk-store.js';
@@ -22,7 +22,6 @@ process.on('unhandledRejection', error => { if (isTerminalWriteError(error)) ret
 const logger = P({ level: process.env.BAILEYS_LOG_LEVEL || 'warn' });
 const logEveryMessage = process.env.LOG_MESSAGES === '1';
 let commands = new Map();
-let restarting = false;
 const separator = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
 function logInfo(title, details = []) { console.log(`\n${separator}`); console.log(title); for (const detail of details) console.log(detail); console.log(separator); }
 function logError(title, details = []) { console.error(`\n${separator}`); console.error(title); for (const detail of details) console.error(detail); console.error(separator); }
@@ -178,7 +177,11 @@ async function processGroupSchedules(sock) {
 async function handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, autoDisable = true) { if (autoDisable && !isSelfMessage(message, sock, pairingPhone)) { const ownAfk = findAfkEntry(getAfkKeys({ effectiveSender, sender, pairingPhone, sock })); if (ownAfk) { clearAfk(ownAfk.key); await reply(`👋 @${effectiveSender.split('@')[0]} saiu do AFK!\n⏱️ Tempo ausente: ${formatAfkDuration(ownAfk.entry.since)}\n📝 Motivo: ${ownAfk.entry.reason}`, { mentions: [effectiveSender] }); } } if (!isGroup) return; const mentioned = [...new Set(getMentionedJids(message))]; if (!mentioned.length) return; const notices = [], mentions = []; for (const jid of mentioned) { const entry = getAfk(jid); if (!entry) continue; notices.push(`💤 @${jid.split('@')[0]} está AFK.\n📝 Motivo: ${entry.reason}\n⏱️ Ausente há ${formatAfkDuration(entry.since)}`); mentions.push(jid); } if (notices.length) await reply(`╭━━━〔 💤 𝐀𝐅𝐊 〕━━━╮\n${notices.join('\n\n')}\n╰━━━━━━━━━━━━━━━━━━╯`, { mentions }); }
 
 async function startBot() {
-  restarting = false;
+  if (process.env.RECOVER_COMMAND_LOCKS === '1') {
+    const soadmCleared = clearAllSoAdm();
+    const mutesCleared = clearAllGroupMutes();
+    console.log(`🧹 Recuperação: SOADM desligado em ${soadmCleared} grupo(s); ${mutesCleared} mute(s) removido(s).`);
+  }
   await fs.mkdir(config.connection.authDir, { recursive: true });
   commands = await loadCommands();
   const { state, saveCreds } = await useMultiFileAuthState(config.connection.authDir);
@@ -186,7 +189,7 @@ async function startBot() {
   const messageCache = new Map();
   const mutedFloodState = new Map();
   let scheduleTimer = null;
-  const sock = makeWASocket({ version, auth: state, logger, printQRInTerminal: false, browser: Browsers.ubuntu('Chrome'), markOnlineOnConnect: false, emitOwnEvents: false, syncFullHistory: false, shouldSyncHistoryMessage: () => false, getMessage: async key => messageCache.get(key.id)?.message || undefined });
+  const sock = makeWASocket({ version, auth: state, logger, printQRInTerminal: false, browser: Browsers.ubuntu('Chrome'), markOnlineOnConnect: false, emitOwnEvents: false, syncFullHistory: false, keepAliveIntervalMs: 20000, connectTimeoutMs: 30000, defaultQueryTimeoutMs: 60000, retryRequestDelayMs: 250, maxMsgRetryCount: 3, shouldSyncHistoryMessage: () => false, getMessage: async key => messageCache.get(key.id)?.message || undefined });
   sock.ev.on('creds.update', saveCreds);
   const pairingPhone = normalizePhone(config.connection.pairingPhone);
   let pairingRequested = false;
@@ -218,8 +221,20 @@ async function startBot() {
     if (!state.creds.registered && pairingPhone && !pairingRequested && qr) {
       void requestPairingIfNeeded();
     }
-    if (connection === 'open') { restarting = false; logInfo('🟢 TOGI CONECTADO', [`🤖 ${config.bot.name}`, `📦 ${commands.size} comandos disponíveis`]); if (!scheduleTimer) { scheduleTimer = setInterval(() => processGroupSchedules(sock), 60000); scheduleTimer.unref?.(); processGroupSchedules(sock).catch(() => {}); } }
-    if (connection === 'close') { if (scheduleTimer) { clearInterval(scheduleTimer); scheduleTimer = null; } const statusCode = lastDisconnect?.error?.output?.statusCode; const shouldReconnect = statusCode !== DisconnectReason.loggedOut; logError('🔌 CONEXÃO ENCERRADA', [`📡 Código: ${statusCode ?? 'desconhecido'}`, `🔁 Reconectar: ${shouldReconnect ? 'SIM' : 'NÃO'}`]); if (shouldReconnect && !restarting) { restarting = true; setTimeout(() => startBot().catch(error => { restarting = false; logError('❌ FALHA AO REINICIAR O TOGI', [`💥 ${error?.message || 'Erro desconhecido'}`]); }), 3000); } }
+    if (connection === 'open') { logInfo('🟢 TOGI CONECTADO', [`🤖 ${config.bot.name}`, `📦 ${commands.size} comandos disponíveis`]); if (!scheduleTimer) { scheduleTimer = setInterval(() => processGroupSchedules(sock), 60000); scheduleTimer.unref?.(); processGroupSchedules(sock).catch(() => {}); } }
+    if (connection === 'close') {
+      if (scheduleTimer) { clearInterval(scheduleTimer); scheduleTimer = null; }
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const loggedOut = statusCode === DisconnectReason.loggedOut;
+      logError('🔌 CONEXÃO ENCERRADA', [
+        `📡 Código: ${statusCode ?? 'desconhecido'}`,
+        `🔁 Reinício limpo: ${loggedOut ? 'NÃO — sessão precisa parear' : 'SIM'}`
+      ]);
+
+      // Evita acumular sockets/listeners mortos. O watchdog 24/7 relança um
+      // processo completamente limpo quando a conexão cai.
+      setTimeout(() => process.exit(loggedOut ? 2 : 1), 1000).unref?.();
+    }
   });
   if (!state.creds.registered && !pairingPhone) console.log('⚠️ PAIRING_PHONE não configurado.'); else if (state.creds.registered) console.log('🔑 Sessão existente encontrada.');
   sock.ev.on('group-participants.update', async update => { try { await sendCommunityEvent(sock, update); } catch (error) { console.log('⚠️ Erro no Community Manager:', error?.message || 'erro desconhecido'); } });
