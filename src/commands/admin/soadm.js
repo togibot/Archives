@@ -1,5 +1,5 @@
-import { getPermissionLevel } from '../../core/permissions.js';
-import { isSoAdmEnabled, setSoAdm } from '../../database/index.js';
+import { getPermissionLevel, isOwnerMessage } from '../../core/permissions.js';
+import { clearAllSoAdm, isSoAdmEnabled, setSoAdm } from '../../database/index.js';
 
 export default {
   name: 'soadm',
@@ -9,12 +9,22 @@ export default {
   async execute({ sock, chat, sender, message, isGroup, args, reply }) {
     if (!isGroup) return reply('❌ Use o .soadm em um grupo.');
 
+    const action = String(args?.[0] || '').trim().toLowerCase();
+
+    if (['offall', 'reset', 'resetall'].includes(action)) {
+      if (!isOwnerMessage(message, sender)) {
+        return reply('❌ Apenas o dono do Togi pode resetar o SOADM de todos os grupos.');
+      }
+
+      const changed = clearAllSoAdm();
+      return reply(`🔓 *SOADM RESETADO*\n\nDesativado em ${changed} grupo(s). Todos os grupos voltaram a aceitar comandos normalmente.`);
+    }
+
     const permission = await getPermissionLevel({ sock, chat, jid: sender, message });
     if (permission < 3) {
       return reply('❌ Apenas administradores deste grupo podem usar o .soadm.');
     }
 
-    const action = String(args?.[0] || '').trim().toLowerCase();
     const current = isSoAdmEnabled(chat);
 
     if (!action || action === 'status') {
