@@ -190,9 +190,34 @@ async function startBot() {
   sock.ev.on('creds.update', saveCreds);
   const pairingPhone = normalizePhone(config.connection.pairingPhone);
   let pairingRequested = false;
+
+  async function requestPairingIfNeeded() {
+    if (state.creds.registered || !pairingPhone || pairingRequested) return;
+    pairingRequested = true;
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const code = await sock.requestPairingCode(pairingPhone);
+      logInfo('🔐 TOGI BOT — PAIRING CODE', [
+        `📱 Número: +${pairingPhone}`,
+        `🔑 Código: ${code}`,
+        '💡 No WhatsApp, abra Dispositivos conectados e use a opção de conectar por código.'
+      ]);
+    } catch (error) {
+      pairingRequested = false;
+      logError('❌ FALHA AO GERAR PAIRING CODE', [`💥 ${error?.message || 'Erro desconhecido'}`]);
+    }
+  }
+
   logInfo(`🚀 ${config.bot.name} iniciando`, [`📦 ${commands.size} comandos carregados`, `🗃️ Banco: ${process.env.DATABASE_PATH || './data/togi.sqlite'}`, '🛡️ Anti-palavrão: DESATIVADO']);
+
+  if (!state.creds.registered && pairingPhone) {
+    void requestPairingIfNeeded();
+  }
+
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
-    if (!state.creds.registered && pairingPhone && !pairingRequested && qr) { pairingRequested = true; try { const code = await sock.requestPairingCode(pairingPhone); logInfo('🔐 TOGI BOT — PAIRING CODE', [`📱 Número: +${pairingPhone}`, `🔑 Código: ${code}`, '💡 No WhatsApp, abra Dispositivos conectados e use a opção de conectar por código.']); } catch (error) { pairingRequested = false; logError('❌ FALHA AO GERAR PAIRING CODE', [`💥 ${error?.message || 'Erro desconhecido'}`]); } }
+    if (!state.creds.registered && pairingPhone && !pairingRequested && qr) {
+      void requestPairingIfNeeded();
+    }
     if (connection === 'open') { restarting = false; logInfo('🟢 TOGI CONECTADO', [`🤖 ${config.bot.name}`, `📦 ${commands.size} comandos disponíveis`]); if (!scheduleTimer) { scheduleTimer = setInterval(() => processGroupSchedules(sock), 60000); scheduleTimer.unref?.(); processGroupSchedules(sock).catch(() => {}); } }
     if (connection === 'close') { if (scheduleTimer) { clearInterval(scheduleTimer); scheduleTimer = null; } const statusCode = lastDisconnect?.error?.output?.statusCode; const shouldReconnect = statusCode !== DisconnectReason.loggedOut; logError('🔌 CONEXÃO ENCERRADA', [`📡 Código: ${statusCode ?? 'desconhecido'}`, `🔁 Reconectar: ${shouldReconnect ? 'SIM' : 'NÃO'}`]); if (shouldReconnect && !restarting) { restarting = true; setTimeout(() => startBot().catch(error => { restarting = false; logError('❌ FALHA AO REINICIAR O TOGI', [`💥 ${error?.message || 'Erro desconhecido'}`]); }), 3000); } }
   });
