@@ -10,7 +10,7 @@ import { askTogi, isTogiActive } from './services/togi-ai.js';
 import { getAfk, clearAfk } from './services/afk-store.js';
 import { moderateGroupMessage } from './services/group-security.js';
 import { getCommandReaction } from './config/reactions.js';
-import { getPermissionLevel } from './core/permissions.js';
+import { getPermissionLevel, isOwnerMessage } from './core/permissions.js';
 
 function isTerminalWriteError(error) { const code = String(error?.code || '').toUpperCase(); const errno = Number(error?.errno); return code === 'EPIPE' || code === 'EDQUOT' || errno === -32 || errno === -122; }
 function handleStdIOError(error) { if (isTerminalWriteError(error)) return; try { process.stderr.write(`[STDIO] ${error?.message || 'erro de escrita'}\n`); } catch {} }
@@ -211,7 +211,16 @@ async function startBot() {
       let parsedCommandName = ''; if (text.startsWith(config.bot.prefix)) { const body = text.slice(config.bot.prefix.length).trim(); parsedCommandName = body.split(/\s+/)[0]?.toLowerCase() || ''; }
       const isAfkToggle = parsedCommandName === 'afk' || parsedCommandName === 'ausente';
       if (isGroup && isGroupMuted(chat, effectiveSender)) { try { await sock.sendMessage(chat, { delete: message.key }); } catch (error) { logger.debug({ err: error }, 'Não foi possível apagar mensagem de usuário mutado.'); } const now = Date.now(); const key = chat + '::' + effectiveSender; const previous = mutedFloodState.get(key) || { lastNotice: 0, attempts: 0 }; previous.attempts += 1; if (now - previous.lastNotice >= 15000) { previous.lastNotice = now; try { await sock.sendMessage(chat, { text: '🔇 @' + effectiveSender.split('@')[0] + ' está em castigo/mute e não pode enviar mensagens agora. Pare de floodar o grupo.', mentions: [effectiveSender] }); } catch {} } mutedFloodState.set(key, previous); if (mutedFloodState.size > 500) mutedFloodState.delete(mutedFloodState.keys().next().value); continue; }
-      if (isGroup && isSoAdmEnabled(chat) && parsedCommandName && parsedCommandName !== 'soadm') { try { const permission = await getPermissionLevel({ sock, chat, jid: effectiveSender, message }); if (permission < 3) continue; } catch (error) { logger.debug({ err: error }, 'Não foi possível verificar o modo SOADM.'); continue; } }
+      if (isGroup && isSoAdmEnabled(chat) && parsedCommandName && parsedCommandName !== 'soadm') {
+        if (!isOwnerMessage(message, effectiveSender)) {
+          try {
+            const permission = await getPermissionLevel({ sock, chat, jid: effectiveSender, message });
+            if (permission < 3) continue;
+          } catch (error) {
+            logger.warn({ err: error }, 'SOADM: falha ao verificar ADM; liberando comando para não travar o grupo.');
+          }
+        }
+      }
       try { await handleAfk(sock, message, effectiveSender, sender, pairingPhone, isGroup, reply, !isAfkToggle); } catch (error) { logger.debug({ err: error }, 'Falha ao processar AFK.'); }
       if (isGroup && !message.key.fromMe && !isAfkToggle && !['sds','antipalavrao','antipalavras'].includes(parsedCommandName)) { try { const moderated = await moderateGroupMessage({ sock, chat, message, sender: effectiveSender }); if (moderated?.moderated) continue; } catch (error) { logError('❌ ERRO NO SISTEMA DE SEGURANÇA', [`👥 Grupo: ${chat}`, `👤 Usuário: ${displayJid(effectiveSender)}`, `💥 ${error?.message || 'Erro desconhecido'}`]); } }
       if (!text.startsWith(config.bot.prefix) && isTogiActive(chat, effectiveSender)) { try { const answer = await askTogi(chat, effectiveSender, text, userName); if (answer) await reply(answer); } catch (error) { logError('❌ ERRO NA TOGI AI', [`👤 Usuário: ${userName || displayJid(effectiveSender)}`, `👥 Grupo: ${displayChat(chat, isGroup)}`, `💥 ${error?.message || 'Erro desconhecido'}`]); if (error?.name !== 'AbortError') await reply('❌ A Togi AI está indisponível no momento. Tente novamente em instantes.'); } continue; }
