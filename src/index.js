@@ -4,7 +4,7 @@ import P from 'pino';
 import fs from 'node:fs/promises';
 import config from './config.js';
 import { loadCommands } from './core/command-loader.js';
-import { ensureUser, ensureGroup, isGroupMuted, isSoAdmEnabled, updateGroup, clearExpiredMutes, clearAllSoAdm, clearAllGroupMutes } from './database/index.js';
+import { ensureUser, ensureGroup, isGroupMuted, isSoAdmEnabled, updateGroup, clearExpiredMutes, clearAllSoAdm, clearAllGroupMutes, getScheduledGroups } from './database/index.js';
 import { getText, getSender, getName } from './utils/message.js';
 import { askTogi, isTogiActive } from './services/togi-ai.js';
 import { getAfk, clearAfk } from './services/afk-store.js';
@@ -138,15 +138,12 @@ async function sendCommunityEvent(sock, update) {
 
 async function processGroupSchedules(sock) {
   try {
-    const groups = await sock.groupFetchAllParticipating();
+    const groups = getScheduledGroups();
     const clock = saoPauloClock();
 
-    for (const group of Object.values(groups || {})) {
-      const chat = group?.id || group?.jid;
+    for (const settings of groups) {
+      const chat = settings?.jid;
       if (!String(chat).endsWith('@g.us')) continue;
-
-      const settings = ensureGroup(chat, group?.subject || '');
-      if (Number(settings?.schedule_enabled || 0) !== 1) continue;
 
       const last = String(settings?.schedule_last_action || '');
       if (clock.time === settings.close_time && last !== clock.date + '|close') {
