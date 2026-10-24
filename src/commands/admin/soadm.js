@@ -6,17 +6,33 @@ export default {
   aliases: ['somenteadm'],
   category: 'admin',
   description: 'Ativa ou desativa o modo em que só ADMs usam comandos.',
-  async execute({ sock, chat, sender, message, isGroup, reply }) {
+  async execute({ sock, chat, sender, message, isGroup, args, reply }) {
     if (!isGroup) return reply('❌ Use o .soadm em um grupo.');
-    if (await getPermissionLevel({ sock, chat, jid: sender, message }) < 3) {
+
+    const permission = await getPermissionLevel({ sock, chat, jid: sender, message });
+    if (permission < 3) {
       return reply('❌ Apenas administradores deste grupo podem usar o .soadm.');
     }
 
-    const enabled = !isSoAdmEnabled(chat);
+    const action = String(args?.[0] || '').trim().toLowerCase();
+    const current = isSoAdmEnabled(chat);
+
+    if (!action || action === 'status') {
+      return reply(
+        `🔐 *SOADM:* ${current ? 'ATIVADO' : 'DESATIVADO'}\n\n` +
+        'Use *.soadm on* para ativar ou *.soadm off* para desativar.'
+      );
+    }
+
+    if (!['on', 'off', 'ativar', 'desativar'].includes(action)) {
+      return reply('❌ Use *.soadm on*, *.soadm off* ou *.soadm status*.');
+    }
+
+    const enabled = action === 'on' || action === 'ativar';
     setSoAdm(chat, enabled);
 
     return reply(enabled
-      ? '🔐 *SOADM ATIVADO*\n\nAgora somente administradores e o dono do Togi podem usar comandos neste grupo.'
+      ? '🔐 *SOADM ATIVADO*\n\nSomente administradores e o dono do Togi podem usar comandos neste grupo.'
       : '🔓 *SOADM DESATIVADO*\n\nTodos podem voltar a usar os comandos normalmente.');
   }
 };
