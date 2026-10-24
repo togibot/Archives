@@ -109,25 +109,27 @@ export async function moderateGroupMessage({ sock, chat, message, sender }) {
   const group = getGroup(chat);
   if (!group) return { moderated: false };
 
-  const permission = await getPermissionLevel({ sock, chat, jid: sender, message }).catch(() => 1);
-  // Dono do Togi e ADMs do grupo nunca sofrem punição automática.
-  if (permission >= 3) return { moderated: false };
-
   const text = getText(message);
   let kind = null;
   let found = null;
 
-  if (isSdsEnabled(chat)) {
+  // Primeiro faz apenas verificações locais. groupMetadata() é uma chamada
+  // remota cara e só é necessária quando alguma regra realmente foi violada.
+  if (Number(group?.sds_enabled || 0) === 1) {
     found = findSdsWord(text, group);
     if (found) kind = 'sds';
   }
 
-  if (!found) {
+  if (!found && Number(group?.anti_profanity || 0) === 1) {
     found = findProfanity(text, chat);
     if (found) kind = 'profanity';
   }
 
   if (!found) return { moderated: false };
+
+  const permission = await getPermissionLevel({ sock, chat, jid: sender, message }).catch(() => 1);
+  // Dono do Togi e ADMs do grupo nunca sofrem punição automática.
+  if (permission >= 3) return { moderated: false };
 
   if (!await botAdmin(sock, chat)) {
     return { moderated: false, reason: 'bot-not-admin', kind, word: found };
