@@ -13,7 +13,25 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm install --ignore-scripts
+          node-version: 24
+      - run: npm install --ignore-scripts --no-audit --no-fund
       - name: Check JavaScript syntax
         run: find src -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Test built-in SQLite adapter
+        run: |
+          node --input-type=module <<'NODE'
+          import Database from 'better-sqlite3';
+
+          const db = new Database(':memory:');
+          db.exec('CREATE TABLE checks (value INTEGER NOT NULL)');
+          db.prepare('INSERT INTO checks (value) VALUES (?)').run(24);
+
+          const result = db.prepare('SELECT value FROM checks').get();
+          db.close();
+
+          if (result?.value !== 24) {
+            throw new Error('SQLite adapter test failed');
+          }
+
+          console.log('SQLite adapter OK on Node.js', process.version);
+          NODE
