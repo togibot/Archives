@@ -22,6 +22,7 @@ process.on('unhandledRejection', error => { if (isTerminalWriteError(error)) ret
 const logger = P({ level: process.env.BAILEYS_LOG_LEVEL || 'warn' });
 const logEveryMessage = process.env.LOG_MESSAGES === '1';
 let commands = new Map();
+let restartTimer = null;
 const separator = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
 function logInfo(title, details = []) { console.log(`\n${separator}`); console.log(title); for (const detail of details) console.log(detail); console.log(separator); }
 function logError(title, details = []) { console.error(`\n${separator}`); console.error(title); for (const detail of details) console.error(detail); console.error(separator); }
@@ -228,9 +229,35 @@ async function startBot() {
         `🔁 Reinício limpo: ${loggedOut ? 'NÃO — sessão precisa parear' : 'SIM'}`
       ]);
 
-      // Evita acumular sockets/listeners mortos. O watchdog 24/7 relança um
-      // processo completamente limpo quando a conexão cai.
-      setTimeout(() => process.exit(loggedOut ? 2 : 1), 1000).unref?.();
+      // Reinicia o socket dentro do mesmo processo. O bootstrap mantém o lock
+      // da instância; não dependemos de um watchdog externo.
+      if (restartTimer) return;
+      restartTimer = setTimeout(async () => {
+        restartTimer = null;
+        try {
+          if (loggedOut) {
+            // 401 = sessão recusada pelo WhatsApp. Limpa apenas a autenticação
+            // para solicitar um novo pairing code; banco e demais dados ficam intactos.
+            await fs.rm(config.connection.authDir, { recursive: true, force: true });
+            await fs.mkdir(config.connection.authDir, { recursive: true });
+            logInfo('🔐 SESSÃO PRECISA SER VINCULADA NOVAMENTE', [
+              '📱 A autenticação anterior foi recusada.',
+              '🔑 O Togi vai gerar um novo código de pareamento.'
+            ]);
+          }
+          await startBot();
+        } catch (error) {
+          logError('❌ FALHA AO REINICIAR A CONEXÃO', [
+            `💥 ${error?.message || 'Erro desconhecido'}`
+          ]);
+          restartTimer = setTimeout(() => {
+            restartTimer = null;
+            startBot().catch(err => logError('❌ FALHA NA NOVA TENTATIVA', [`💥 ${err?.message || err}`]));
+          }, 5000);
+          restartTimer.unref?.();
+        }
+      }, loggedOut ? 1500 : 1200);
+      restartTimer.unref?.();
     }
   });
   if (!state.creds.registered && !pairingPhone) console.log('⚠️ PAIRING_PHONE não configurado.'); else if (state.creds.registered) console.log('🔑 Sessão existente encontrada.');
