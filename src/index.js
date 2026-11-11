@@ -254,10 +254,10 @@ async function startBot() {
             restartTimer = null;
             startBot().catch(err => logError('❌ FALHA NA NOVA TENTATIVA', [`💥 ${err?.message || err}`]));
           }, 5000);
-          restartTimer.unref?.();
+          // Não usar unref: o processo precisa permanecer vivo até a reconexão.
         }
       }, loggedOut ? 1500 : 1200);
-      restartTimer.unref?.();
+      // Não usar unref: o processo precisa permanecer vivo até a reconexão.
     }
   });
   if (!state.creds.registered && !pairingPhone) console.log('⚠️ PAIRING_PHONE não configurado.'); else if (state.creds.registered) console.log('🔑 Sessão existente encontrada.');
