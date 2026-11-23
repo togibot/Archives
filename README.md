@@ -41,13 +41,15 @@ A moeda oficial do Togi Bot é **Token**.
 
 `ship` • `casal`
 
-`.casal` sorteia duas pessoas do grupo e calcula uma porcentagem de compatibilidade de forma aleatória, apenas para diversão.
+`.casal` sorteia duas pessoas no grupo e calcula uma porcentagem de compatibilidade aleatória, apenas para diversão.
 
 ## 🎲 DIVERSÃO
 
 `8ball` • `dado` • `coin`
 
 `quiz` • `quizrank` • `quizstats` • `quizstreak`
+
+`.doom` — abre Freedoom, compatível com Doom, no navegador (requer servidor HTTPS configurado).
 
 ## 👥 GRUPOS / MODERAÇÃO
 

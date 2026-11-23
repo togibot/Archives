@@ -1,0 +1,17 @@
+# Add this site block to the Caddyfile of the public reverse proxy.
+# Point the DNS A/AAAA record for this hostname to the server first.
+# Caddy will request and renew the HTTPS certificate automatically.
+
+doom.seudominio.com {
+    encode gzip zstd
+
+    header {
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Embedder-Policy "require-corp"
+        Cross-Origin-Resource-Policy "same-origin"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+    }
+
+    reverse_proxy 127.0.0.1:8091
+}
