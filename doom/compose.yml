@@ -1,0 +1,8 @@
+services:
+  doom:
+    image: ghcr.io/abootnet/uzdoom-wasm:latest
+    container_name: togi-doom
+    restart: unless-stopped
+    ports:
+      # Keep the game private on the server; expose it through HTTPS Caddy.
+      - "127.0.0.1:8091:80"
