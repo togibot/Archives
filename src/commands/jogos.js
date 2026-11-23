@@ -2,8 +2,29 @@ export default {
   name: 'jogos',
   aliases: ['games', 'minigames'],
   category: 'fun',
-  description: 'Mostra os minijogos disponíveis no Togi.',
+  description: 'Mostra os jogos disponíveis no Togi.',
   async execute({ reply }) {
-    return reply(`╭━━━〔 🎮 𝐓𝐎𝐆𝐈 𝐆𝐀𝐌𝐄𝐒 〕━━━╮\n┃\n┃ 🔤 *.forca*\n┃    Descubra a palavra letra por letra.\n┃\n┃ 🔀 *.anagrama*\n┃    Desembaralhe a palavra.\n┃\n┃ 🔢 *.adivinhe*\n┃    Acerte o número secreto.\n┃\n┃ 🧠 *.quiz*\n┃    Quiz do Togi.\n┃\n╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n🏆 Os jogos são gratuitos e podem dar Tokens/XP como recompensa.`);
+    return reply(`╭━━━〔 🎮 𝐓𝐎𝐆𝐈 𝐆𝐀𝐌𝐄𝐒 〕━━━╮
+┃
+┃ 🔤 *.forca*
+┃    Descubra a palavra letra por letra.
+┃
+┃ 🔀 *.anagrama*
+┃    Desembaralhe a palavra.
+┃
+┃ 🔢 *.adivinhe*
+┃    Acerte o número secreto.
+┃
+┃ 🧠 *.quiz*
+┃    Quiz do Togi.
+┃
+┃ 🔥 *.doom*
+┃    Jogue Freedoom em 3D no navegador.
+┃    Inclui controles touch e áudio.
+┃
+╰━━━━━━━━━━━━━━━━━━━━━━╯
+
+🏆 Os minijogos de texto podem dar Tokens/XP.
+🎮 DOOM abre uma partida no navegador.`);
   }
 };
