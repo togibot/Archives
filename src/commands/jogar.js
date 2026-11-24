@@ -1,21 +1,13 @@
-const GAMES = {
-  doom: { name: 'DOOM / Freedoom', env: 'TOGI_GAME_DOOM_URL' },
-  quake: { name: 'Quake', env: 'TOGI_GAME_QUAKE_URL' },
-  wolf3d: { name: 'Wolfenstein 3D', env: 'TOGI_GAME_WOLF3D_URL' },
-  hexen: { name: 'Hexen', env: 'TOGI_GAME_HEXEN_URL' },
-  supertuxkart: { name: 'SuperTuxKart', env: 'TOGI_GAME_SUPERTUXKART_URL' },
-  openttd: { name: 'OpenTTD', env: 'TOGI_GAME_OPENTTD_URL' }
-};
+import { getTogiGameUrl } from '../services/togi-games.js';
 
-function safeHttpsUrl(value) {
-  try {
-    const url = new URL(String(value || '').trim());
-    if (url.protocol !== 'https:' || url.username || url.password) return null;
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
+const GAME_NAMES = {
+  doom: 'DOOM / Freedoom',
+  quake: 'Quake',
+  wolf3d: 'Wolfenstein 3D',
+  hexen: 'Hexen',
+  supertuxkart: 'SuperTuxKart',
+  openttd: 'OpenTTD'
+};
 
 export default {
   name: 'jogar',
@@ -28,16 +20,24 @@ export default {
       return reply('🎮 *TOGI GAMES*\n\nUse *.jogos* para ver o catálogo.\nExemplo: *.jogar doom*');
     }
 
-    const game = GAMES[id];
-    if (!game) return reply('❌ Jogo não encontrado. Use *.jogos* para consultar o catálogo.');
-
-    // Keep the original DOOM variable compatible with existing deployments.
-    const configured = process.env[game.env] || (id === 'doom' ? process.env.TOGI_DOOM_URL : '');
-    const url = safeHttpsUrl(configured);
-    if (!url) {
-      return reply(`⚪ *${game.name}* ainda não está configurado.\n\nAdicione uma URL pública HTTPS em ${game.env} no arquivo .env e hospede o jogo antes de tentar novamente.`);
+    const gameName = GAME_NAMES[id];
+    if (!gameName) {
+      return reply('❌ Jogo não encontrado. Use *.jogos* para consultar o catálogo.');
     }
 
-    return reply(`🎮 *TOGI GAMES — ${game.name}*\n\n▶️ Abra o jogo pelo link:\n${url}\n\nPara sair, feche a aba do navegador.`);
+    const url = getTogiGameUrl(id);
+    if (!url) {
+      return reply(
+        '⚪ *' + gameName + '* ainda não tem link configurado.\n\n'
+        + 'Defina uma única URL-base HTTPS em TOGI_GAMES_URL no arquivo .env. '
+        + 'O servidor também precisa publicar a rota /' + id + '/.'
+      );
+    }
+
+    return reply(
+      '🎮 *TOGI GAMES — ' + gameName + '*\n\n'
+      + '▶️ Abra o jogo pelo link:\n' + url + '\n\n'
+      + 'A rota do jogo precisa estar publicada no servidor. Para sair, feche a aba do navegador.'
+    );
   }
 };
