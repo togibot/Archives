@@ -26,7 +26,8 @@ export default {
 ┃ 🎵 ${p}speedmusic — Acelerar preservando o pitch
 ┃ 🐌 ${p}slowmusic — Deixar lento preservando o pitch
 ┃ 🌌 ${p}reverb <1-10> — Aplicar reverb com intensidade
-┃ ✨ ${p}ultrareverb — Ultra Reverb inteligente
+┃ 🎤 ${p}onlyreverb normal|ultra — Isolar voz + reverb
+┃ ✨ ${p}ultrareverb — Reverb de ambiente intenso
 ┃ 💧 ${p}liquid <1-10> — Efeito Digital Liquid
 ┃ 🎧 ${p}8d — Efeito de áudio 8D
 ┃
@@ -42,6 +43,6 @@ export default {
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
 💜 *Sistema de áudio do Togi Bot*
-⚠️ Alguns recursos ainda estão em desenvolvimento.`); 
+🎤 Only Reverb usa separação vocal por IA; instale o motor uma vez.`); 
   }
 };
