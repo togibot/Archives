@@ -70,26 +70,29 @@ curl -I https://doom.seudominio.com/
 
 Confirme que os três cabeçalhos acima aparecem na resposta.
 
-## 4. Conectar ao Togi
+## 4. Conectar ao Togi Games
 
-No arquivo .env da instalação do Togi, adicione o endereço HTTPS real:
+No arquivo `.env` da instalação do Togi, configure:
 
 ```env
-TOGI_DOOM_URL=https://doom.seudominio.com/
+TOGI_GAMES_NAME=Togi Games
+TOGI_GAME_DOOM_URL=https://doom.seudominio.com/
 ```
 
-Reinicie o Togi para carregar a variável. Depois, no WhatsApp:
+A variável antiga `TOGI_DOOM_URL` continua aceita como fallback.
+Reinicie o Togi para carregar as variáveis. Depois, no WhatsApp:
 
-- .doom — envia o link de jogo e inicia Freedoom no primeiro mapa.
-- .doom ajuda — mostra a ajuda.
-- .doom sair — explica como encerrar a aba local do jogo.
+- `.jogos` — mostra o catálogo Togi Games.
+- `.jogar doom` — abre DOOM/Freedoom pelo lançador geral.
+- `.doom` — atalho direto para DOOM.
+- `.doom ajuda` — mostra a ajuda.
 
 O comando não finge encerrar o jogo remotamente: a partida roda no navegador
 do próprio jogador.
 
 ## 5. Verificação rápida
 
-1. Abra o link enviado por .doom em um navegador atualizado.
+1. Abra o link enviado pelo Togi em um navegador atualizado.
 2. Aguarde o carregamento inicial dos arquivos WebAssembly.
 3. Confirme que o mapa inicia e que os controles touch aparecem no celular.
 4. Teste o áudio depois de tocar na tela, pois navegadores móveis podem exigir
