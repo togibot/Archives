@@ -22,7 +22,7 @@ export function getTogiGamesBaseUrl() {
   if (!url || url.search || url.hash) return null;
 
   // Preserve an optional base path and normalize it for safe route joining.
-  url.pathname = url.pathname.replace(/\\/+$/, '') + '/';
+  url.pathname = url.pathname.replace(/\/+$/, '') + '/';
   return url;
 }
 
