@@ -200,7 +200,7 @@ async function applyConvolutionReverb(inputPath, outputPath, dir, settings) {
     "[0:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[src];" +
     "[1:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[ir];" +
     "[src][ir]afir=dry=1.0:wet=" + settings.wet +
-    ":irfmt=input:irnorm=1,alimiter=limit=0.95,apad=pad_dur=" +
+    ":irfmt=input:irnorm=-1,alimiter=limit=0.98:level=disabled,apad=pad_dur=" +
     settings.tailSeconds + "[out]";
   await runFfmpeg([
     "-y", "-i", inputPath, "-i", impulsePath,
@@ -366,7 +366,7 @@ export async function processAudio(buffer, operation, amount = 5) {
 
     if (convolutionLevel !== null) {
       const decaySeconds = 0.65 + convolutionLevel * 0.22;
-      const wet = (0.18 + convolutionLevel * 0.037).toFixed(3);
+      const wet = (0.10 + convolutionLevel * 0.014).toFixed(3);
       await applyConvolutionReverb(inputPath, outputPath, dir, {
         decaySeconds,
         wet,
