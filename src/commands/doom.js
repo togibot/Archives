@@ -1,18 +1,4 @@
-function getGameUrl() {
-  const configured = String(process.env.TOGI_GAME_DOOM_URL || process.env.TOGI_DOOM_URL || '').trim();
-  if (!configured) return null;
-
-  try {
-    const url = new URL(configured);
-    if (url.protocol !== 'https:' || url.username || url.password) return null;
-    url.searchParams.set('iwad', 'freedoom1.wad');
-    url.searchParams.set('warp', '1,1');
-    url.searchParams.set('nomelt', '1');
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
+import { getTogiGameUrl } from '../services/togi-games.js';
 
 export default {
   name: 'doom',
@@ -39,12 +25,12 @@ export default {
       return reply('Para encerrar a partida, feche a aba do TOGI DOOM no navegador. O jogo é executado no dispositivo em que foi aberto.');
     }
 
-    const gameUrl = getGameUrl();
+    const gameUrl = getTogiGameUrl('doom');
     if (!gameUrl) {
       return reply([
-        '⚠️ *TOGI DOOM ainda não está configurado.*',
+        '⚠️ *TOGI DOOM ainda não tem URL configurada.*',
         '',
-        'O motor do jogo já foi escolhido, mas falta publicar o servidor HTTPS e definir TOGI_GAME_DOOM_URL no .env do Togi.',
+        'Defina TOGI_GAMES_URL no arquivo .env e publique a rota /doom/ no servidor.',
         '',
         'Consulte docs/DOOM.md para preparar o servidor.'
       ].join('\n'));
@@ -52,10 +38,9 @@ export default {
 
     return reply([
       '╭━━━〔 🔥 TOGI DOOM 〕━━━╮',
-      '┃ DOOM está pronto para jogar!',
+      '┃ Link de DOOM / Freedoom:',
       '┃',
-      '┃ 🎮 Jogo: Freedoom (compatível com Doom)',
-      '┃ 📱 Controles touch para celular',
+      '┃ 📱 Controles touch dependem do build',
       '┃ 🔊 Áudio e renderização 3D no navegador',
       '┃',
       '┃ ▶️ *ABRIR O JOGO:*',
