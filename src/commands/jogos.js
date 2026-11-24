@@ -1,20 +1,4 @@
-const GAMES = [
-  ['doom', 'DOOM / Freedoom', 'FPS clássico em 3D', 'TOGI_GAME_DOOM_URL'],
-  ['quake', 'Quake', 'FPS 3D', 'TOGI_GAME_QUAKE_URL'],
-  ['wolf3d', 'Wolfenstein 3D', 'FPS retrô', 'TOGI_GAME_WOLF3D_URL'],
-  ['hexen', 'Hexen', 'Ação e fantasia em primeira pessoa', 'TOGI_GAME_HEXEN_URL'],
-  ['supertuxkart', 'SuperTuxKart', 'Corrida 3D', 'TOGI_GAME_SUPERTUXKART_URL'],
-  ['openttd', 'OpenTTD', 'Estratégia e transporte', 'TOGI_GAME_OPENTTD_URL']
-];
-
-function isValidHttps(value) {
-  try {
-    const url = new URL(String(value || '').trim());
-    return url.protocol === 'https:' && !url.username && !url.password;
-  } catch {
-    return false;
-  }
-}
+import { getTogiGamesBaseUrl, getTogiGamesCatalog } from '../services/togi-games.js';
 
 export default {
   name: 'jogos',
@@ -23,14 +7,16 @@ export default {
   description: 'Mostra o catálogo do Togi Games.',
   async execute({ reply }) {
     const title = process.env.TOGI_GAMES_NAME || 'Togi Games';
-    const external = GAMES.map(([id, name, genre, env]) => {
-      const url = process.env[env];
-      const ready = isValidHttps(url);
-      return `┃ ${ready ? '🟢' : '⚪'} *${name}* — ${genre}\n┃    ${ready ? `.jogar ${id}` : 'URL ainda não configurada'}`;
+    const baseConfigured = Boolean(getTogiGamesBaseUrl());
+    const games = getTogiGamesCatalog();
+    const external = games.map((game) => {
+      const ready = Boolean(game.url);
+      return '┃ ' + (ready ? '🟢' : '⚪') + ' *' + game.name + '* — ' + game.genre
+        + '\n┃    ' + (ready ? '.jogar ' + game.id : 'URL global não configurada');
     });
 
     return reply([
-      `╭━━━〔 🎮 ${title.toUpperCase()} 〕━━━╮`,
+      '╭━━━〔 🎮 ' + title.toUpperCase() + ' 〕━━━╮',
       '┃',
       '┃ 🎲 *MINIJOGOS DO TOGI*',
       '┃ .forca • .anagrama • .adivinhe • .quiz',
@@ -40,8 +26,10 @@ export default {
       '┃',
       '╰━━━━━━━━━━━━━━━━━━━━━━╯',
       '',
-      '🟢 Configurado | ⚪ Aguardando URL HTTPS',
-      'Use *.jogar <id>* para abrir um jogo configurado.'
+      baseConfigured
+        ? '🟢 URL global configurada. Cada jogo precisa ter sua rota publicada no servidor.'
+        : '⚪ Configure TOGI_GAMES_URL no .env para gerar os links.',
+      'Use *.jogar <id>* para abrir um jogo.'
     ].join('\n'));
   }
 };
