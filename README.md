@@ -52,10 +52,10 @@ A moeda oficial do Togi Bot é **Token**.
 ## 🎮 TOGI GAMES
 
 - `.jogos` — mostra o catálogo Togi Games.
-- `.jogar <id>` — abre um jogo configurado.
+- `.jogar <id>` — abre um jogo pela URL global.
 - `.doom` — atalho para DOOM/Freedoom.
 
-O catálogo inicial prevê DOOM/Freedoom, Quake, Wolfenstein 3D, Hexen, SuperTuxKart e OpenTTD. Cada jogo externo precisa de uma URL HTTPS pública e de uma hospedagem compatível antes de ficar disponível.
+Configure apenas `TOGI_GAMES_URL` no `.env`. O Togi acrescenta automaticamente uma rota por jogo, como `/doom/` ou `/quake/`. Cada rota ainda precisa ser publicada no servidor; o catálogo não significa que todos os motores já estejam instalados. Consulte `docs/DOOM.md` para a configuração inicial de DOOM.
 
 ## 👥 GRUPOS / MODERAÇÃO
 
