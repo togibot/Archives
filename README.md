@@ -57,6 +57,26 @@ A moeda oficial do Togi Bot é **Token**.
 
 Configure apenas `TOGI_GAMES_URL` no `.env`. O Togi acrescenta automaticamente uma rota por jogo, como `/doom/` ou `/quake/`. Cada rota ainda precisa ser publicada no servidor; o catálogo não significa que todos os motores já estejam instalados. Consulte `docs/DOOM.md` para a configuração inicial de DOOM.
 
+## 🎤 ONLY REVERB / ÁUDIO COM IA
+
+- \`.reverb <1-10>\` — reverberação por convolução com cauda difusa.
+- \`.onlyreverb normal\` — separação vocal HT-Demucs mais rápida + reverb.
+- \`.onlyreverb ultra\` — especialista vocal HT-Demucs FT em FP32 + reverb.
+- \`.ultrareverb\` — preset de reverb de ambiente mais intenso.
+
+Para habilitar a separação vocal no servidor, execute uma vez:
+
+\`\`\`bash
+bash scripts/setup-audio-ai.sh
+\`\`\`
+
+O instalador cria \`.venv-audio/\` e instala \`demucs-onnx\` (ONNX Runtime, sem PyTorch).
+Os pesos de cada modelo são baixados do Hugging Face automaticamente no primeiro uso.
+O modo Ultra exige mais CPU, memória e armazenamento. A separação por IA pode deixar pequenos
+artefatos dependendo da música; nenhum separador garante a remoção perfeita de todos os instrumentos.
+
+Responda a uma mensagem com áudio ou envie o áudio junto com o comando.
+
 ## 👥 GRUPOS / MODERAÇÃO
 
 `groupinfo` • `kick` • `antilink`
