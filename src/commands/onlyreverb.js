@@ -9,9 +9,9 @@ export default {
     const mode = String(args?.[0] || '').trim().toLowerCase();
     if (!['normal', 'ultra'].includes(mode)) {
       return reply(
-        '🎤 *ONLY REVERB*\\n\\n' +
-        'Escolha um modo: *.onlyreverb normal* ou *.onlyreverb ultra*\\n\\n' +
-        '• *Normal:* separação vocal mais rápida.\\n' +
+        '🎤 *ONLY REVERB*\n\n' +
+        'Escolha um modo: *.onlyreverb normal* ou *.onlyreverb ultra*\n\n' +
+        '• *Normal:* separação vocal mais rápida.\n' +
         '• *Ultra:* modelo vocal de maior qualidade, com processamento mais pesado.'
       );
     }
@@ -32,7 +32,7 @@ export default {
       }, { quoted: message });
     } catch (error) {
       return reply(
-        '❌ Não consegui processar o Only Reverb.\\n' +
+        '❌ Não consegui processar o Only Reverb.\n' +
         (error?.message || 'Erro desconhecido')
       );
     }
