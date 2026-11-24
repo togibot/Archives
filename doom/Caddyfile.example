@@ -1,8 +1,14 @@
-# Add this site block to the Caddyfile of the public reverse proxy.
-# Point the DNS A/AAAA record for this hostname to the server first.
-# Caddy will request and renew the HTTPS certificate automatically.
+# Exemplo de site Caddy para o Togi Games.
+# Aponte o DNS de games.seudominio.com para o servidor e troque o domínio abaixo.
+# A URL configurada no Togi será https://games.seudominio.com.
+#
+# Cada jogo usa uma rota no mesmo domínio. O Caddy remove o prefixo da rota
+# antes de enviar a requisição ao respectivo servidor interno.
+#
+# O exemplo abaixo publica somente DOOM. Adicione novas rotas quando os
+# outros motores/jogos estiverem realmente instalados.
 
-doom.seudominio.com {
+games.seudominio.com {
     encode gzip zstd
 
     header {
@@ -13,5 +19,19 @@ doom.seudominio.com {
         Referrer-Policy "no-referrer"
     }
 
-    reverse_proxy 127.0.0.1:8091
+    @doomRoot path /doom
+    redir @doomRoot /doom/ 308
+
+    handle_path /doom/* {
+        reverse_proxy 127.0.0.1:8091
+    }
+
+    # Exemplo para um futuro jogo, depois de instalar seu servidor:
+    # handle_path /quake/* {
+    #     reverse_proxy 127.0.0.1:8092
+    # }
+
+    handle {
+        respond "Togi Games: rota de jogo ainda não publicada." 404
+    }
 }
