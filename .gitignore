@@ -5,3 +5,4 @@ data/auth/
 .env
 *.log
 npm-debug.log*
+.venv-audio/
