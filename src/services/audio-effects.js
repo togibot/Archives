@@ -92,6 +92,161 @@ function runFfmpeg(args, capture = false) {
   });
 }
 
+
+function makeImpulseResponse(decaySeconds) {
+  const sampleRate = 44100;
+  const frames = Math.ceil((decaySeconds + 0.12) * sampleRate);
+  const wav = Buffer.alloc(44 + frames * 4);
+  wav.write("RIFF", 0);
+  wav.writeUInt32LE(wav.length - 8, 4);
+  wav.write("WAVE", 8);
+  wav.write("fmt ", 12);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(2, 22);
+  wav.writeUInt32LE(sampleRate, 24);
+  wav.writeUInt32LE(sampleRate * 4, 28);
+  wav.writeUInt16LE(4, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write("data", 36);
+  wav.writeUInt32LE(frames * 4, 40);
+  let seed = 0x6d2b79f5;
+  const random = () => {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return ((seed >>> 0) / 0xffffffff) * 2 - 1;
+  };
+  const reflections = [
+    [0.017, 0.25, -1], [0.031, 0.19, 1], [0.047, 0.14, -1],
+    [0.073, 0.11, 1], [0.101, 0.085, -1], [0.137, 0.065, 1],
+    [0.181, 0.048, -1], [0.229, 0.035, 1]
+  ].map(([seconds, gain, side]) => ({ sample: Math.round(seconds * sampleRate), gain, side }));
+  let smoothLeft = 0;
+  let smoothRight = 0;
+  for (let i = 0; i < frames; i++) {
+    const seconds = i / sampleRate;
+    const envelope = Math.exp(-6.2 * seconds / decaySeconds);
+    smoothLeft = smoothLeft * 0.78 + random() * 0.22;
+    smoothRight = smoothRight * 0.78 + random() * 0.22;
+    let left = i === 0 ? 0.78 : smoothLeft * 0.11 * envelope;
+    let right = i === 0 ? 0.78 : smoothRight * 0.11 * envelope;
+    for (const reflection of reflections) {
+      if (i === reflection.sample) {
+        if (reflection.side < 0) left += reflection.gain;
+        else right += reflection.gain;
+      }
+    }
+    const offset = 44 + i * 4;
+    wav.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(left * 32767))), offset);
+    wav.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(right * 32767))), offset + 2);
+  }
+  return wav;
+}
+
+async function writeImpulseResponse(path, decaySeconds) {
+  await writeFile(path, makeImpulseResponse(decaySeconds));
+}
+
+async function runExternal(command, args, timeoutMs = 15 * 60 * 1000) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: "1",
+        OMP_NUM_THREADS: process.env.OMP_NUM_THREADS || "2",
+        OPENBLAS_NUM_THREADS: process.env.OPENBLAS_NUM_THREADS || "1"
+      }
+    });
+    const errors = [];
+    let errorBytes = 0;
+    let settled = false;
+    let timer;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      fn(value);
+    };
+    child.stderr.on("data", chunk => {
+      if (errorBytes >= 12000) return;
+      errors.push(chunk);
+      errorBytes += chunk.length;
+    });
+    child.once("error", error => finish(reject, error));
+    timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      finish(reject, new Error("A separação vocal excedeu o tempo limite. Tente uma música mais curta."));
+    }, timeoutMs);
+    timer.unref?.();
+    child.once("close", code => {
+      const detail = Buffer.concat(errors).toString().trim();
+      if (code === 0) return finish(resolve);
+      finish(reject, new Error(
+        "O separador vocal falhou (" + code + "). " +
+        (detail.slice(-1400) || "Verifique a instalação do motor de áudio.")
+      ));
+    });
+  });
+}
+
+async function applyConvolutionReverb(inputPath, outputPath, dir, settings) {
+  const impulsePath = join(dir, "togi-room-ir.wav");
+  await writeImpulseResponse(impulsePath, settings.decaySeconds);
+  const graph =
+    "[0:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[src];" +
+    "[1:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[ir];" +
+    "[src][ir]afir=dry=1.0:wet=" + settings.wet +
+    ":irfmt=input:irnorm=1,alimiter=limit=0.95,apad=pad_dur=" +
+    settings.tailSeconds + "[out]";
+  await runFfmpeg([
+    "-y", "-i", inputPath, "-i", impulsePath,
+    "-filter_complex", graph, "-map", "[out]", "-vn",
+    "-ar", "44100", "-ac", "2", "-c:a", "libmp3lame",
+    "-b:a", "128k", "-f", "mp3", outputPath
+  ]);
+}
+
+export async function processOnlyReverb(buffer, mode) {
+  if (!["normal", "ultra"].includes(mode)) throw new Error("Escolha o modo normal ou ultra.");
+  const dir = await mkdtemp(join(tmpdir(), "togi-only-reverb-"));
+  const inputPath = join(dir, "source-audio");
+  const stemsDir = join(dir, "stems");
+  const vocalPath = join(stemsDir, "vocals.wav");
+  const outputPath = join(dir, "only-reverb.mp3");
+  const pythonPath = process.env.TOGI_AUDIO_PYTHON
+    || join(process.cwd(), ".venv-audio", "bin", "python");
+  const scriptPath = join(process.cwd(), "scripts", "only-reverb-separate.py");
+  try {
+    await writeFile(inputPath, buffer);
+    if (!process.env.TOGI_AUDIO_PYTHON) {
+      await stat(pythonPath).catch(() => {
+        throw new Error("O motor Only Reverb não está instalado. Execute uma vez: bash scripts/setup-audio-ai.sh");
+      });
+    }
+    await runExternal(pythonPath, [scriptPath, mode, inputPath, stemsDir]);
+    const vocalStat = await stat(vocalPath).catch(() => null);
+    if (!vocalStat?.size) throw new Error("A IA não gerou a faixa vocal esperada.");
+    if (vocalStat.size > MAX_INPUT_BYTES) throw new Error("A faixa vocal excedeu o limite de processamento.");
+    const settings = mode === "ultra"
+      ? { decaySeconds: 3.0, wet: 0.66, tailSeconds: 3.2 }
+      : { decaySeconds: 2.1, wet: 0.53, tailSeconds: 2.3 };
+    await applyConvolutionReverb(vocalPath, outputPath, dir, settings);
+    const outputStat = await stat(outputPath);
+    if (!outputStat.size || outputStat.size > MAX_OUTPUT_BYTES) {
+      throw new Error("O resultado processado está vazio ou excedeu o limite permitido.");
+    }
+    return {
+      buffer: await readFile(outputPath),
+      mimeType: "audio/mpeg",
+      extension: "mp3",
+      label: mode === "ultra" ? "Only Reverb Ultra" : "Only Reverb Normal"
+    };
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 async function analyzeAudio(buffer) {
   const dir = await mkdtemp(join(tmpdir(), 'togi-analyze-'));
   const inputPath = join(dir, 'input');
@@ -180,29 +335,14 @@ export async function processAudio(buffer, operation, amount = 5) {
   if (!config) throw new Error('Efeito de áudio inválido.');
 
   let audioFilter = config.filter;
+  let convolutionLevel = null;
   if (operation === 'reverb') {
-    const level = Math.max(1, Math.min(10, Number(amount) || 5));
-    const delay = Math.round(60 + level * 32);
-    const decay = (0.10 + level * 0.065).toFixed(3);
-    audioFilter = `aecho=0.82:0.90:${delay}:${decay}`;
+    convolutionLevel = Math.max(1, Math.min(10, Number(amount) || 5));
+    audioFilter = null;
   }
-
   if (operation === 'ultrareverb') {
-    const state = await analyzeAudio(buffer);
-    const quiet = state.meanDb < -27;
-    const hot = state.maxDb > -1.2;
-
-    const inputGain = quiet ? 0.92 : 0.80;
-    const outputGain = hot ? 0.80 : 0.94;
-    const delays = quiet ? '78|156|300' : hot ? '105|210|390' : '92|184|345';
-    const decays = quiet ? '0.34|0.22|0.12' : hot ? '0.26|0.17|0.09' : '0.31|0.20|0.11';
-    const makeup = quiet ? 2 : 1;
-
-    audioFilter =
-      `highpass=28,lowpass=18500,` +
-      `acompressor=threshold=-18dB:ratio=2.4:attack=20:release=240:makeup=${makeup},` +
-      `aecho=${inputGain}:${outputGain}:${delays}:${decays},` +
-      `alimiter=limit=0.95`;
+    convolutionLevel = 9;
+    audioFilter = null;
   }
 
   if (operation === 'liquid') {
@@ -221,18 +361,27 @@ export async function processAudio(buffer, operation, amount = 5) {
   try {
     await writeFile(inputPath, buffer);
 
-    const args = ['-y', '-i', inputPath, '-vn'];
-    if (audioFilter) args.push('-filter:a', audioFilter);
-    args.push(
-      '-ar', '44100',
-      '-ac', '2',
-      '-c:a', 'libmp3lame',
-      '-b:a', '128k',
-      '-f', 'mp3',
-      outputPath
-    );
-
-    await runFfmpeg(args);
+    if (convolutionLevel !== null) {
+      const decaySeconds = 0.65 + convolutionLevel * 0.22;
+      const wet = (0.18 + convolutionLevel * 0.037).toFixed(3);
+      await applyConvolutionReverb(inputPath, outputPath, dir, {
+        decaySeconds,
+        wet,
+        tailSeconds: (decaySeconds + 0.25).toFixed(2)
+      });
+    } else {
+      const args = ['-y', '-i', inputPath, '-vn'];
+      if (audioFilter) args.push('-filter:a', audioFilter);
+      args.push(
+        '-ar', '44100',
+        '-ac', '2',
+        '-c:a', 'libmp3lame',
+        '-b:a', '128k',
+        '-f', 'mp3',
+        outputPath
+      );
+      await runFfmpeg(args);
+    }
 
     const outputStat = await stat(outputPath);
     if (!outputStat.size) throw new Error('O FFmpeg gerou um arquivo vazio.');
