@@ -179,12 +179,15 @@ async function runExternal(command, args, timeoutMs = 15 * 60 * 1000) {
       finish(reject, new Error("A separação vocal excedeu o tempo limite. Tente uma música mais curta."));
     }, timeoutMs);
     timer.unref?.();
-    child.once("close", code => {
+    child.once("close", (code, signal) => {
       const detail = Buffer.concat(errors).toString().trim();
       if (code === 0) return finish(resolve);
+      const termination = code === null && signal
+        ? `processo encerrado pelo sistema (${signal}); possível limite de memória do servidor`
+        : `código ${code}`;
       finish(reject, new Error(
-        "O separador vocal falhou (" + code + "). " +
-        (detail.slice(-1400) || "Verifique a instalação do motor de áudio.")
+        "O separador vocal falhou (" + termination + "). " +
+        (detail.slice(-1400) || "Verifique os logs do motor de áudio e os recursos disponíveis.")
       ));
     });
   });
