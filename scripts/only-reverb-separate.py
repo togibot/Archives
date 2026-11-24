@@ -5,10 +5,41 @@ import os
 import sys
 from pathlib import Path
 
-os.environ.setdefault("OMP_NUM_THREADS", "2")
-os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+# Keep native math libraries from creating extra worker pools on small hosts.
+for name in (
+    "OMP_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+):
+    os.environ[name] = "1"
 
 from demucs_onnx import separate_stem
+import demucs_onnx.inference as demucs_inference
+import onnxruntime as ort
+
+
+def enable_low_memory_runtime() -> None:
+    """Use a single sequential CPU worker and avoid large ORT memory pools."""
+    def make_session(onnx_path, providers):
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = 1
+        options.inter_op_num_threads = 1
+        options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        options.enable_cpu_mem_arena = False
+        options.enable_mem_pattern = False
+        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+        options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+        options.add_session_config_entry("session.inter_op.allow_spinning", "0")
+        return ort.InferenceSession(
+            str(onnx_path),
+            sess_options=options,
+            providers=list(providers),
+        )
+
+    # demucs-onnx creates its sessions through this factory. Replacing it
+    # before inference limits thread-related memory overhead on small servers.
+    demucs_inference._make_session = make_session
 
 
 def main() -> int:
@@ -30,12 +61,12 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     precision = "fp16weights" if mode == "normal" else "fp32"
     print(
-        f"Separando somente a voz: modo={mode}, modelo vocal especializado, precisão={precision}",
+        f"Separando somente a voz: modo={mode}, modelo especialista vocal, "
+        f"precisão={precision}, CPU=1 thread",
         flush=True,
     )
 
-    # separate_stem usa o modelo especialista de voz, evitando carregar o
-    # modelo completo de quatro stems quando o Togi só precisa de vocals.wav.
+    enable_low_memory_runtime()
     separate_stem(
         input=source,
         stem="vocals",
