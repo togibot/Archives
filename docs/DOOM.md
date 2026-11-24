@@ -49,14 +49,15 @@ Para consultar os logs:
 docker compose -f doom/compose.yml logs --tail=100 doom
 ```
 
-## 3. Configurar HTTPS
+## 3. Configurar HTTPS e a rota global
 
-Adicione o conteúdo de doom/Caddyfile.example ao Caddyfile do proxy público
-e troque doom.seudominio.com pelo domínio real. O DNS precisa apontar para
-o servidor. Caddy deve poder receber conexões públicas nas portas 80 e 443
-para emitir e renovar o certificado.
+Use o exemplo de `doom/Caddyfile.example` no Caddyfile do proxy público.
+Troque `games.seudominio.com` pelo domínio real e configure o DNS para
+apontar ao servidor. O Caddy deve receber conexões públicas nas portas
+80 e 443 para emitir e renovar o certificado.
 
-O bloco do site deve preservar estes cabeçalhos na resposta:
+O exemplo publica DOOM em `/doom/` no domínio global e encaminha essa rota
+ao container local na porta 8091. Ele também configura os cabeçalhos:
 
 - Cross-Origin-Opener-Policy: same-origin
 - Cross-Origin-Embedder-Policy: require-corp
@@ -65,21 +66,33 @@ O bloco do site deve preservar estes cabeçalhos na resposta:
 Depois de recarregar o proxy, teste:
 
 ```bash
-curl -I https://doom.seudominio.com/
+curl -I https://games.seudominio.com/doom/
 ```
 
 Confirme que os três cabeçalhos acima aparecem na resposta.
 
 ## 4. Conectar ao Togi Games
 
-No arquivo `.env` da instalação do Togi, configure:
+No arquivo `.env` da instalação do Togi, configure somente a URL-base:
 
 ```env
 TOGI_GAMES_NAME=Togi Games
-TOGI_GAME_DOOM_URL=https://doom.seudominio.com/
+TOGI_GAMES_URL=https://games.seudominio.com
 ```
 
-A variável antiga `TOGI_DOOM_URL` continua aceita como fallback.
+O Togi monta automaticamente os endereços por jogo:
+
+- `https://games.seudominio.com/doom/`
+- `https://games.seudominio.com/quake/`
+- `https://games.seudominio.com/wolf3d/`
+- `https://games.seudominio.com/hexen/`
+- `https://games.seudominio.com/supertuxkart/`
+- `https://games.seudominio.com/openttd/`
+
+**Importante:** a URL-base é única, mas cada rota precisa apontar para um jogo realmente hospedado. O exemplo deste documento publica apenas DOOM; os outros jogos continuam indisponíveis até que seus motores sejam instalados e suas rotas adicionadas ao proxy.
+
+As variáveis antigas `TOGI_GAME_DOOM_URL`, `TOGI_DOOM_URL` e as antigas URLs individuais dos demais jogos continuam aceitas como compatibilidade, mas não são necessárias na configuração nova.
+
 Reinicie o Togi para carregar as variáveis. Depois, no WhatsApp:
 
 - `.jogos` — mostra o catálogo Togi Games.
