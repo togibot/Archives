@@ -1,13 +1,10 @@
 function getGameUrl() {
-  const configured = String(process.env.TOGI_DOOM_URL || '').trim();
+  const configured = String(process.env.TOGI_GAME_DOOM_URL || process.env.TOGI_DOOM_URL || '').trim();
   if (!configured) return null;
 
   try {
     const url = new URL(configured);
     if (url.protocol !== 'https:' || url.username || url.password) return null;
-
-    // The published UZDoom build bundles Freedoom, so players can start
-    // without uploading a commercial IWAD.
     url.searchParams.set('iwad', 'freedoom1.wad');
     url.searchParams.set('warp', '1,1');
     url.searchParams.set('nomelt', '1');
@@ -22,7 +19,6 @@ export default {
   aliases: [],
   category: 'games',
   description: 'Abre DOOM jogável no navegador, com controles touch.',
-
   async execute({ args = [], reply }) {
     const action = String(args[0] || '').toLowerCase();
 
@@ -48,10 +44,7 @@ export default {
       return reply([
         '⚠️ *TOGI DOOM ainda não está configurado.*',
         '',
-        'O motor do jogo já foi escolhido, mas falta publicar o servidor HTTPS e definir TOGI_DOOM_URL no .env do Togi.',
-        '',
-        'Formato esperado:',
-        'TOGI_DOOM_URL=https://doom.seudominio.com/',
+        'O motor do jogo já foi escolhido, mas falta publicar o servidor HTTPS e definir TOGI_GAME_DOOM_URL no .env do Togi.',
         '',
         'Consulte docs/DOOM.md para preparar o servidor.'
       ].join('\n'));
