@@ -49,7 +49,13 @@ A moeda oficial do Togi Bot é **Token**.
 
 `quiz` • `quizrank` • `quizstats` • `quizstreak`
 
-`.doom` — abre Freedoom, compatível com Doom, no navegador (requer servidor HTTPS configurado).
+## 🎮 TOGI GAMES
+
+- `.jogos` — mostra o catálogo Togi Games.
+- `.jogar <id>` — abre um jogo configurado.
+- `.doom` — atalho para DOOM/Freedoom.
+
+O catálogo inicial prevê DOOM/Freedoom, Quake, Wolfenstein 3D, Hexen, SuperTuxKart e OpenTTD. Cada jogo externo precisa de uma URL HTTPS pública e de uma hospedagem compatível antes de ficar disponível.
 
 ## 👥 GRUPOS / MODERAÇÃO
 
