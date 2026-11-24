@@ -4,12 +4,12 @@ export default {
   name: 'ultrareverb',
   aliases: ['ureverb'],
   category: 'music',
-  description: 'Aplica o Ultra Reverb com análise automática do áudio.',
+  description: 'Aplica reverberação de ambiente intensa com convolução.',
   async execute({ sock, chat, message, reply }) {
     try {
       const target = getAudioTarget(message);
       const input = await downloadAudioTarget(target);
-      await reply('🌌 *Ultra Reverb* analisando o estado do áudio...');
+      await reply('🌌 *Ultra Reverb* criando uma cauda de reverberação mais profunda...');
 
       const result = await processAudio(input, 'ultrareverb');
 
