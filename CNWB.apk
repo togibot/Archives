@@ -1,0 +1,14 @@
+#!/bin/sh
+# Request the WhatsApp Business launcher on a local Android environment.
+PACKAGE="com.whatsapp.w4b"
+
+if command -v am >/dev/null 2>&1; then
+  if am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p "$PACKAGE"; then
+    exit 0
+  fi
+fi
+
+echo "[CNWB] O servidor remoto não consegue iniciar aplicativos no seu celular."
+echo "[CNWB] Link de abertura do WhatsApp Business (Android):"
+printf '%s\n' 'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.whatsapp.w4b;end'
+echo "[CNWB] Copie/abra o link no Android. O WhatsApp Business precisa estar instalado."
