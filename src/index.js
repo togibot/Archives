@@ -211,12 +211,11 @@ async function startBot() {
 
   logInfo(`🚀 ${config.bot.name} iniciando`, [`📦 ${commands.size} comandos carregados`, `🗃️ Banco: ${process.env.DATABASE_PATH || './data/togi.sqlite'}`, '🛡️ Anti-palavrão: DESATIVADO']);
 
-  if (!state.creds.registered && pairingPhone) {
-    void requestPairingIfNeeded();
-  }
-
+  // Solicita o código somente quando o socket já iniciou a conexão.
+  // Pedir antes do evento "connecting" pode gerar um código rejeitado pelo WhatsApp.
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
-    if (!state.creds.registered && pairingPhone && !pairingRequested && qr) {
+    if (!state.creds.registered && pairingPhone && !pairingRequested &&
+        (connection === 'connecting' || Boolean(qr))) {
       void requestPairingIfNeeded();
     }
     if (connection === 'open') { logInfo('🟢 TOGI CONECTADO', [`🤖 ${config.bot.name}`, `📦 ${commands.size} comandos disponíveis`]); if (!scheduleTimer) { scheduleTimer = setInterval(() => processGroupSchedules(sock), 60000); scheduleTimer.unref?.(); processGroupSchedules(sock).catch(() => {}); } }
@@ -232,8 +231,6 @@ async function startBot() {
       // Reinicia o socket dentro do mesmo processo. O bootstrap mantém o lock
       // da instância; não dependemos de um watchdog externo.
       if (restartTimer) return;
-      // Fecha o socket recusado antes de recriar a sessão e solicitar novo código.
-      try { sock.end(new Error(`WhatsApp desconectado: ${statusCode ?? 'unknown'}`)); } catch {}
       restartTimer = setTimeout(async () => {
         restartTimer = null;
         try {
