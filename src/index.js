@@ -232,12 +232,13 @@ async function startBot() {
       // Reinicia o socket dentro do mesmo processo. O bootstrap mantém o lock
       // da instância; não dependemos de um watchdog externo.
       if (restartTimer) return;
+      // Fecha o socket recusado antes de recriar a sessão e solicitar novo código.
+      try { sock.end(new Error(`WhatsApp desconectado: ${statusCode ?? 'unknown'}`)); } catch {}
       restartTimer = setTimeout(async () => {
         restartTimer = null;
         try {
           if (loggedOut) {
-            // 401 = sessão recusada pelo WhatsApp. Limpa apenas a autenticação
-            // para solicitar um novo pairing code; banco e demais dados ficam intactos.
+            // 401 = sessão recusada. Limpa apenas as credenciais do Baileys.
             await fs.rm(config.connection.authDir, { recursive: true, force: true });
             await fs.mkdir(config.connection.authDir, { recursive: true });
             logInfo('🔐 SESSÃO PRECISA SER VINCULADA NOVAMENTE', [
